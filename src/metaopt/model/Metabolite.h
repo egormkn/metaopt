@@ -21,7 +21,7 @@ class Model;
 class Metabolite : public boost::enable_shared_from_this<Metabolite>
 {
 public:
-	Metabolite();
+	Metabolite(boost::weak_ptr<Model> model);
 	virtual ~Metabolite();
 
 

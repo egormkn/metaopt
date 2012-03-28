@@ -13,5 +13,6 @@
     #define foreach BOOST_FOREACH
 #endif
 
+#define LIBSBML_USE_CPP_NAMESPACE
 
 #endif

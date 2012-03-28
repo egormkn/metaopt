@@ -28,7 +28,7 @@ struct ModelOwnershipError : virtual boost::exception, virtual std::exception { 
  * Also, a list of reactions with objective coefficient unequal to zero is maintained for the same reason.
  * Hence, it is important to call updateReaction(ReactionPtr) if a reaction was modified (usually the reaction implementation does this automatically).
  */
-class Model {
+class Model  : public boost::enable_shared_from_this<Model> {
 public:
 	Model();
 	virtual ~Model();
@@ -38,7 +38,7 @@ public:
 	 *
 	 * Important: This returns a reference to the internally stored list. Do not modify it.
 	 */
-	const boost::unordered_set<ReactionPtr>& getReactions() const;
+	virtual const boost::unordered_set<ReactionPtr>& getReactions() const = 0;
 
 	/**
 	 * Returns the list of flux forcing reactions in this model.
@@ -55,20 +55,6 @@ public:
 	const boost::unordered_set<ReactionPtr>& getObjectiveReactions() const;
 
 	/**
-	 * Creates a new Reaction in this model. The created Reaction is automatically added to this Model.
-	 *
-	 * @returns the created Reaction for setting bounds, objective coefficient and stoichiometries.
-	 */
-	virtual const ReactionPtr createReaction() = 0;
-
-	/**
-	 * Deletes a Reaction from this Model.
-	 *
-	 * @param reaction the Reaction to delete
-	 */
-	virtual void deleteReaction(ReactionPtr reaction);
-
-	/**
 	 * Updates a reaction in this Model.
 	 *
 	 * This method must be called, if bounds or objective coefficients have changed.
@@ -83,21 +69,7 @@ public:
 	 *
 	 * Important: This returns a reference to the internally stored list. Do not modify it.
 	 */
-	const boost::unordered_set<MetabolitePtr>& getMetabolites() const;
-
-	/**
-	 * Creates a new Metabolite in this model. The created Metabolite is automatically added to this Model.
-	 *
-	 * @returns the created Metabolite for setting bounds, stoichiometries, etc.
-	 */
-	virtual const MetabolitePtr createMetabolite() = 0;
-
-	/**
-	 * Deletes a Metabolite from this Model.
-	 *
-	 * @param metabolite the Metabolite to delete
-	 */
-	virtual void deleteMetabolite(MetabolitePtr metabolite);
+	virtual const boost::unordered_set<MetabolitePtr>& getMetabolites() const = 0;
 
 	/**
 	 * Updates a metabolite in this Model.
@@ -108,12 +80,11 @@ public:
 	 */
 	virtual void updateMetabolite(MetabolitePtr metabolite);
 
-private:
-	boost::unordered_set<ReactionPtr> _reactions; /** list of all reactions */
+
+protected:
 	boost::unordered_set<ReactionPtr> _fluxforcing; /** list of all flux forcing reactions */
 	boost::unordered_set<ReactionPtr> _objective; /** list of all objective reactions */
 
-	boost::unordered_set<MetabolitePtr> _metabolites; /** list of all metabolites */
 };
 
 } /* namespace metaopt */

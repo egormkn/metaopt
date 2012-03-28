@@ -24,18 +24,6 @@ Model::~Model() {
 	// nothing to do yet
 }
 
-void Model::deleteReaction(ReactionPtr reaction) {
-	assert(_reactions.find(reaction) != _reactions.end());
-	_reactions.erase(reaction);
-	_fluxforcing.erase(reaction);
-	_objective.erase(reaction);
-}
-
-void Model::deleteMetabolite(MetabolitePtr metabolite) {
-	assert(_metabolites.find(metabolite) != _metabolites.end());
-	assert(metabolite->isIsolated());
-}
-
 const unordered_set<ReactionPtr>& Model::getFluxForcingReactions() const {
 	return _fluxforcing;
 }
@@ -44,16 +32,8 @@ const unordered_set<ReactionPtr>& Model::getObjectiveReactions() const {
 	return _objective;
 }
 
-const unordered_set<ReactionPtr>& Model::getReactions() const {
-	return _reactions;
-}
-
-const unordered_set<MetabolitePtr>& Model::getMetabolites() const {
-	return _metabolites;
-}
-
 void Model::updateReaction(ReactionPtr reaction) {
-	assert(_reactions.find(reaction) != _reactions.end());
+	assert(getReactions().find(reaction) != getReactions().end());
 	bool was_fluxforcing = _fluxforcing.find(reaction) != _fluxforcing.end();
 	bool was_objective = _objective.find(reaction) != _objective.end();
 	if(was_fluxforcing) {
@@ -71,7 +51,7 @@ void Model::updateReaction(ReactionPtr reaction) {
 }
 
 void Model::updateMetabolite(MetabolitePtr metabolite) {
-	assert(_metabolites.find(metabolite) != _metabolites.end());
+	assert(getMetabolites().find(metabolite) != getMetabolites().end());
 	// nothing to do yet
 }
 

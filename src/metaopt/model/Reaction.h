@@ -48,40 +48,40 @@ public:
 	 *
 	 * @return the lower bound.
 	 */
-	virtual double getLb() const = 0;
+	virtual double getLb() const;
 
 	/** @brief Gets the upper bound on flux through this reaction.
 	 *
 	 * @return the upper bound.
 	 */
-	virtual double getUb() const = 0;
+	virtual double getUb() const;
 
 	/** @brief Gets the objective coefficient of the flux through this reaction.
 	 *
 	 * @return the objective coefficient.
 	 */
-	virtual double getObj() const = 0;
+	virtual double getObj() const;
 
 	/** @brief Sets the lower bound on flux through this reaction.
 	 *
 	 * Implementations shall call notifyChange() to update the Model of the change.
 	 * @param the lower bound.
 	 */
-	virtual void setLb(double lb) = 0;
+	virtual void setLb(double lb);
 
 	/** @brief Sets the upper bound on flux through this reaction.
 	 *
 	 * Implementations shall call notifyChange() to update the Model of the change.
 	 * @param the upper bound.
 	 */
-	virtual void setUb(double ub) = 0;
+	virtual void setUb(double ub);
 
 	/** @brief Sets the objective coefficient of the flux through this reaction.
 	 *
 	 * Implementations shall call notifyChange() to update the Model of the change.
 	 * @param the objective coefficient.
 	 */
-	virtual void setObj(double obj) = 0;
+	virtual void setObj(double obj);
 
 
 
@@ -89,7 +89,7 @@ public:
 	 *
 	 * @return the name of this reaction.
 	 */
-	virtual std::string getName() const = 0;
+	virtual std::string getName() const;
 
 
 

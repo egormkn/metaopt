@@ -20,9 +20,8 @@ using namespace boost;
 
 namespace metaopt {
 
-Metabolite::Metabolite() {
-	// TODO Auto-generated constructor stub
-
+Metabolite::Metabolite(weak_ptr<Model> model) {
+	_model = model;
 }
 
 Metabolite::~Metabolite() {
