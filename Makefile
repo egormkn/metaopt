@@ -4,7 +4,7 @@ SCIP_PATH=$(CURDIR)/../third_party/scip
 SCIP_LIB=$(SCIP_PATH)/lib
 SCIP_H=$(SCIP_PATH)/src
 
-SBML_PATH=/$(CURDIR)/../third_party/libsbml/build
+SBML_PATH=$(CURDIR)/../third_party/libsbml/build
 SBML_LIB=$(SBML_PATH)/lib
 SBML_H=$(SBML_PATH)/include
 
@@ -32,7 +32,9 @@ LIBRARY=libthermo.so
 
 
 CC=g++
-LD=ld
+# use g++ as linker to get C++ stuff correctly.
+# This has the additional consequence that the -rpath option has to be preceded by -Xlinker, since it is not a direct g++ command
+LD=g++
 
 CFLAGS=-Wall -fPIC
 LDFLAGS=-shared
@@ -48,7 +50,7 @@ clean :
 
 $(BIN_DIR)/$(LIBRARY) : $(OBJECTS)
 	mkdir -p $(BIN_DIR)
-	$(LD) -o $@ $(LDFLAGS) $(OBJECTS) -L$(SCIP_LIB) -L$(SBML_LIB) -rpath=$(SCIP_LIB):$(SBML_LIB) -lsbml -lscip -lobjscip -llpispx -lnlpi -lsoplex -lzimpl -lz -lgmp -lreadline -lncurses -lm
+	$(LD) -o $@ $(LDFLAGS) $(OBJECTS) -L$(SCIP_LIB) -L$(SBML_LIB) -Xlinker -rpath=$(SCIP_LIB):$(SBML_LIB) -lsbml -lscip -lobjscip -llpispx -lnlpi -lsoplex -lzimpl -lz -lgmp -lreadline -lncurses -lm
 
 obj/%.o: src/%.cpp
 	$(CC) $(CFLAGS) -c $< -o $@ -I$(SRC_DIR) -I$(SCIP_H) -I$(SBML_H)
