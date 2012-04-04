@@ -5,13 +5,14 @@
  *      Author: arne
  */
 
+#include "metaopt/Properties.h"
 #include <boost/throw_exception.hpp>
+#include <boost/unordered_map.hpp>
 #include <string>
 #include <iostream>
 
 #include "Reaction.h"
 #include "Model.h"
-#include "../Properties.h"
 
 using namespace boost;
 using namespace std;

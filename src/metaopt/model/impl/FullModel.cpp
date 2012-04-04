@@ -38,17 +38,8 @@ void FullModel::deleteMetabolite(MetabolitePtr metabolite) {
 	assert(metabolite->isIsolated());
 }
 
-
-void FullModel::updateReaction(ReactionPtr reaction) {
-
-}
-
 const MetabolitePtr FullModel::createMetabolite() {
 	return MetabolitePtr();
-}
-
-void FullModel::updateMetabolite(MetabolitePtr metabolite) {
-
 }
 
 const unordered_set<ReactionPtr>& FullModel::getReactions() const {
