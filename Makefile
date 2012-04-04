@@ -1,10 +1,10 @@
 # Makefile from scratch so I understand the build process
 
-SCIP_PATH=/home/bude/arnem/RAID/tfva/third_party/ziboptsuite-2.1.1/scip-2.1.1
+SCIP_PATH=$(CURDIR)/../third_party/scip
 SCIP_LIB=$(SCIP_PATH)/lib
 SCIP_H=$(SCIP_PATH)/src
 
-SBML_PATH=/home/bude/arnem/MolNet/impl2/third_party/libsbml-5.1.0-b0/build
+SBML_PATH=/$(CURDIR)/../third_party/libsbml/build
 SBML_LIB=$(SBML_PATH)/lib
 SBML_H=$(SBML_PATH)/include
 
