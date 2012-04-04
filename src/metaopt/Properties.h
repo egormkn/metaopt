@@ -9,10 +9,9 @@
 
 #ifdef __CDT_PARSER__
 	#define foreach(a, b) for(a : b)
+	#define BOOST_THROW_EXCEPTION(x)
 #else
     #define foreach BOOST_FOREACH
 #endif
-
-#define LIBSBML_USE_CPP_NAMESPACE
 
 #endif

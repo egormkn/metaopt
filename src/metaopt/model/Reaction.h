@@ -39,7 +39,7 @@ public:
 	 *
 	 * @param model a weak pointer to the owning model. The pointer is weak to prevent loops.
 	 */
-	Reaction(boost::weak_ptr<Model> model);
+	Reaction(boost::weak_ptr<Model> model, std::string name);
 	virtual ~Reaction();
 
 
@@ -48,40 +48,40 @@ public:
 	 *
 	 * @return the lower bound.
 	 */
-	virtual double getLb() const;
+	double getLb() const;
 
 	/** @brief Gets the upper bound on flux through this reaction.
 	 *
 	 * @return the upper bound.
 	 */
-	virtual double getUb() const;
+	double getUb() const;
 
 	/** @brief Gets the objective coefficient of the flux through this reaction.
 	 *
 	 * @return the objective coefficient.
 	 */
-	virtual double getObj() const;
+	double getObj() const;
 
 	/** @brief Sets the lower bound on flux through this reaction.
 	 *
 	 * Implementations shall call notifyChange() to update the Model of the change.
 	 * @param the lower bound.
 	 */
-	virtual void setLb(double lb);
+	void setLb(double lb);
 
 	/** @brief Sets the upper bound on flux through this reaction.
 	 *
 	 * Implementations shall call notifyChange() to update the Model of the change.
 	 * @param the upper bound.
 	 */
-	virtual void setUb(double ub);
+	void setUb(double ub);
 
 	/** @brief Sets the objective coefficient of the flux through this reaction.
 	 *
 	 * Implementations shall call notifyChange() to update the Model of the change.
 	 * @param the objective coefficient.
 	 */
-	virtual void setObj(double obj);
+	void setObj(double obj);
 
 
 
@@ -89,9 +89,12 @@ public:
 	 *
 	 * @return the name of this reaction.
 	 */
-	virtual std::string getName() const;
+	std::string getName() const;
 
+	/** true, if this reaction is an exchange reaction */
+	bool isExchange() const;
 
+	void setExchange(bool exchange);
 
 	/** @brief returns a map of the metabolites involved in this reaction with their stoichiometric coefficients.
 	 *
@@ -174,6 +177,12 @@ private:
 	boost::unordered_map<MetabolitePtr, double> _reactants; /** list of all reactants */
 	boost::unordered_map<MetabolitePtr, double> _products; /** list of all products */
 
+	std::string _name;
+	double _lb;
+	double _ub;
+	double _obj;
+	bool _exchange;
+
 	void notifyChange(); /** notifies the Model of changes performed on this Reaction. */
 };
 
@@ -183,6 +192,46 @@ typedef boost::shared_ptr<Reaction> ReactionPtr;
 /** If an error is thrown by a method of this Reaction, the name of this Reaction is added using this tag */
 typedef boost::error_info<struct tag_reaction_name,std::string> reaction_name;
 
+
+/////////////////////////////////////
+// Inline function defs
+/////////////////////////////////////
+
+inline double Reaction::getLb() const {
+	return _lb;
+}
+
+inline double Reaction::getUb() const {
+	return _ub;
+}
+
+inline double Reaction::getObj() const {
+	return _obj;
+}
+
+inline void Reaction::setLb(double lb) {
+	_lb = lb;
+}
+
+inline void Reaction::setUb(double ub) {
+	_ub = ub;
+}
+
+inline void Reaction::setObj(double obj) {
+	_obj = obj;
+}
+
+inline std::string Reaction::getName() const {
+	return _name;
+}
+
+inline bool Reaction::isExchange() const {
+	return _exchange;
+}
+
+inline void Reaction::setExchange(bool exchange) {
+	_exchange = exchange;
+}
 
 } /* namespace metaopt */
 

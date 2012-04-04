@@ -20,15 +20,17 @@ using namespace boost;
 
 namespace metaopt {
 
-Metabolite::Metabolite(weak_ptr<Model> model) {
+Metabolite::Metabolite(weak_ptr<Model> model, std::string name) {
 	_model = model;
+	_name = name;
 }
 
 Metabolite::~Metabolite() {
 	// TODO Auto-generated destructor stub
 }
 
-inline void Metabolite::notifyChange() {
+
+void Metabolite::notifyChange() {
 	if(_model.expired()) {
 		BOOST_THROW_EXCEPTION(ModelOwnershipError() << metabolite_name(getName()));
 	}

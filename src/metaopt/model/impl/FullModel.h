@@ -10,7 +10,6 @@
 
 #include "metaopt/Properties.h"
 #include "metaopt/model/Model.h"
-#include "sbml/Model.h"
 
 namespace metaopt {
 
@@ -19,7 +18,7 @@ namespace metaopt {
  */
 class FullModel: public metaopt::Model {
 public:
-	FullModel(boost::shared_ptr<libsbml::Model> model);
+	FullModel();
 	virtual ~FullModel();
 
 	//////////////////////////////////////////////////
@@ -45,7 +44,7 @@ public:
 	 *
 	 * @returns the created Reaction for setting bounds, objective coefficient and stoichiometries.
 	 */
-	const ReactionPtr createReaction();
+	const ReactionPtr createReaction(std::string name);
 
 	/**
 	 * Deletes a Reaction from this Model.
@@ -69,7 +68,7 @@ public:
 	 *
 	 * @returns the created Metabolite for setting bounds, stoichiometries, etc.
 	 */
-	const MetabolitePtr createMetabolite();
+	const MetabolitePtr createMetabolite(std::string name);
 
 	/**
 	 * Deletes a Metabolite from this Model.
@@ -88,8 +87,6 @@ public:
 	void updateMetabolite(MetabolitePtr metabolite);
 
 private:
-	boost::shared_ptr<libsbml::Model> _model;
-
 	boost::unordered_set<ReactionPtr> _reactions; /** list of all reactions */
 	boost::unordered_set<MetabolitePtr> _metabolites; /** list of all metabolites */
 };

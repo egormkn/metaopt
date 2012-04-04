@@ -5,29 +5,29 @@
  *      Author: arne
  */
 
-#include "metaopt/Properties.h"
 #include <boost/throw_exception.hpp>
-#include <boost/unordered_map.hpp>
 #include <string>
 #include <iostream>
 
 #include "Reaction.h"
 #include "Model.h"
+#include "../Properties.h"
 
 using namespace boost;
 using namespace std;
 
 namespace metaopt {
 
-Reaction::Reaction(weak_ptr<Model> model) {
+Reaction::Reaction(weak_ptr<Model> model, std::string name) {
 	_model = model;
+	_name = name;
 }
 
 Reaction::~Reaction() {
 	// weak pointer auto-destructs
 }
 
-inline void Reaction::notifyChange() {
+void Reaction::notifyChange() {
 	if(_model.expired()) {
 		BOOST_THROW_EXCEPTION( ModelOwnershipError() << reaction_name(getName()) );
 	}

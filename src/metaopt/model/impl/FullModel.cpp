@@ -7,21 +7,21 @@
 
 #include "FullModel.h"
 
+using namespace std;
 using namespace boost;
 
 namespace metaopt {
 
-FullModel::FullModel(shared_ptr<libsbml::Model> model) {
-	_model = model;
+FullModel::FullModel() {
 }
 
 FullModel::~FullModel() {
 	// nothing to do
 }
 
-const ReactionPtr FullModel::createReaction() {
+const ReactionPtr FullModel::createReaction(string name) {
 	weak_ptr<Model> ptr = shared_from_this();
-	ReactionPtr r = shared_ptr<Reaction>(new Reaction(ptr));
+	ReactionPtr r = shared_ptr<Reaction>(new Reaction(ptr, name));
 	_reactions.insert(r);
 	return r;
 }
@@ -38,8 +38,20 @@ void FullModel::deleteMetabolite(MetabolitePtr metabolite) {
 	assert(metabolite->isIsolated());
 }
 
-const MetabolitePtr FullModel::createMetabolite() {
-	return MetabolitePtr();
+
+void FullModel::updateReaction(ReactionPtr reaction) {
+	Model::updateReaction(reaction);
+}
+
+const MetabolitePtr FullModel::createMetabolite(string name) {
+	weak_ptr<Model> ptr = shared_from_this();
+	MetabolitePtr m = shared_ptr<Metabolite>(new Metabolite(ptr, name));
+	_metabolites.insert(m);
+	return m;
+}
+
+void FullModel::updateMetabolite(MetabolitePtr metabolite) {
+	Model::updateMetabolite(metabolite);
 }
 
 const unordered_set<ReactionPtr>& FullModel::getReactions() const {

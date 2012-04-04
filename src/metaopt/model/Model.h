@@ -87,5 +87,9 @@ protected:
 
 };
 
+/** Please use ModelPtr to handle pointers to Model instances */
+typedef boost::shared_ptr<Model> ModelPtr;
+
+
 } /* namespace metaopt */
 #endif /* MODEL_H_ */
