@@ -147,4 +147,32 @@ bool ScipModel::hasPotentialVar(MetabolitePtr met) {
 	return iter != _metabolites.end();
 }
 
+bool ScipModel::hasCurrentFlux() {
+	return(!_reactions.empty() && SCIPgetLPSolstat(_scip) == SCIP_LPSOLSTAT_OPTIMAL);
+}
+
+bool ScipModel::hasCurrentPotentials() {
+	return(!_metabolites.empty() && SCIPgetLPSolstat(_scip) == SCIP_LPSOLSTAT_OPTIMAL);
+}
+
+double ScipModel::getCurrentFlux(ReactionPtr rxn) {
+	if( SCIPgetLPSolstat(_scip) != SCIP_LPSOLSTAT_OPTIMAL) {
+		BOOST_THROW_EXCEPTION( PreconditionViolatedException() << var_state("LP not solved to optimality") );
+	}
+	else {
+		return SCIPgetVarSol(_scip, getFlux(rxn));
+	}
+}
+
+
+double ScipModel::getCurrentPotential(MetabolitePtr met) {
+	if( SCIPgetLPSolstat(_scip) != SCIP_LPSOLSTAT_OPTIMAL) {
+		BOOST_THROW_EXCEPTION( PreconditionViolatedException() << var_state("LP not solved to optimality") );
+	}
+	else {
+		return SCIPgetVarSol(_scip, getPotential(met));
+	}
+}
+
+
 } /* namespace metaopt */

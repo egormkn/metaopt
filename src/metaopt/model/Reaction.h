@@ -192,6 +192,9 @@ typedef boost::shared_ptr<Reaction> ReactionPtr;
 /** If an error is thrown by a method of this Reaction, the name of this Reaction is added using this tag */
 typedef boost::error_info<struct tag_reaction_name,std::string> reaction_name;
 
+/** Typedef for easy use of foreach iteration through stoichiometry data */
+typedef std::pair<MetabolitePtr, double> Stoichiometry ;
+
 
 /////////////////////////////////////
 // Inline function defs

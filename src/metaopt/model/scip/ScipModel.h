@@ -14,6 +14,8 @@
 
 namespace metaopt {
 
+struct PreconditionViolatedException : virtual boost::exception, virtual std::exception { };
+
 class ScipModel {
 public:
 	/** do not use, use factory method of Model instead! */
@@ -62,6 +64,40 @@ public:
 	double getCurrentPotentialLb(MetabolitePtr met);
 
 	/**
+	 * Checks, if there exists a current flux solution (of the current node in search tree).
+	 * This solution is usually the value of the LP relaxation of the current node.
+	 * Sometimes, the LP relaxation is not yet solved to feasibility and then there exists no current flux.
+	 * It can also happen that no flux variables have been initialized at all. In this case, this method will always return false.
+	 */
+	bool hasCurrentFlux();
+
+	/**
+	 * Checks, if there exists a current solution for the potentials (of the current node in search tree).
+	 * This solution is usually the value of the LP relaxation of the current node.
+	 * Sometimes, the LP relaxation is not yet solved to feasibility and then there exists no current potentials.
+	 * It can also happen that no potential variables have been initialized at all. In this case, this method will always return false.
+	 */
+	bool hasCurrentPotentials();
+
+	/**
+	 * Returns the flux value through the specified reaction.
+	 *
+	 * Precondition: hasCurrentFlux
+	 *
+	 * If the model has no current flux, a PreconditionViolatedException is thrown
+	 */
+	double getCurrentFlux(ReactionPtr rxn);
+
+	/**
+	 * Returns the potential of the specified metabolite.
+	 *
+	 * Precondition: hasCurrentPotential
+	 *
+	 * If the model has no current potentials, a PreconditionViolatedException is thrown
+	 */
+	double getCurrentPotential(MetabolitePtr met);
+
+	/**
 	 * checks if the variable representing the flux has already been created
 	 */
 	bool hasFluxVar(ReactionPtr rxn);
@@ -82,6 +118,9 @@ private:
 };
 
 typedef boost::shared_ptr<ScipModel> ScipModelPtr;
+
+/** If an error is thrown by a method of one of the getCurrentFlux or getCurrentPotential methods, this error_info states the reason */
+typedef boost::error_info<struct tag_state,std::string> var_state;
 
 } /* namespace metaopt */
 #endif /* SCIPMODEL_H_ */
