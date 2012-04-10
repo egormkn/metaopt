@@ -23,6 +23,7 @@ const ReactionPtr FullModel::createReaction(string name) {
 	weak_ptr<Model> ptr = shared_from_this();
 	ReactionPtr r = shared_ptr<Reaction>(new Reaction(ptr, name));
 	_reactions.insert(r);
+	updateReaction(r);
 	return r;
 }
 
@@ -47,6 +48,7 @@ const MetabolitePtr FullModel::createMetabolite(string name) {
 	weak_ptr<Model> ptr = shared_from_this();
 	MetabolitePtr m = shared_ptr<Metabolite>(new Metabolite(ptr, name));
 	_metabolites.insert(m);
+	updateMetabolite(m);
 	return m;
 }
 

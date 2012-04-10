@@ -53,6 +53,19 @@ public:
 	void setPotUb(double ub);
 
 
+	/** @brief Gets the objective on the potential of this metabolite.
+	 *
+	 * @return the objective.
+	 */
+	double getPotObj() const;
+
+	/** @brief Sets the objective on the potential of this metabolite.
+	 *
+	 * Implementations shall call notifyChange() to update the Model of the change.
+	 * @param the lower bound.
+	 */
+	void setPotObj(double obj);
+
 
 	/** @brief Fetches the name of this metabolite.
 	 *
@@ -85,6 +98,7 @@ private:
 
 	double _lb;
 	double _ub;
+	double _obj;
 	std::string _name;
 	bool _boundary;
 
@@ -113,10 +127,21 @@ inline double Metabolite::getPotUb() const {
 
 inline void Metabolite::setPotLb(double lb) {
 	_lb = lb;
+	notifyChange();
 }
 
 inline void Metabolite::setPotUb(double ub) {
 	_ub = ub;
+	notifyChange();
+}
+
+inline double Metabolite::getPotObj() const {
+	return _obj;
+}
+
+inline void Metabolite::setPotObj(double obj) {
+	_obj = obj;
+	notifyChange();
 }
 
 inline bool Metabolite::hasBoundaryCondition() const {

@@ -18,6 +18,7 @@ namespace metaopt {
 
 struct ModelOwnershipError : virtual boost::exception, virtual std::exception { };
 
+
 /** This class represents metabolic network models.
  *
  * A metabolic network consists of a list of reactions and metabolites.
