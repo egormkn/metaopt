@@ -67,12 +67,22 @@ public:
 	void setPotObj(double obj);
 
 
-	/** @brief Fetches the name of this metabolite.
+	/** @brief Fetches the name of this reaction.
+	 * Attention: Returns a copy of the name!!!
+	 * If you access the data of the string, make sure it still exists!
 	 *
-	 * @return the name of this metabolite.
+	 * @return the name of this reaction.
 	 */
 	std::string getName() const;
 
+	/** @brief Fetches the name of this reaction.
+	 * This does the same as getName(), but it does not copy the string.
+	 * It only returns a pointer to the internal data.
+	 * The pointer will be valid as long as this reaction lives.
+	 *
+	 * @return the name of this reaction.
+	 */
+	const char* getCName() const;
 
 	/** @brief tests if this metabolite is isolated.
 	 *
@@ -154,6 +164,10 @@ inline void Metabolite::setBoundaryCondition(bool boundary) {
 
 inline std::string Metabolite::getName() const {
   return _name;
+}
+
+inline const char* Metabolite::getCName() const {
+  return _name.c_str();
 }
 
 } /* namespace metaopt */

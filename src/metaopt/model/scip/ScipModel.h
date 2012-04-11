@@ -28,12 +28,16 @@ public:
 	 * fetches the scip variable representing the flux.
 	 * If the variable does not exist yet, it is created.
 	 * The default bounds are the bounds stored by the reaction.
+	 *
+	 * The pointer will be valid as long as this ScipModel lives.
 	 */
 	SCIP_VAR* getFlux(ReactionPtr rxn);
 	/**
 	 * fetches the scip variable representing the metabolite concentration.
 	 * If the variable does not exist yet, it is created.
 	 * The default bounds are the bounds stored by the metabolite.
+	 *
+	 * The pointer will be valid as long as this ScipModel lives.
 	 */
 	SCIP_VAR* getPotential(MetabolitePtr met);
 
@@ -106,6 +110,12 @@ public:
 	 */
 	bool hasPotentialVar(MetabolitePtr met);
 
+	/**
+	 * Returns the internal scip instance.
+	 * The pointer is valid as long as this ScipModel lives.
+	 */
+	SCIP* getScip();
+
 private:
 	ModelPtr _model;
 	SCIP* _scip;
@@ -116,6 +126,10 @@ private:
 	boost::unordered_map<MetabolitePtr, SCIP_VAR*> _metabolites;
 	boost::unordered_map<ReactionPtr, SCIP_VAR*> _reactions;
 };
+
+inline SCIP* ScipModel::getScip() {
+	return _scip;
+}
 
 typedef boost::shared_ptr<ScipModel> ScipModelPtr;
 

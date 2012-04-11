@@ -46,6 +46,26 @@ SCIP_RETCODE ScipModel::free_scip() {
 }
 
 ScipModel::~ScipModel() {
+	// free vars
+	typedef std::pair<ReactionPtr, SCIP_VAR*> ReactionVar;
+	typedef std::pair<MetabolitePtr, SCIP_VAR*> MetaboliteVar;
+	foreach(ReactionVar r, _reactions) {
+		SCIP_VAR* var = r.second;
+		int code = SCIPreleaseVar(_scip, &var);
+		if(code != SCIP_OKAY) {
+			std::cerr << "Failed to release var during destruction of ScipModel." << std::endl;
+		}
+	}
+	_reactions.clear();
+
+	foreach(MetaboliteVar r, _metabolites) {
+		SCIP_VAR* var = r.second;
+		int code = SCIPreleaseVar(_scip, &var);
+		if(code != SCIP_OKAY) {
+			std::cerr << "Failed to release var during destruction of ScipModel." << std::endl;
+		}
+	}
+	_metabolites.clear();
 
 	// free scip
 	if(free_scip() != SCIP_OKAY) {
@@ -62,7 +82,7 @@ SCIP_VAR* ScipModel::getFlux(ReactionPtr rxn) {
 		SCIP_VAR* var = NULL;
 		BOOST_SCIP_CALL( SCIPcreateVar(_scip,
 				&var,
-				rxn->getName().c_str(),
+				rxn->getCName(),
 				rxn->getLb(),
 				rxn->getUb(),
 				rxn->getObj(),
@@ -70,6 +90,9 @@ SCIP_VAR* ScipModel::getFlux(ReactionPtr rxn) {
 				true,
 				false,
 				0,0,0,0,0) );
+
+		BOOST_SCIP_CALL( SCIPmarkDoNotMultaggrVar(_scip, var) ); //TODO: Is this really necessary?
+
 		_reactions[rxn] = var;
 		return var;
 	}
@@ -84,7 +107,7 @@ SCIP_VAR* ScipModel::getPotential(MetabolitePtr met) {
 		SCIP_VAR* var = NULL;
 		BOOST_SCIP_CALL( SCIPcreateVar(_scip,
 				&var,
-				met->getName().c_str(),
+				met->getCName(),
 				met->getPotLb(),
 				met->getPotUb(),
 				met->getPotObj(),
@@ -92,6 +115,9 @@ SCIP_VAR* ScipModel::getPotential(MetabolitePtr met) {
 				true,
 				false,
 				0,0,0,0,0) );
+
+		BOOST_SCIP_CALL( SCIPmarkDoNotMultaggrVar(_scip, var) ); //TODO: Is this really necessary?
+
 		_metabolites[met] = var;
 		return var;
 	}
@@ -159,9 +185,7 @@ double ScipModel::getCurrentFlux(ReactionPtr rxn) {
 	if( SCIPgetLPSolstat(_scip) != SCIP_LPSOLSTAT_OPTIMAL) {
 		BOOST_THROW_EXCEPTION( PreconditionViolatedException() << var_state("LP not solved to optimality") );
 	}
-	else {
-		return SCIPgetVarSol(_scip, getFlux(rxn));
-	}
+	return SCIPgetVarSol(_scip, getFlux(rxn));
 }
 
 
@@ -169,9 +193,7 @@ double ScipModel::getCurrentPotential(MetabolitePtr met) {
 	if( SCIPgetLPSolstat(_scip) != SCIP_LPSOLSTAT_OPTIMAL) {
 		BOOST_THROW_EXCEPTION( PreconditionViolatedException() << var_state("LP not solved to optimality") );
 	}
-	else {
-		return SCIPgetVarSol(_scip, getPotential(met));
-	}
+	return SCIPgetVarSol(_scip, getPotential(met));
 }
 
 

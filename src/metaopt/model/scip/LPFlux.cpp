@@ -260,10 +260,10 @@ double LPFlux::getFlux(ReactionPtr rxn) {
 	}
 }
 
-double LPFlux::getPotential(MetabolitePtr met) {
+double LPFlux::getDual(MetabolitePtr met) {
 	boost::unordered_map<MetabolitePtr, int>::iterator iter = _metabolites.find(met);
 	if(iter == _metabolites.end()) {
-		return 0; // TODO: this is not the correct value!!!
+		return 0; // the constraint does not exist, hence it is never active, hence its dual value is always 0
 	}
 	else {
 		double dualsol[_num_metabolites];

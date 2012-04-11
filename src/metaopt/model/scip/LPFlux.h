@@ -101,7 +101,7 @@ public:
 
 	double getFlux(ReactionPtr rxn);
 
-	double getPotential(MetabolitePtr met);
+	double getDual(MetabolitePtr met);
 
 private:
 	ModelPtr _model;

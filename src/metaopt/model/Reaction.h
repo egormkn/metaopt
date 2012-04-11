@@ -86,10 +86,21 @@ public:
 
 
 	/** @brief Fetches the name of this reaction.
+	 * Attention: Returns a copy of the name!!!
+	 * If you access the data of the string, make sure it still exists!
 	 *
 	 * @return the name of this reaction.
 	 */
 	std::string getName() const;
+
+	/** @brief Fetches the name of this reaction.
+	 * This does the same as getName(), but it does not copy the string.
+	 * It only returns a pointer to the internal data.
+	 * The pointer will be valid as long as this reaction lives.
+	 *
+	 * @return the name of this reaction.
+	 */
+	const char* getCName() const;
 
 	/** true, if this reaction is an exchange reaction */
 	bool isExchange() const;
@@ -226,6 +237,10 @@ inline void Reaction::setObj(double obj) {
 
 inline std::string Reaction::getName() const {
 	return _name;
+}
+
+inline const char* Reaction::getCName() const {
+	return _name.c_str();
 }
 
 inline bool Reaction::isExchange() const {
