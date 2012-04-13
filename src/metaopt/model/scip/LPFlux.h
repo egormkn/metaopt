@@ -103,6 +103,16 @@ public:
 
 	double getDual(MetabolitePtr met);
 
+	/**
+	 * Is the current LP solution optimal ?
+	 */
+	bool isOptimal();
+
+	/**
+	 * Is the current LP solution feasible ?
+	 */
+	bool isFeasible();
+
 private:
 	ModelPtr _model;
 	boost::unordered_map<ReactionPtr, int> _reactions; // in the internal LP problem, columns are only identified by indices, so we have to map reactions to indices

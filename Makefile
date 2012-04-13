@@ -39,7 +39,9 @@ CC=g++
 # This has the additional consequence that the -rpath option has to be preceded by -Xlinker, since it is not a direct g++ command
 LD=g++
 
-CFLAGS=-Wall -fPIC
+DEBUGFLAGS=-g3 -fno-inline -O0
+
+CFLAGS=-Wall -fPIC $(DEBUGFLAGS)
 LDFLAGS=-shared
 
 all : obj_dir $(BIN_DIR)/$(LIBRARY)

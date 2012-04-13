@@ -272,4 +272,15 @@ double LPFlux::getDual(MetabolitePtr met) {
 	}
 }
 
+
+bool LPFlux::isOptimal() {
+	return SCIPlpiIsOptimal(_lpi);
+}
+
+
+bool LPFlux::isFeasible() {
+	return SCIPlpiIsPrimalFeasible(_lpi);
+}
+
+
 } /* namespace metaopt */
