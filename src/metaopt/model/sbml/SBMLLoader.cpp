@@ -42,6 +42,13 @@ void SBMLLoader::buildReaction(const libsbml::Reaction* r) {
 	}
 	// every reaction that only involves one metabolite is an exchange reaction
 	rxn->setExchange(num_products + num_reactants <= 1);
+
+	double lb = r->getKineticLaw()->getParameter("LOWER_BOUND")->getValue();
+	double ub = r->getKineticLaw()->getParameter("UPPER_BOUND")->getValue();
+	double obj = r->getKineticLaw()->getParameter("OBJECTIVE_COEFFICIENT")->getValue();
+	rxn->setLb(lb);
+	rxn->setUb(ub);
+	rxn->setObj(obj);
 }
 
 void SBMLLoader::load(const libsbml::Model* m) {

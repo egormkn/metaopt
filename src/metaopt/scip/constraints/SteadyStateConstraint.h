@@ -12,7 +12,10 @@
 
 namespace metaopt {
 
-void createSteadyStateConstraint(ScipModelPtr model);
+/**
+ * Creates linear constraints that enforce the steady state assumption on the flux variables.
+ */
+void createSteadyStateConstraint(ScipModelPtr smodel);
 
 } /* namespace metaopt */
 #endif /* STEADYSTATECONSTRAINT_H_ */

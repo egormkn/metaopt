@@ -113,6 +113,17 @@ public:
 	 */
 	bool isFeasible();
 
+	/**
+	 * Returns current objective value.
+	 * Attention: Does not start a solve, if the solution is not optimal.
+	 */
+	double getObjVal();
+
+	/**
+	 * print a human readable representation. For debugging.
+	 */
+	void print();
+
 private:
 	ModelPtr _model;
 	boost::unordered_map<ReactionPtr, int> _reactions; // in the internal LP problem, columns are only identified by indices, so we have to map reactions to indices

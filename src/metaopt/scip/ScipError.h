@@ -1,6 +1,8 @@
 #ifndef SCIPERROR_H_
 #define SCIPERROR_H_
 
+#include <boost/throw_exception.hpp>
+
 namespace metaopt {
 
 struct ScipError : virtual boost::exception, virtual std::exception { };

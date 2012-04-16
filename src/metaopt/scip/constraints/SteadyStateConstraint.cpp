@@ -6,7 +6,13 @@
  */
 
 #include <boost/unordered_map.hpp>
+#include <boost/foreach.hpp>
+
 #include "SteadyStateConstraint.h"
+#include "metaopt/model/Metabolite.h"
+#include "metaopt/model/Reaction.h"
+#include "objscip/objscip.h"
+#include "objscip/objscipdefplugins.h"
 #include "metaopt/Properties.h"
 #include "metaopt/scip/ScipError.h"
 
@@ -23,7 +29,7 @@ void createSteadyStateConstraint(ScipModelPtr smodel) {
 	unordered_map<MetabolitePtr,SCIP_CONS*> met_cons;
 
 	// create empty linear constraints for every species and then add the vars
-	foreach(MetabolitePtr met, m->getMetabolites) {
+	foreach(MetabolitePtr met, m->getMetabolites()) {
 		// only create constraints for internal metabolites,
 		// since all other metabolites do not need to satisfy steady state
 		if(!met->hasBoundaryCondition()) {

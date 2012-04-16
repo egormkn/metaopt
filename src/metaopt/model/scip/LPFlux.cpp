@@ -49,8 +49,8 @@ SCIP_RETCODE LPFlux::init_lp(bool exchange) {
 		if(exchange || !r->isExchange()) {
 			_reactions[r] = reaction_var++;
 			foreach(Stoichiometry m, r->getStoichiometries()) {
-				if(!exchange || m.first->hasBoundaryCondition()) {
-					ind.push_back(_metabolites[m.first]);
+				if(!exchange || !m.first->hasBoundaryCondition()) {
+					ind.push_back(_metabolites.at(m.first));
 					coef.push_back(m.second);
 				}
 			}
@@ -280,6 +280,41 @@ bool LPFlux::isOptimal() {
 
 bool LPFlux::isFeasible() {
 	return SCIPlpiIsPrimalFeasible(_lpi);
+}
+
+double LPFlux::getObjVal() {
+	double objval;
+	BOOST_SCIP_CALL( SCIPlpiGetObjval(_lpi, &objval) );
+	return objval;
+}
+
+void LPFlux::print() {
+	int ncols = 0;
+	int nrows = 0;
+	int nnonz = 0;
+	BOOST_SCIP_CALL( SCIPlpiGetNCols(_lpi, &ncols) );
+	BOOST_SCIP_CALL( SCIPlpiGetNCols(_lpi, &nrows) );
+	BOOST_SCIP_CALL( SCIPlpiGetNNonz(_lpi, &nnonz) );
+	cout << "ncols: " << ncols << "  nrows: " << nrows << "  nnonz: " << nnonz << endl;
+
+	cout << "feasible: " << isFeasible() << endl;
+	cout << "optimal: " << isOptimal() << endl;
+
+	if(isOptimal()) { // then, it is also dual feasible
+		foreach(MetabolitePtr m, _model->getMetabolites()) {
+			double p = getDual(m);
+			if(p != 0) cout << m->getName() << ": " << p << endl;
+		}
+		cout << endl;
+	}
+	if(isFeasible()) {
+		cout << "current flux val: " << getObjVal() << endl;
+
+		foreach(ReactionPtr r, _model->getReactions()) {
+			double f = getFlux(r);
+			if(f > EPSILON || f < -EPSILON) cout << r->getName() << ": " << f << endl;
+		}
+	}
 }
 
 

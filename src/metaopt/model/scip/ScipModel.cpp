@@ -174,14 +174,17 @@ bool ScipModel::hasPotentialVar(MetabolitePtr met) {
 }
 
 bool ScipModel::hasCurrentFlux() {
-	return(!_reactions.empty() && SCIPgetLPSolstat(_scip) == SCIP_LPSOLSTAT_OPTIMAL);
+	return(!_reactions.empty() && SCIPgetStage(_scip) != SCIP_STAGE_SOLVING && SCIPgetStage(_scip) != SCIP_STAGE_SOLVED && SCIPgetLPSolstat(_scip) == SCIP_LPSOLSTAT_OPTIMAL);
 }
 
 bool ScipModel::hasCurrentPotentials() {
-	return(!_metabolites.empty() && SCIPgetLPSolstat(_scip) == SCIP_LPSOLSTAT_OPTIMAL);
+	return(!_metabolites.empty() && SCIPgetStage(_scip) != SCIP_STAGE_SOLVING && SCIPgetStage(_scip) != SCIP_STAGE_SOLVED && SCIPgetLPSolstat(_scip) == SCIP_LPSOLSTAT_OPTIMAL);
 }
 
 double ScipModel::getCurrentFlux(ReactionPtr rxn) {
+	if( SCIPgetStage(_scip) != SCIP_STAGE_SOLVING && SCIPgetStage(_scip) != SCIP_STAGE_SOLVED) {
+		BOOST_THROW_EXCEPTION( PreconditionViolatedException() << var_state("Solving has not yet started!") );
+	}
 	if( SCIPgetLPSolstat(_scip) != SCIP_LPSOLSTAT_OPTIMAL) {
 		BOOST_THROW_EXCEPTION( PreconditionViolatedException() << var_state("LP not solved to optimality") );
 	}
@@ -190,11 +193,17 @@ double ScipModel::getCurrentFlux(ReactionPtr rxn) {
 
 
 double ScipModel::getCurrentPotential(MetabolitePtr met) {
+	if( SCIPgetStage(_scip) != SCIP_STAGE_SOLVING && SCIPgetStage(_scip) != SCIP_STAGE_SOLVED) {
+		BOOST_THROW_EXCEPTION( PreconditionViolatedException() << var_state("Solving has not yet started!") );
+	}
 	if( SCIPgetLPSolstat(_scip) != SCIP_LPSOLSTAT_OPTIMAL) {
 		BOOST_THROW_EXCEPTION( PreconditionViolatedException() << var_state("LP not solved to optimality") );
 	}
 	return SCIPgetVarSol(_scip, getPotential(met));
 }
 
+void ScipModel::solve() {
+	BOOST_SCIP_CALL( SCIPsolve(_scip) );
+}
 
 } /* namespace metaopt */

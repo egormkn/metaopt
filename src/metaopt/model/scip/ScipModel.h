@@ -111,6 +111,14 @@ public:
 	bool hasPotentialVar(MetabolitePtr met);
 
 	/**
+	 * Solves the problem that has been setup on this ScipModel.
+	 *
+	 * By default a scip model has no constraints etc.
+	 * Constraints have to be added using separate constraint implementations.
+	 */
+	void solve();
+
+	/**
 	 * Returns the internal scip instance.
 	 * The pointer is valid as long as this ScipModel lives.
 	 */
@@ -129,6 +137,10 @@ private:
 
 inline SCIP* ScipModel::getScip() {
 	return _scip;
+}
+
+inline ModelPtr ScipModel::getModel() const {
+	return _model;
 }
 
 typedef boost::shared_ptr<ScipModel> ScipModelPtr;
