@@ -2,6 +2,7 @@
 #define SCIPERROR_H_
 
 #include <boost/throw_exception.hpp>
+#include "scip/scip.h"
 
 namespace metaopt {
 

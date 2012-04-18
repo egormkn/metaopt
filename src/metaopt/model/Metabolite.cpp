@@ -23,6 +23,10 @@ namespace metaopt {
 Metabolite::Metabolite(weak_ptr<Model> model, std::string name) {
 	_model = model;
 	_name = name;
+	_lb = -INFINITY;
+	_ub = INFINITY;
+	_obj = 0;
+	_boundary = false;
 }
 
 Metabolite::~Metabolite() {

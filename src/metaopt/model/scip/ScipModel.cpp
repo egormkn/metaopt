@@ -91,6 +91,8 @@ SCIP_VAR* ScipModel::getFlux(ReactionPtr rxn) {
 				false,
 				0,0,0,0,0) );
 
+		BOOST_SCIP_CALL( SCIPaddVar(_scip, var) );
+
 		BOOST_SCIP_CALL( SCIPmarkDoNotMultaggrVar(_scip, var) ); //TODO: Is this really necessary?
 
 		_reactions[rxn] = var;
@@ -115,6 +117,8 @@ SCIP_VAR* ScipModel::getPotential(MetabolitePtr met) {
 				true,
 				false,
 				0,0,0,0,0) );
+
+		BOOST_SCIP_CALL( SCIPaddVar(_scip, var) );
 
 		BOOST_SCIP_CALL( SCIPmarkDoNotMultaggrVar(_scip, var) ); //TODO: Is this really necessary?
 
@@ -174,36 +178,68 @@ bool ScipModel::hasPotentialVar(MetabolitePtr met) {
 }
 
 bool ScipModel::hasCurrentFlux() {
-	return(!_reactions.empty() && SCIPgetStage(_scip) != SCIP_STAGE_SOLVING && SCIPgetStage(_scip) != SCIP_STAGE_SOLVED && SCIPgetLPSolstat(_scip) == SCIP_LPSOLSTAT_OPTIMAL);
+	return(!_reactions.empty()
+		&& (
+				(SCIPgetStage(_scip) == SCIP_STAGE_SOLVING && SCIPgetLPSolstat(_scip) == SCIP_LPSOLSTAT_OPTIMAL)
+			 || SCIPgetStage(_scip) == SCIP_STAGE_SOLVED
+		   )
+		  );
 }
 
 bool ScipModel::hasCurrentPotentials() {
-	return(!_metabolites.empty() && SCIPgetStage(_scip) != SCIP_STAGE_SOLVING && SCIPgetStage(_scip) != SCIP_STAGE_SOLVED && SCIPgetLPSolstat(_scip) == SCIP_LPSOLSTAT_OPTIMAL);
+	return(!_metabolites.empty()
+		&& (
+				(SCIPgetStage(_scip) == SCIP_STAGE_SOLVING && SCIPgetLPSolstat(_scip) == SCIP_LPSOLSTAT_OPTIMAL)
+			 || SCIPgetStage(_scip) == SCIP_STAGE_SOLVED
+		   )
+		  );
 }
 
 double ScipModel::getCurrentFlux(ReactionPtr rxn) {
-	if( SCIPgetStage(_scip) != SCIP_STAGE_SOLVING && SCIPgetStage(_scip) != SCIP_STAGE_SOLVED) {
+	if( SCIPgetStage(_scip) == SCIP_STAGE_SOLVING) {
+		if( SCIPgetLPSolstat(_scip) != SCIP_LPSOLSTAT_OPTIMAL) {
+			BOOST_THROW_EXCEPTION( PreconditionViolatedException() << var_state("LP not solved to optimality") );
+		}
+		return SCIPgetSolVal(_scip, NULL, getFlux(rxn));
+	}
+	else if(SCIPgetStage(_scip) == SCIP_STAGE_SOLVED) {
+		SCIP_SOL* sol = SCIPgetBestSol(_scip);
+		return SCIPgetSolVal(_scip, sol, getFlux(rxn));
+	}
+	else {
 		BOOST_THROW_EXCEPTION( PreconditionViolatedException() << var_state("Solving has not yet started!") );
+		return 0; // never called
 	}
-	if( SCIPgetLPSolstat(_scip) != SCIP_LPSOLSTAT_OPTIMAL) {
-		BOOST_THROW_EXCEPTION( PreconditionViolatedException() << var_state("LP not solved to optimality") );
-	}
-	return SCIPgetVarSol(_scip, getFlux(rxn));
 }
 
 
 double ScipModel::getCurrentPotential(MetabolitePtr met) {
-	if( SCIPgetStage(_scip) != SCIP_STAGE_SOLVING && SCIPgetStage(_scip) != SCIP_STAGE_SOLVED) {
+	if( SCIPgetStage(_scip) == SCIP_STAGE_SOLVING) {
+		if( SCIPgetLPSolstat(_scip) != SCIP_LPSOLSTAT_OPTIMAL) {
+			BOOST_THROW_EXCEPTION( PreconditionViolatedException() << var_state("LP not solved to optimality") );
+		}
+		return SCIPgetSolVal(_scip, NULL, getPotential(met));
+	}
+	else if(SCIPgetStage(_scip) == SCIP_STAGE_SOLVED) {
+		SCIP_SOL* sol = SCIPgetBestSol(_scip);
+		return SCIPgetSolVal(_scip, sol, getPotential(met));
+	}
+	else {
 		BOOST_THROW_EXCEPTION( PreconditionViolatedException() << var_state("Solving has not yet started!") );
+		return 0; // never called
 	}
-	if( SCIPgetLPSolstat(_scip) != SCIP_LPSOLSTAT_OPTIMAL) {
-		BOOST_THROW_EXCEPTION( PreconditionViolatedException() << var_state("LP not solved to optimality") );
-	}
-	return SCIPgetVarSol(_scip, getPotential(met));
 }
 
 void ScipModel::solve() {
 	BOOST_SCIP_CALL( SCIPsolve(_scip) );
+}
+
+double ScipModel::getObjectiveValue() {
+	if( SCIPgetStage(_scip) != SCIP_STAGE_SOLVED ) {
+		BOOST_THROW_EXCEPTION( PreconditionViolatedException() << var_state("Problem has not yet been solved!") );
+	}
+	SCIP_SOL* sol = SCIPgetBestSol(_scip);
+	return SCIPgetSolOrigObj(_scip, sol);
 }
 
 } /* namespace metaopt */

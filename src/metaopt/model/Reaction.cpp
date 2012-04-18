@@ -21,6 +21,10 @@ namespace metaopt {
 Reaction::Reaction(weak_ptr<Model> model, std::string name) {
 	_model = model;
 	_name = name;
+	_lb = 0;
+	_ub = 0;
+	_obj = 0;
+	_exchange = false;
 }
 
 Reaction::~Reaction() {

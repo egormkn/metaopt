@@ -69,22 +69,22 @@ public:
 
 	/**
 	 * Checks, if there exists a current flux solution (of the current node in search tree).
-	 * This solution is usually the value of the LP relaxation of the current node.
-	 * Sometimes, the LP relaxation is not yet solved to feasibility and then there exists no current flux.
+	 * This is the case, if the problem has been solved, or if the LP relaxation of the current node has been solved to optimality.
 	 * It can also happen that no flux variables have been initialized at all. In this case, this method will always return false.
 	 */
 	bool hasCurrentFlux();
 
 	/**
 	 * Checks, if there exists a current solution for the potentials (of the current node in search tree).
-	 * This solution is usually the value of the LP relaxation of the current node.
-	 * Sometimes, the LP relaxation is not yet solved to feasibility and then there exists no current potentials.
+	 * This is the case, if the problem has been solved, or if the LP relaxation of the current node has been solved to optimality.
 	 * It can also happen that no potential variables have been initialized at all. In this case, this method will always return false.
 	 */
 	bool hasCurrentPotentials();
 
 	/**
 	 * Returns the flux value through the specified reaction.
+	 * If the problem has been solved, the value of an optimal solution is returned.
+	 * Else, the value of the current LP-relaxation is returned. The LP-relaxation, however has to be solved to optimality.
 	 *
 	 * Precondition: hasCurrentFlux
 	 *
@@ -94,6 +94,8 @@ public:
 
 	/**
 	 * Returns the potential of the specified metabolite.
+	 * If the problem has been solved, the value of an optimal solution is returned.
+	 * Else, the value of the current LP-relaxation is returned. The LP-relaxation, however has to be solved to optimality.
 	 *
 	 * Precondition: hasCurrentPotential
 	 *
@@ -117,6 +119,11 @@ public:
 	 * Constraints have to be added using separate constraint implementations.
 	 */
 	void solve();
+
+	/**
+	 * If the problem has been solved, the best objective value can be fetched using this method.
+	 */
+	double getObjectiveValue();
 
 	/**
 	 * Returns the internal scip instance.
