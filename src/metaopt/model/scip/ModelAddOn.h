@@ -8,8 +8,10 @@
 #ifndef MODELADDON_H_
 #define MODELADDON_H_
 
+#include <boost/enable_shared_from_this.hpp>
 #include "metaopt/model/scip/ScipModel.h"
 #include "Solution.h"
+#include "metaopt/scip/ScipError.h"
 
 namespace metaopt {
 
@@ -22,7 +24,7 @@ namespace metaopt {
  */
 class ModelAddOn {
 public:
-	ModelAddOn(ScipModelPtr model);
+	ModelAddOn(ScipModelPtr model, std::string name);
 	virtual ~ModelAddOn();
 
 	/**
@@ -30,11 +32,30 @@ public:
 	 *
 	 * @returns true, if successfully computes solution values.
 	 */
-	virtual bool computeSolutionVals(SolutionPtr sol);
+	virtual bool computeSolutionVals(SolutionPtr sol) const = 0;
+
+	inline const std::string& getName() const;
 
 protected:
-	ScipModelPtr _model;
+	inline ScipModelPtr getModel() const;
+
+private:
+	boost::weak_ptr<ScipModel> _model;
+	std::string _name;
 };
+
+typedef boost::error_info<struct tag_addon_name,std::string> addon_name;
+
+inline const std::string& ModelAddOn::getName() const {
+	return _name;
+}
+
+inline ScipModelPtr ModelAddOn::getModel() const {
+	if(_model.expired()) {
+		BOOST_THROW_EXCEPTION(ModelOwnershipError() << addon_name(getName()));
+	}
+	return _model.lock();
+}
 
 } /* namespace metaopt */
 #endif /* MODELADDON_H_ */

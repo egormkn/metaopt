@@ -11,6 +11,7 @@
 #include "metaopt/model/Model.h"
 #include "metaopt/model/scip/ScipModel.h"
 #include "metaopt/model/scip/ModelAddOn.h"
+#include <boost/unordered_map.hpp>
 
 namespace metaopt {
 
@@ -20,7 +21,7 @@ namespace metaopt {
  * Potential differences are not needed for all formulations and is only used to model the problem.
  * Hence, these variables are separated from the others in ScipModel.
  */
-class PotentialDifferences : ModelAddOn {
+class PotentialDifferences : public ModelAddOn {
 public:
 	PotentialDifferences(ScipModelPtr model);
 	virtual ~PotentialDifferences();
@@ -37,9 +38,34 @@ public:
 	 */
 	SCIP_VAR* getPotDiff(ReactionPtr rxn);
 
+	/**
+	 * Returns the potential difference of the specified reaction.
+	 * If the problem has been solved, the value of an optimal solution is returned.
+	 * Else, the value of the current LP-relaxation is returned. The LP-relaxation, however has to be solved to optimality.
+	 *
+	 * Precondition: ScipModel::hasCurrentFlux
+	 *
+	 * If the model has no current flux, a PreconditionViolatedException is thrown
+	 */
 
-	bool computeSolutionVals(SolutionPtr sol);
+	double getCurrentPotDiff(ReactionPtr rxn);
+
+	/**
+	 * Tests if the corresponding variable has already been created.
+	 */
+	bool hasPotDiff(ReactionPtr rxn);
+
+	bool computeSolutionVals(SolutionPtr sol) const;
+
+private:
+	boost::unordered_map<ReactionPtr, SCIP_VAR*> _potDiff;
 };
+
+typedef boost::shared_ptr<PotentialDifferences> PotentialDifferencesPtr;
+
+inline PotentialDifferencesPtr createPotentialDifferences(ScipModelPtr model) {
+	return PotentialDifferencesPtr(new PotentialDifferences(model));
+}
 
 } /* namespace metaopt */
 #endif /* POTENTIALDIFFERENCES_H_ */

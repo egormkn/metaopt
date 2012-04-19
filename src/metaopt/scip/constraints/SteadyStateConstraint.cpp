@@ -61,9 +61,6 @@ void createSteadyStateConstraint(ScipModelPtr smodel) {
 	foreach(ReactionPtr rxn, m->getReactions()) {
 
 		SCIP_VAR* var = smodel->getFlux(rxn);
-		if(var == NULL) {
-			int foo = 0;
-		}
 		foreach(Stoichiometry s, rxn->getStoichiometries()) {
 			if(!s.first->hasBoundaryCondition()) {
 				BOOST_SCIP_CALL( SCIPaddCoefLinear(smodel->getScip(), met_cons.at(s.first), var , s.second));

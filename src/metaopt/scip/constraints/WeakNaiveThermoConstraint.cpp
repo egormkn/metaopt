@@ -9,13 +9,16 @@
 
 namespace metaopt {
 
-WeakNaiveThermoConstraint::WeakNaiveThermoConstraint() {
-	// TODO Auto-generated constructor stub
-
+void createWeakNaiveThermoConstraint(ScipModelPtr model, ReactionDirectionsPtr dirs) {
+	ModelPtr m = model->getModel();
+	foreach(ReactionPtr rxn, m->getReactions()) {
+		if(!rxn->isExchange()) {
+			// create the var, even if we don't do anything with it now.
+			// this also initializes the corresponding constraints
+			dirs->getDirection(rxn);
+		}
+	}
 }
 
-WeakNaiveThermoConstraint::~WeakNaiveThermoConstraint() {
-	// TODO Auto-generated destructor stub
-}
 
 } /* namespace metaopt */

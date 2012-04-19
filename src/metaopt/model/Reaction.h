@@ -113,19 +113,19 @@ public:
 	 * Metabolites that appear both as reactants and products are combined in one coefficient.
 	 * The list must contain the union of all reactants and products. Hence, it may contain zero entries if the stoichiometries cancel.
 	 */
-	const boost::unordered_map<MetabolitePtr, double> getStoichiometries() const;
+	const boost::unordered_map<MetabolitePtr, double>& getStoichiometries() const;
 
 	/** @brief returns a list of all reactants of this reaction.
 	 *
 	 * All associated values are positive.
 	 */
-	const boost::unordered_map<MetabolitePtr, double> getReactants() const;
+	const boost::unordered_map<MetabolitePtr, double>& getReactants() const;
 
 	/** @brief returns a list of all products of this reaction.
 	 *
 	 * All associated values are positive
 	 */
-	const boost::unordered_map<MetabolitePtr, double> getProducts() const;
+	const boost::unordered_map<MetabolitePtr, double>& getProducts() const;
 
 	/** The stoichiometry of the given metabolite in this reaction.
 	 *

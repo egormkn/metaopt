@@ -12,29 +12,23 @@
 
 #include "scip/scip.h"
 #include <boost/shared_ptr.hpp>
-#include "metaopt/model/scip/ScipModel.h"
 
 namespace metaopt {
 
+class ScipModel;
 typedef boost::shared_ptr<SCIP_SOL> SolutionPtr;
 
 struct SolutionDestructor {
-	ScipModelPtr _scip; // storing an instance of the ScipModel makes sure that the scip pointer stays live
+	boost::shared_ptr<ScipModel> _scip; // storing an instance of the ScipModel makes sure that the scip pointer stays live
 
-	SolutionDestructor(ScipModelPtr scip) {
-		_scip = scip;
-	}
+	SolutionDestructor(boost::shared_ptr<ScipModel> scip);
 
-	SolutionDestructor(const SolutionDestructor& d) {
-		_scip = d._scip;
-	}
+	SolutionDestructor(const SolutionDestructor& d);
 
-	void operator()(SCIP_SOL* sol) {
-		SCIPfreeSol(_scip->getScip(), &sol);
-	}
+	void operator()(SCIP_SOL* sol);
 };
 
-inline SolutionPtr wrap(SCIP_SOL* sol, ScipModelPtr scip) {
+inline SolutionPtr wrap(SCIP_SOL* sol, boost::shared_ptr<ScipModel> scip) {
 	return SolutionPtr(sol, SolutionDestructor(scip));
 }
 

@@ -3,6 +3,7 @@
 
 #include <boost/throw_exception.hpp>
 #include "scip/scip.h"
+#include "metaopt/Properties.h"
 
 namespace metaopt {
 

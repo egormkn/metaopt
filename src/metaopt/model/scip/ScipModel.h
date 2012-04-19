@@ -8,13 +8,19 @@
 #ifndef SCIPMODEL_H_
 #define SCIPMODEL_H_
 
-#include "metaopt/model/Model.h"
-#include "objscip/objscip.h"
 #include <boost/unordered_map.hpp>
+#include <vector>
+#include "objscip/objscip.h"
+
+#include "metaopt/model/Model.h"
+#include "Solution.h"
 
 namespace metaopt {
 
 struct PreconditionViolatedException : virtual boost::exception, virtual std::exception { };
+
+class ModelAddOn;
+typedef boost::shared_ptr<ModelAddOn> ModelAddOnPtr;
 
 class ScipModel {
 public:
@@ -86,7 +92,7 @@ public:
 	 * If the problem has been solved, the value of an optimal solution is returned.
 	 * Else, the value of the current LP-relaxation is returned. The LP-relaxation, however has to be solved to optimality.
 	 *
-	 * Precondition: hasCurrentFlux
+	 * Precondition: hasFluxVar(rxn),  hasCurrentFlux()
 	 *
 	 * If the model has no current flux, a PreconditionViolatedException is thrown
 	 */
@@ -97,7 +103,7 @@ public:
 	 * If the problem has been solved, the value of an optimal solution is returned.
 	 * Else, the value of the current LP-relaxation is returned. The LP-relaxation, however has to be solved to optimality.
 	 *
-	 * Precondition: hasCurrentPotential
+	 * Precondition: hasPotentialVar(met), hasCurrentPotential()
 	 *
 	 * If the model has no current potentials, a PreconditionViolatedException is thrown
 	 */
@@ -131,6 +137,21 @@ public:
 	 */
 	SCIP* getScip();
 
+	/**
+	 * register an addon.
+	 *
+	 * All the addons this addon depends on, must have been added before this one.
+	 * It is recommended to add addons right after construction.
+	 */
+	void addAddOn(ModelAddOnPtr addon);
+
+	/**
+	 * try to compute values for variables introduced by the addons.
+	 *
+	 * @return true if successful, false otherwise
+	 */
+	bool computeAddOnValues(SolutionPtr sol);
+
 private:
 	ModelPtr _model;
 	SCIP* _scip;
@@ -138,8 +159,18 @@ private:
 	SCIP_RETCODE init_scip();
 	SCIP_RETCODE free_scip();
 
-	boost::unordered_map<MetabolitePtr, SCIP_VAR*> _metabolites;
-	boost::unordered_map<ReactionPtr, SCIP_VAR*> _reactions;
+	boost::unordered_map<MetabolitePtr, SCIP_VAR*> _metabolites; // map of initialized potential vars
+	boost::unordered_map<ReactionPtr, SCIP_VAR*> _reactions; // map of initialized reaction vars
+
+	/**
+	 * A topologically sorted list of addons.
+	 * For evaluation of the method computeSolutionVals, some of the addons require that
+	 * this method was already executed for other addons.
+	 * Cyclic dependencies are not allowed, hence we obtain a partial ordering.
+	 * This vector contains the addons in a topologically sorted way w.r.t. this relation.
+	 * Hence, all dependencies get satisfied, if the computeSolutionVals method is called from beginning (index 0) to end.
+	 */
+	std::vector<ModelAddOnPtr> _addons;
 };
 
 inline SCIP* ScipModel::getScip() {

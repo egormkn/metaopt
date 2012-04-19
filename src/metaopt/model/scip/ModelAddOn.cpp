@@ -7,10 +7,13 @@
 
 #include "ModelAddOn.h"
 
+using namespace std;
+
 namespace metaopt {
 
-ModelAddOn::ModelAddOn(ScipModelPtr model) {
+ModelAddOn::ModelAddOn(ScipModelPtr model, string name) {
 	_model = model;
+	_name = name;
 }
 
 ModelAddOn::~ModelAddOn() {

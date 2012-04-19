@@ -8,12 +8,13 @@
 #include "ScipModel.h"
 #include "objscip/objscip.h"
 #include "objscip/objscipdefplugins.h"
-#include <iostream>
 
 #include "metaopt/scip/ScipError.h"
+#include "ModelAddOn.h"
 #include "metaopt/Properties.h"
 
 using namespace boost;
+using namespace std;
 
 namespace metaopt {
 
@@ -46,31 +47,34 @@ SCIP_RETCODE ScipModel::free_scip() {
 }
 
 ScipModel::~ScipModel() {
+	// destruct addons first, because they may require a still-working ScipModel for destruction
+	// destruct in reverse order, so that no dependencies are broken
+	while(!_addons.empty()) {
+		ModelAddOnPtr addon = _addons.back();
+		_addons.pop_back();
+		assert(addon.unique()); // after the model is destroyed, the addon is useless
+	}
+
 	// free vars
 	typedef std::pair<ReactionPtr, SCIP_VAR*> ReactionVar;
 	typedef std::pair<MetabolitePtr, SCIP_VAR*> MetaboliteVar;
 	foreach(ReactionVar r, _reactions) {
 		SCIP_VAR* var = r.second;
 		int code = SCIPreleaseVar(_scip, &var);
-		if(code != SCIP_OKAY) {
-			std::cerr << "Failed to release var during destruction of ScipModel." << std::endl;
-		}
+		assert(code == SCIP_OKAY);
 	}
 	_reactions.clear();
 
 	foreach(MetaboliteVar r, _metabolites) {
 		SCIP_VAR* var = r.second;
 		int code = SCIPreleaseVar(_scip, &var);
-		if(code != SCIP_OKAY) {
-			std::cerr << "Failed to release var during destruction of ScipModel." << std::endl;
-		}
+		assert(code == SCIP_OKAY);
 	}
 	_metabolites.clear();
 
 	// free scip
-	if(free_scip() != SCIP_OKAY) {
-		std::cerr << "Failed to free Scip, destroying anyways." << std::endl;
-	}
+	int code = free_scip();
+	assert(code == SCIP_OKAY);
 }
 
 SCIP_VAR* ScipModel::getFlux(ReactionPtr rxn) {
@@ -196,10 +200,9 @@ bool ScipModel::hasCurrentPotentials() {
 }
 
 double ScipModel::getCurrentFlux(ReactionPtr rxn) {
+	assert( hasFluxVar(rxn) );
 	if( SCIPgetStage(_scip) == SCIP_STAGE_SOLVING) {
-		if( SCIPgetLPSolstat(_scip) != SCIP_LPSOLSTAT_OPTIMAL) {
-			BOOST_THROW_EXCEPTION( PreconditionViolatedException() << var_state("LP not solved to optimality") );
-		}
+		assert( SCIPgetLPSolstat(_scip) == SCIP_LPSOLSTAT_OPTIMAL ); // LP must be solved to optimality, else the result is rather meaningless
 		return SCIPgetSolVal(_scip, NULL, getFlux(rxn));
 	}
 	else if(SCIPgetStage(_scip) == SCIP_STAGE_SOLVED) {
@@ -207,6 +210,7 @@ double ScipModel::getCurrentFlux(ReactionPtr rxn) {
 		return SCIPgetSolVal(_scip, sol, getFlux(rxn));
 	}
 	else {
+		assert( false ); // solving has not yet started
 		BOOST_THROW_EXCEPTION( PreconditionViolatedException() << var_state("Solving has not yet started!") );
 		return 0; // never called
 	}
@@ -214,10 +218,9 @@ double ScipModel::getCurrentFlux(ReactionPtr rxn) {
 
 
 double ScipModel::getCurrentPotential(MetabolitePtr met) {
+	assert( hasPotentialVar(met) );
 	if( SCIPgetStage(_scip) == SCIP_STAGE_SOLVING) {
-		if( SCIPgetLPSolstat(_scip) != SCIP_LPSOLSTAT_OPTIMAL) {
-			BOOST_THROW_EXCEPTION( PreconditionViolatedException() << var_state("LP not solved to optimality") );
-		}
+		assert( SCIPgetLPSolstat(_scip) == SCIP_LPSOLSTAT_OPTIMAL ); // LP must be solved to optimality, else the result is rather meaningless
 		return SCIPgetSolVal(_scip, NULL, getPotential(met));
 	}
 	else if(SCIPgetStage(_scip) == SCIP_STAGE_SOLVED) {
@@ -225,6 +228,7 @@ double ScipModel::getCurrentPotential(MetabolitePtr met) {
 		return SCIPgetSolVal(_scip, sol, getPotential(met));
 	}
 	else {
+		assert( false ); // solving has not yet started
 		BOOST_THROW_EXCEPTION( PreconditionViolatedException() << var_state("Solving has not yet started!") );
 		return 0; // never called
 	}
@@ -235,11 +239,21 @@ void ScipModel::solve() {
 }
 
 double ScipModel::getObjectiveValue() {
-	if( SCIPgetStage(_scip) != SCIP_STAGE_SOLVED ) {
-		BOOST_THROW_EXCEPTION( PreconditionViolatedException() << var_state("Problem has not yet been solved!") );
-	}
+	assert( SCIPgetStage(_scip) == SCIP_STAGE_SOLVED );  // Problem has not yet been solved!";
 	SCIP_SOL* sol = SCIPgetBestSol(_scip);
 	return SCIPgetSolOrigObj(_scip, sol);
+}
+
+void ScipModel::addAddOn(ModelAddOnPtr addon) {
+	_addons.push_back(addon);
+}
+
+bool ScipModel::computeAddOnValues(SolutionPtr sol) {
+	bool success = true;
+	for(vector<ModelAddOnPtr>::iterator iter = _addons.begin(); success && iter != _addons.end(); iter++) {
+		success = (*iter)->computeSolutionVals(sol);
+	}
+	return success;
 }
 
 } /* namespace metaopt */

@@ -7,7 +7,6 @@
 
 #include <boost/throw_exception.hpp>
 #include <string>
-#include <iostream>
 
 #include "Reaction.h"
 #include "Model.h"
@@ -38,15 +37,15 @@ void Reaction::notifyChange() {
 	_model.lock()->updateReaction(shared_from_this());
 }
 
-const unordered_map<MetabolitePtr, double> Reaction::getStoichiometries() const {
+const unordered_map<MetabolitePtr, double>& Reaction::getStoichiometries() const {
 	return _stoichiometries;
 }
 
-const unordered_map<MetabolitePtr, double> Reaction::getReactants() const {
+const unordered_map<MetabolitePtr, double>& Reaction::getReactants() const {
 	return _reactants;
 }
 
-const unordered_map<MetabolitePtr, double> Reaction::getProducts() const {
+const unordered_map<MetabolitePtr, double>& Reaction::getProducts() const {
 	return _products;
 }
 

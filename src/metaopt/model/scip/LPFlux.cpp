@@ -5,13 +5,13 @@
  *      Author: arnem
  */
 
+#include <map>
+#include <vector>
+#include <iostream>
 #include "LPFlux.h"
 #include "objscip/objscip.h"
 #include "metaopt/Properties.h"
 #include "metaopt/scip/ScipError.h"
-#include <map>
-#include <vector>
-#include <iostream>
 
 using namespace std;
 
@@ -80,9 +80,7 @@ SCIP_RETCODE LPFlux::init_lp(bool exchange) {
 LPFlux::~LPFlux() {
 	int code = free_lp();
 	// in case of error make sure that the object is destroyed anyways to keep harm as little as possible.
-	if(code != SCIP_OKAY) {
-		cerr << "Failed to free LPFlux, this may lead to a memory leak" << endl;
-	}
+	assert(code == SCIP_OKAY);
 }
 
 SCIP_RETCODE LPFlux::free_lp() {
