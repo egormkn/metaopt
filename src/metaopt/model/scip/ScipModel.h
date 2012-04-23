@@ -14,6 +14,7 @@
 
 #include "metaopt/model/Model.h"
 #include "Solution.h"
+#include "metaopt/scip/ScipError.h"
 
 namespace metaopt {
 
@@ -29,6 +30,14 @@ public:
 	virtual ~ScipModel();
 
 	ModelPtr getModel() const;
+
+	/** set if we want to maximize or minimize */
+	inline void setObjectiveSense(bool maximize);
+
+	/** returns true if objective sense is set to maximize.
+	 * If objective sense is minimize, false is returned.
+	 */
+	inline bool isMaximize() const;
 
 	/**
 	 * fetches the scip variable representing the flux.
@@ -179,6 +188,19 @@ inline SCIP* ScipModel::getScip() {
 
 inline ModelPtr ScipModel::getModel() const {
 	return _model;
+}
+
+inline void ScipModel::setObjectiveSense(bool maximize) {
+	if(maximize) {
+		BOOST_SCIP_CALL( SCIPsetObjsense(_scip, SCIP_OBJSENSE_MAXIMIZE) );
+	}
+	else {
+		BOOST_SCIP_CALL( SCIPsetObjsense(_scip, SCIP_OBJSENSE_MINIMIZE) );
+	}
+}
+
+inline bool ScipModel::isMaximize() const {
+	return SCIPgetObjsense(_scip) == SCIP_OBJSENSE_MAXIMIZE;
 }
 
 typedef boost::shared_ptr<ScipModel> ScipModelPtr;

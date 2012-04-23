@@ -34,14 +34,28 @@ public:
 	 */
 	virtual bool computeSolutionVals(SolutionPtr sol) const = 0;
 
+	/** returns the name of this Addon. Useful for debugging */
 	inline const std::string& getName() const;
+
+	/**
+	 * Helper method for ScipModel destruction process.
+	 * This method should only be called from the destructor of ScipModel.
+	 * It processes the destruction of this ModelAddOn that still requires data of ScipModel.
+	 * A reference to ScipModel is supplied, since weak_ptrs are already expired during destruction.
+	 * After this method has been called, the indicator destroyed is set.
+	 *
+	 * Important: If this addon has dependencies on other addons, these dependencies must be destroyed, too.
+	 */
+	virtual void destroy(ScipModel* model);
 
 protected:
 	inline ScipModelPtr getModel() const;
+	inline bool isDestroyed() const;
 
 private:
 	boost::weak_ptr<ScipModel> _model;
 	std::string _name;
+	bool _destroyed; // indicates if destroy(ScipModel&) has been called
 };
 
 typedef boost::error_info<struct tag_addon_name,std::string> addon_name;
@@ -55,6 +69,10 @@ inline ScipModelPtr ModelAddOn::getModel() const {
 		BOOST_THROW_EXCEPTION(ModelOwnershipError() << addon_name(getName()));
 	}
 	return _model.lock();
+}
+
+inline bool ModelAddOn::isDestroyed() const {
+	return _destroyed;
 }
 
 } /* namespace metaopt */

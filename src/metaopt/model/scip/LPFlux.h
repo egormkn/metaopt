@@ -124,6 +124,27 @@ public:
 	 */
 	void print();
 
+	/**
+	 * copy the flux of the current solution of the ScipModel into this solution
+	 */
+	void set(ScipModelPtr);
+
+	/**
+	 * subtracts current solution of flux from this solution.
+	 * Every Reaction in flux must also exist in this LPFlux.
+	 * The converse needs not be true. If a reaction does not exist, a flux of 0 is assumed.
+	 */
+	void subtract(LPFluxPtr flux, double scale);
+
+	/**
+	 * compute maximal subtraction factor such that when source is subtracted from this flux, no flux direction changes.
+	 * It is assumed that if a reaction carries nonzero flux in source, it also carries non-zero flux in this LPFlux in the same direction.
+	 *
+	 * Hence, the returned scale is always positive at successful termination.
+	 * If no scale could be found -1 is returned.
+	 */
+	double getSubScale(LPFluxPtr source);
+
 private:
 	ModelPtr _model;
 	boost::unordered_map<ReactionPtr, int> _reactions; // in the internal LP problem, columns are only identified by indices, so we have to map reactions to indices
@@ -131,6 +152,8 @@ private:
 	SCIP_LPI* _lpi; //< internal LP problem
 	int _num_metabolites; //< number of metabolites in the LP model (depends if we include exchange fluxes or not)
 	int _num_reactions; //< number of reactions in the LP model (depends if we include exchange fluxes or not)
+
+	std::vector<double> _primsol; // use vector to store primal solution to circumvent deallocation hassle
 
 	SCIP_RETCODE init_lp(bool exchange);
 	SCIP_RETCODE free_lp();

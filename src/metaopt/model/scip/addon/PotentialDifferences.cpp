@@ -19,19 +19,23 @@ PotentialDifferences::PotentialDifferences(ScipModelPtr model) : ModelAddOn(mode
 }
 
 PotentialDifferences::~PotentialDifferences() {
+	// already happened in destroy
+}
+
+void PotentialDifferences::destroy(ScipModel* model) {
 	// free vars
 	typedef std::pair<ReactionPtr, SCIP_VAR*> PotDiffVar;
-	ScipModelPtr model = getModel();
 	foreach(PotDiffVar r, _potDiff) {
 		SCIP_VAR* var = r.second;
 		int code = SCIPreleaseVar(model->getScip(), &var);
 		assert(code == SCIP_OKAY);
 	}
 	_potDiff.clear(); // make sure there are no invalid pointers hanging around
-
+	ModelAddOn::destroy(model);
 }
 
 SCIP_VAR* PotentialDifferences::getPotDiff(ReactionPtr rxn) {
+	assert(!isDestroyed());
 	unordered_map<ReactionPtr, SCIP_VAR*>::iterator iter = _potDiff.find(rxn);
 	if(iter != _potDiff.end()) {
 		return iter->second;
@@ -82,6 +86,7 @@ SCIP_VAR* PotentialDifferences::getPotDiff(ReactionPtr rxn) {
 }
 
 bool PotentialDifferences::computeSolutionVals(SolutionPtr sol) const {
+	assert(!isDestroyed());
 	typedef std::pair<ReactionPtr, SCIP_VAR*> PotDiffVar;
 
 	ScipModelPtr model = getModel();
@@ -99,6 +104,7 @@ bool PotentialDifferences::computeSolutionVals(SolutionPtr sol) const {
 }
 
 double PotentialDifferences::getCurrentPotDiff(ReactionPtr rxn) {
+	assert(!isDestroyed());
 	ScipModelPtr model = getModel();
 	SCIP* scip = model->getScip();
 	assert( hasPotDiff(rxn) );
@@ -118,6 +124,7 @@ double PotentialDifferences::getCurrentPotDiff(ReactionPtr rxn) {
 }
 
 bool PotentialDifferences::hasPotDiff(ReactionPtr rxn) {
+	assert(!isDestroyed());
 	return ( _potDiff.find(rxn) != _potDiff.end() );
 }
 

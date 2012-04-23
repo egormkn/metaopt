@@ -63,6 +63,7 @@ SCIP_RETCODE LPFlux::init_lp(bool exchange) {
 		}
 	}
 	_num_reactions = reaction_var;
+	_primsol.reserve(_num_reactions); // allocate sufficient memory
 
 	// set coefficients of rhs and lhs of every row to zero (steady state assupmtion)
 	// metabolites with boundary condition are already excluded
@@ -156,12 +157,11 @@ void LPFlux::setBounds(ScipModelPtr other) {
 void LPFlux::setDirectionBounds(LPFluxPtr flux) {
 	// the data may be stored in a different order, so we cannot simply do a batch copy, but have to translate the indices.
 	// oind stores the desired permutation
-	double oflux[flux->_num_reactions];
+	vector<double>& oflux = flux->_primsol;
 	int oind[_num_reactions];
 	foreach(VarAssign v, _reactions) {
 		oind[v.second] = flux->_reactions.at(v.first);
 	}
-	BOOST_SCIP_CALL( SCIPlpiGetSol(flux->_lpi, NULL, oflux, NULL, NULL, NULL) );
 	double lb[_num_reactions];
 	double ub[_num_reactions];
 	int ind[_num_reactions];
@@ -191,12 +191,11 @@ void LPFlux::setDirectionBounds(ScipModelPtr flux) {
 void LPFlux::setDirectionObj(LPFluxPtr flux) {
 	// the data may be stored in a different order, so we cannot simply do a batch copy, but have to translate the indices.
 	// oind stores the desired permutation
-	double oflux[flux->_num_reactions];
+	vector<double>& oflux = flux->_primsol;
 	int oind[_num_reactions];
 	foreach(VarAssign v, _reactions) {
 		oind[v.second] = flux->_reactions.at(v.first);
 	}
-	BOOST_SCIP_CALL( SCIPlpiGetSol(flux->_lpi, NULL, oflux, NULL, NULL, NULL) );
 	double obj[_num_reactions];
 	int ind[_num_reactions];
 	for(int i = 0; i < _num_reactions; i++) {
@@ -236,14 +235,20 @@ void LPFlux::setObjSense(bool maximize) {
 
 void LPFlux::solvePrimal() {
 	BOOST_SCIP_CALL( SCIPlpiSolvePrimal(_lpi) );
+	// capture solution in _primsol
+	BOOST_SCIP_CALL( SCIPlpiGetSol(_lpi, NULL, _primsol.data(), NULL, NULL, NULL) );
 }
 
 void LPFlux::solveDual() {
 	BOOST_SCIP_CALL( SCIPlpiSolveDual(_lpi) );
+	// capture solution in _primsol
+	BOOST_SCIP_CALL( SCIPlpiGetSol(_lpi, NULL, _primsol.data(), NULL, NULL, NULL) );
 }
 
 void LPFlux::solve() {
 	BOOST_SCIP_CALL( SCIPlpiSolveDual(_lpi) );
+	// capture solution in _primsol
+	BOOST_SCIP_CALL( SCIPlpiGetSol(_lpi, NULL, _primsol.data(), NULL, NULL, NULL) );
 }
 
 double LPFlux::getFlux(ReactionPtr rxn) {
@@ -252,9 +257,7 @@ double LPFlux::getFlux(ReactionPtr rxn) {
 		return 0;
 	}
 	else {
-		double primsol[_num_reactions];
-		BOOST_SCIP_CALL( SCIPlpiGetSol(_lpi, NULL, primsol, NULL, NULL, NULL) );
-		return primsol[iter->second];
+		return _primsol[iter->second];
 	}
 }
 
@@ -270,6 +273,40 @@ double LPFlux::getDual(MetabolitePtr met) {
 	}
 }
 
+void LPFlux::set(ScipModelPtr smodel) {
+	foreach(VarAssign v, _reactions) {
+		_primsol[v.second] = smodel->getCurrentFlux(v.first);
+	}
+}
+
+void LPFlux::subtract(LPFluxPtr flux, double scale) {
+	foreach(VarAssign v, flux->_reactions) {
+		_primsol[_reactions.at(v.first)] -= flux->_primsol[v.second] * scale;
+	}
+}
+
+double LPFlux::getSubScale(LPFluxPtr source) {
+	double scale = 10000000;
+	bool found = false;
+	foreach(VarAssign v, _reactions) {
+		double val = _primsol[v.second];
+		double subVal = source->getFlux(v.first);
+		if(val > EPSILON && subVal > EPSILON ) {
+			if(scale > val/subVal) {
+				scale = val/subVal;
+				found = true;
+			}
+		}
+		else if(val < -EPSILON && subVal < -EPSILON ) {
+			if(scale > val/subVal) {
+				scale = val/subVal;
+				found = true;
+			}
+		}
+	}
+	if(found) return scale;
+	else return -1;
+}
 
 bool LPFlux::isOptimal() {
 	return SCIPlpiIsOptimal(_lpi);

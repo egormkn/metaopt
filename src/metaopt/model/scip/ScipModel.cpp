@@ -51,6 +51,7 @@ ScipModel::~ScipModel() {
 	// destruct in reverse order, so that no dependencies are broken
 	while(!_addons.empty()) {
 		ModelAddOnPtr addon = _addons.back();
+		addon->destroy(this);
 		_addons.pop_back();
 		assert(addon.unique()); // after the model is destroyed, the addon is useless
 	}

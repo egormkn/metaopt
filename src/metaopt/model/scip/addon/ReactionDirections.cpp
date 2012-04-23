@@ -25,18 +25,24 @@ ReactionDirections::ReactionDirections(ScipModelPtr model, PotentialDifferencesP
 }
 
 ReactionDirections::~ReactionDirections() {
+	// already happened in destroy
+}
+
+void ReactionDirections::destroy(ScipModel* model) {
 	// free vars
 	typedef std::pair<ReactionPtr, SCIP_VAR*> DirVar;
-	ScipModelPtr model = getModel();
 	foreach(DirVar r, _dirs) {
 		SCIP_VAR* var = r.second;
 		int code = SCIPreleaseVar(model->getScip(), &var);
 		assert(code == SCIP_OKAY);
 	}
 	_dirs.clear(); // make sure there are no invalid pointers hanging around
+	_potDiff.reset();
+	ModelAddOn::destroy(model);
 }
 
 SCIP_VAR* ReactionDirections::getDirection(ReactionPtr rxn) {
+	assert(!isDestroyed());
 	unordered_map<ReactionPtr, SCIP_VAR*>::iterator iter = _dirs.find(rxn);
 	if(iter != _dirs.end()) {
 		return iter->second;
@@ -91,14 +97,14 @@ SCIP_VAR* ReactionDirections::getDirection(ReactionPtr rxn) {
 		// if var = 1, potDiff <= -EPSILON
 		std::string name_pot_fwd = name+"_pot_fwd";
 		val = 1; // coefficient of pot var
-		BOOST_SCIP_CALL( SCIPcreateConsIndicator(scip, &cons, name_pot_fwd.c_str(), var, 1, &pot_var, &val, -EPSILON, true, true, true, true, true, false, false, false, false) );
+		BOOST_SCIP_CALL( SCIPcreateConsIndicator(scip, &cons, name_pot_fwd.c_str(), var, 1, &pot_var, &val, -REACTION_DIRECTIONS_EPSILON, true, true, true, true, true, false, false, false, false) );
 		BOOST_SCIP_CALL( SCIPaddCons(scip, cons));
 		BOOST_SCIP_CALL( SCIPreleaseCons(scip, &cons));
 
 		// if var = 0, potDiff >= EPSILON
 		std::string name_pot_bwd = name+"_pot_bwd";
 		val = -1; // coefficient of pot var
-		BOOST_SCIP_CALL( SCIPcreateConsIndicator(scip, &cons, name_pot_bwd.c_str(), neg_var, 1, &pot_var, &val, -EPSILON, true, true, true, true, true, false, false, false, false) );
+		BOOST_SCIP_CALL( SCIPcreateConsIndicator(scip, &cons, name_pot_bwd.c_str(), neg_var, 1, &pot_var, &val, -REACTION_DIRECTIONS_EPSILON, true, true, true, true, true, false, false, false, false) );
 		BOOST_SCIP_CALL( SCIPaddCons(scip, cons));
 		BOOST_SCIP_CALL( SCIPreleaseCons(scip, &cons));
 
@@ -108,6 +114,7 @@ SCIP_VAR* ReactionDirections::getDirection(ReactionPtr rxn) {
 }
 
 bool ReactionDirections::computeSolutionVals(SolutionPtr sol) const {
+	assert(!isDestroyed());
 	typedef std::pair<ReactionPtr, SCIP_VAR*> DirVar;
 
 	foreach(DirVar v, _dirs) {
@@ -130,6 +137,7 @@ bool ReactionDirections::computeSolutionVals(SolutionPtr sol) const {
 
 
 double ReactionDirections::getCurrentDirection(ReactionPtr rxn) {
+	assert(!isDestroyed());
 	ScipModelPtr model = getModel();
 	SCIP* scip = model->getScip();
 	assert( hasDirection(rxn) );
@@ -149,6 +157,7 @@ double ReactionDirections::getCurrentDirection(ReactionPtr rxn) {
 }
 
 bool ReactionDirections::hasDirection(ReactionPtr rxn) {
+	assert(!isDestroyed());
 	return ( _dirs.find(rxn) != _dirs.end() );
 }
 

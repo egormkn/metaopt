@@ -16,7 +16,12 @@
 
 namespace metaopt {
 
-struct ModelOwnershipError : virtual boost::exception, virtual std::exception { };
+struct ModelOwnershipError : virtual boost::exception, virtual std::exception {
+public:
+	ModelOwnershipError() {
+		int foo = 0;
+	}
+};
 
 
 /** This class represents metabolic network models.
