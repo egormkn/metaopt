@@ -63,7 +63,7 @@ SCIP_RETCODE LPFlux::init_lp(bool exchange) {
 		}
 	}
 	_num_reactions = reaction_var;
-	_primsol.reserve(_num_reactions); // allocate sufficient memory
+	_primsol.resize(_num_reactions,0); // allocate sufficient memory
 
 	// set coefficients of rhs and lhs of every row to zero (steady state assupmtion)
 	// metabolites with boundary condition are already excluded

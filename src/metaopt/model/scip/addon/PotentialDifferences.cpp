@@ -64,10 +64,13 @@ SCIP_VAR* PotentialDifferences::getPotDiff(ReactionPtr rxn) {
 		BOOST_SCIP_CALL( SCIPmarkDoNotMultaggrVar(scip, var) ); //TODO: Is this really necessary?
 
 		// Now we also have to create the constraint that defines the variables value
-		int nvars = rxn->getStoichiometries().size();
+		int nvars = rxn->getStoichiometries().size() + 1; // do not forget the potential difference var!
 		SCIP_VAR* vars[nvars];
 		double vals[nvars];
-		int i = 0;
+		// add potential difference var
+		vars[0] = var;
+		vals[0] = -1;
+		int i = 1;
 		foreach(Stoichiometry s, rxn->getStoichiometries()) {
 			vars[i] = model->getPotential(s.first);
 			vals[i] = s.second;

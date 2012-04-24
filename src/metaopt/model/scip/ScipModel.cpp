@@ -200,6 +200,14 @@ bool ScipModel::hasCurrentPotentials() {
 		  );
 }
 
+bool ScipModel::hasFlux() {
+	return(!_reactions.empty() );
+}
+
+bool ScipModel::hasPotentials() {
+	return(!_metabolites.empty() );
+}
+
 double ScipModel::getCurrentFlux(ReactionPtr rxn) {
 	assert( hasFluxVar(rxn) );
 	if( SCIPgetStage(_scip) == SCIP_STAGE_SOLVING) {

@@ -11,6 +11,7 @@
 #include "objscip/objscip.h"
 #include "metaopt/model/scip/ScipModel.h"
 #include "metaopt/model/scip/LPFlux.h"
+#include "metaopt/model/scip/LPPotentials.h"
 
 namespace metaopt {
 
@@ -30,10 +31,13 @@ public:
 		);
 
 private:
-	ScipModelPtr _scip;
+	boost::weak_ptr<ScipModel> _scip;
 	LPFluxPtr _difficultyTestFlux; // flux for checking if objective reactions are contained in internal circuits, contains only internal reactions
 	LPFluxPtr _tflux; // flux for storing intermediate flux results, is not used for solving LPs, contains exchange reactions
 	LPFluxPtr _cycle; // flux for finding cycles in _tflux, contains no exchange reactions
+	LPPotentialsPtr _potentials; // for computing corresponding potential values
+
+	inline ScipModelPtr getScip() const;
 
 	/**
 	 * checks if it will be hard to compute a non-trivial feasible solution
@@ -51,7 +55,22 @@ private:
 	 * try to compute potentials that fit to the already computed flux
 	 */
 	bool computePotentials(SolutionPtr sol);
+
+	/**
+	 * perturb current solution s.t. every reaction has a nonzero potential difference.
+	 * Due to potential bounds, this may fail.
+	 */
+	bool perturb();
 };
+
+ScipModelPtr CycleDeletionHeur::getScip() const {
+	return _scip.lock();
+}
+
+/**
+ * creates and registers a new CycleDeletionHeur
+ */
+void createCycleDeletionHeur(ScipModelPtr scip);
 
 typedef boost::shared_ptr<CycleDeletionHeur> CycleDeletionHeurPtr;
 

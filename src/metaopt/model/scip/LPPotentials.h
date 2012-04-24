@@ -24,7 +24,9 @@ public:
 	 * If the reaction carries negative flux, the upper bound is set to 0 and the lower bound is set to -Infinity.
 	 * If the reaction carries no flux, the lower and upper bound are unconstrained.
 	 */
-	void setDirectionBounds(LPFluxPtr flux);
+	void setDirections(LPFluxPtr flux);
+
+	void setDirection(ReactionPtr rxn, bool fwd);
 
 	/**
 	 * Computes optimal flux using primal simplex.
@@ -43,6 +45,12 @@ public:
 	 */
 	double getPotential(MetabolitePtr met);
 
+	/**
+	 * checks, if the current solution is feasible
+	 * does no computation.
+	 * TODO: maybe change this!
+	 */
+	bool isFeasible();
 
 private:
 	ModelPtr _model;
@@ -54,10 +62,12 @@ private:
 
 	std::vector<double> _primsol; // use vector to store primal solution to circumvent deallocation hassle
 
-	SCIP_RETCODE init_lp(bool exchange);
+	SCIP_RETCODE init_lp();
 	SCIP_RETCODE free_lp();
 
 };
+
+typedef boost::shared_ptr<LPPotentials> LPPotentialsPtr;
 
 } /* namespace metaopt */
 #endif /* LPPOTENTIALS_H_ */

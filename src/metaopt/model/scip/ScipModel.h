@@ -128,6 +128,16 @@ public:
 	bool hasPotentialVar(MetabolitePtr met);
 
 	/**
+	 * Tests if this model has any flux variables initialized
+	 */
+	bool hasFlux();
+
+	/**
+	 * Tests if this model has any potential variables initialized
+	 */
+	bool hasPotentials();
+
+	/**
 	 * Solves the problem that has been setup on this ScipModel.
 	 *
 	 * By default a scip model has no constraints etc.

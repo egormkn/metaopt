@@ -5,6 +5,7 @@
  *      Author: arnem
  */
 
+#include <iostream>
 #include "CycleDeletionHeur.h"
 #include "metaopt/model/scip/Solution.h"
 #include "metaopt/Properties.h"
@@ -22,13 +23,15 @@ CycleDeletionHeur::CycleDeletionHeur(ScipModelPtr scip) :
 				-10000, 1, 0, -1, SCIP_HEURTIMING_AFTERLPLOOP, false) {
 	_scip = scip;
 	// initialize with original objective
-	_difficultyTestFlux = LPFluxPtr(new LPFlux(_scip->getModel(), false));
-	_difficultyTestFlux->setObjSense(_scip->isMaximize());
+	_difficultyTestFlux = LPFluxPtr(new LPFlux(scip->getModel(), false));
+	_difficultyTestFlux->setObjSense(scip->isMaximize());
 
-	_tflux = LPFluxPtr(new LPFlux(_scip->getModel(), true));
+	_tflux = LPFluxPtr(new LPFlux(scip->getModel(), true));
 	// _tflux doesn't need an Objsense, since we do not use it to solve optimization problems.
-	_cycle = LPFluxPtr(new LPFlux(_scip->getModel(), false));
+	_cycle = LPFluxPtr(new LPFlux(scip->getModel(), false));
 	_cycle->setObjSense(true);
+
+	_potentials = LPPotentialsPtr(new LPPotentials(scip->getModel()));
 }
 
 CycleDeletionHeur::~CycleDeletionHeur() {
@@ -37,9 +40,10 @@ CycleDeletionHeur::~CycleDeletionHeur() {
 
 SCIP_RETCODE CycleDeletionHeur::scip_exec(SCIP* scip, SCIP_HEUR* heur, SCIP_HEURTIMING timing, SCIP_RESULT* result) {
 	if(!isDifficult()) {
+		std::cout << "running heur" << std::endl;
 		SCIP_SOL* raw_sol;
 		SCIP_CALL( SCIPcreateOrigSol(scip, &raw_sol, heur));
-		SolutionPtr sol = wrap(raw_sol, _scip);
+		SolutionPtr sol = wrap(raw_sol, getScip());
 
 		// use standard method to compute feasible solution
 		bool success = computeFluxSolution(sol);
@@ -59,7 +63,7 @@ SCIP_RETCODE CycleDeletionHeur::scip_exec(SCIP* scip, SCIP_HEUR* heur, SCIP_HEUR
 		}
 
 		// compute values for remaining addons
-		success = _scip->computeAddOnValues(sol);
+		success = getScip()->computeAddOnValues(sol);
 
 		if(!success) {
 			*result=SCIP_DIDNOTFIND;
@@ -93,13 +97,14 @@ SCIP_RETCODE CycleDeletionHeur::scip_exec(SCIP* scip, SCIP_HEUR* heur, SCIP_HEUR
 }
 
 bool CycleDeletionHeur::isDifficult() {
+	ScipModelPtr scip = getScip();
 	// first check if the LP was really solved to optimality
 	// only if this is the case, run the heuristic
-	if( _scip->hasCurrentFlux() ) {
+	if( !scip->hasCurrentFlux() ) {
 		return true;
 	}
 
-	_difficultyTestFlux->setDirectionBounds(_scip); // use current LP-sol to set bounds
+	_difficultyTestFlux->setDirectionBounds(scip); // use current LP-sol to set bounds
 
 	_difficultyTestFlux->solveDual(); // we only change bounds, so solve using dual Simplex
 
@@ -109,8 +114,9 @@ bool CycleDeletionHeur::isDifficult() {
 }
 
 bool CycleDeletionHeur::computeFluxSolution(SolutionPtr sol) {
+	ScipModelPtr scip = getScip();
 	// use LP sol
-	_tflux->set(_scip);
+	_tflux->set(scip);
 
 	bool hasFlux = true;
 
@@ -132,10 +138,10 @@ bool CycleDeletionHeur::computeFluxSolution(SolutionPtr sol) {
 	}
 	while(hasFlux);
 	// copy computed solution into sol
-	foreach(ReactionPtr rxn, _scip->getModel()->getReactions()) {
+	foreach(ReactionPtr rxn, scip->getModel()->getReactions()) {
 		double val = _tflux->getFlux(rxn);
-		SCIP_VAR* var = _scip->getFlux(rxn);
-		BOOST_SCIP_CALL( SCIPsetSolVal(_scip->getScip(), sol.get(), var, val) );
+		SCIP_VAR* var = scip->getFlux(rxn);
+		BOOST_SCIP_CALL( SCIPsetSolVal(scip->getScip(), sol.get(), var, val) );
 	}
 
 	// ignore flux forcing reactions for now
@@ -143,8 +149,62 @@ bool CycleDeletionHeur::computeFluxSolution(SolutionPtr sol) {
 	return true;
 }
 
-bool CycleDeletionHeur::computePotentials(SolutionPtr sol) {
+bool CycleDeletionHeur::perturb() {
+	ScipModelPtr scip = getScip();
+	foreach(ReactionPtr rxn, scip->getModel()->getReactions()) {
+		if(!rxn->isExchange()) {
+			double val = 0;
+			foreach(Stoichiometry s, rxn->getStoichiometries()) {
+				val += s.second * _potentials->getPotential(s.first);
+			}
+			if(val >= 0) _potentials->setDirection(rxn, true);
+			else _potentials->setDirection(rxn, false);
+			if(val > -1 && val < 1) { //TODO: ugly
+				// resolve
+				_potentials->solveDual();
+				if(!_potentials->isFeasible()) {
+					return false;
+				}
+			}
+		}
+	}
+	return true;
+}
 
+bool CycleDeletionHeur::computePotentials(SolutionPtr sol) {
+	ScipModelPtr scip = getScip();
+	if(scip->hasPotentials()) {
+		_potentials->setDirections(_tflux);
+		_potentials->solveDual(); // we only changed bounds, so use dual simplex
+		if(_potentials->isFeasible()) {
+			perturb(); // make sure all potential differences are either <= -1 or >= 1
+		}
+		if(_potentials->isFeasible()) {
+			// copy solution into sol
+			foreach(MetabolitePtr met, scip->getModel()->getMetabolites()) {
+				double val = _potentials->getPotential(met);
+				if(scip->hasPotentialVar(met)) {
+					SCIP_VAR* var = scip->getPotential(met);
+					BOOST_SCIP_CALL( SCIPsetSolVal(scip->getScip(), sol.get(), var, val) );
+				}
+			}
+			return true;
+		}
+		else {
+			return false;
+		}
+	}
+	else {
+		// nothing to do
+		return true;
+	}
+}
+
+void createCycleDeletionHeur(ScipModelPtr scip) {
+	// create insecure pointer, but thats ok since Scip will do all the allocation handling.
+	// ofcourse, it gets more complicated, if we want to do more with the heur.
+	CycleDeletionHeur* heur = new CycleDeletionHeur(scip);
+	BOOST_SCIP_CALL( SCIPincludeObjHeur(scip->getScip(), heur, true) );
 }
 
 } /* namespace metaopt */
