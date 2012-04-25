@@ -13,6 +13,49 @@
 
 namespace metaopt {
 
+/**
+ * LPPotentials models the space of feasible potentials.
+ * I.e. we work on solutions that satisfy
+ *
+ * l <= mu <= u
+ *   Dmu_i <  0 	i in fwd
+ *   Dmu_i >  0		i in bwd
+ *
+ * Since this space is usually not closed, feasibility and so on are nontrivial matters.
+ *
+ * To test strict feasibility of Ax <= a && Bx < b, we test
+ *
+ * max z :
+ *       Ax <= a
+ * 	z1 + Bx <= b
+ * 	z       <= 1
+ *
+ * In out application, A models the lower and upper bounds on mu.
+ * It is assumed that l <= u (with no epsilon-tolerance!!); hence, Ax <= a is always feasible.
+ * Thus, the strict-feasibility testing problem is always feasible.
+ * Since z is bounded at 1, it always has a finite optimal solution.
+ *
+ * An usage cycle consists of the following steps:
+ *
+ * 0. Change bounds and objective
+ *
+ * 1. test for strict feasibility by solving the feasibility subproblem
+ * 		a) load optimal basic solution of last feasibility test solve
+ * 			We only changed bounds and one column
+ * 		b) use dual simplex to compute the new solution
+ * 		c) the computed solution is stored for the next iteration
+ *
+ * 2. compute the optimal solution
+ * 		a) change to original objective function
+ * 		b) use primal simplex to compute the solution
+ *
+ *
+ * Possible problems:
+ * 1. the column of the feastest variable is basic and is changed
+ * 		can happen, if the directions are changed
+ * 		basic solution may not be basic anymore
+ *
+ */
 class LPPotentials {
 public:
 	LPPotentials(ModelPtr model);

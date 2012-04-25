@@ -17,6 +17,22 @@
 
 namespace metaopt {
 
+struct ReactionDirVars {
+	SCIP_VAR* dir;
+	SCIP_VAR* slack_flux_fwd;
+	SCIP_VAR* slack_flux_bwd;
+	SCIP_VAR* slack_pot_fwd;
+	SCIP_VAR* slack_pot_bwd;
+
+	ReactionDirVars() {
+		dir = NULL;
+		slack_flux_fwd = NULL;
+		slack_flux_bwd = NULL;
+		slack_pot_fwd = NULL;
+		slack_pot_bwd = NULL;
+	}
+};
+
 class ReactionDirections : public ModelAddOn {
 public:
 	ReactionDirections(ScipModelPtr model, PotentialDifferencesPtr potDiff);
@@ -67,7 +83,7 @@ public:
 
 private:
 	PotentialDifferencesPtr _potDiff;
-	boost::unordered_map<ReactionPtr, SCIP_VAR*> _dirs;
+	boost::unordered_map<ReactionPtr, ReactionDirVars> _dirs;
 };
 
 typedef boost::shared_ptr<ReactionDirections> ReactionDirectionsPtr;

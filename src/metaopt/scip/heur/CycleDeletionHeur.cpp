@@ -149,14 +149,19 @@ bool CycleDeletionHeur::computeFluxSolution(SolutionPtr sol) {
 	return true;
 }
 
+inline double computePotDiff(LPPotentialsPtr& _potentials, ReactionPtr& rxn) {
+	double val = 0;
+	foreach(Stoichiometry s, rxn->getStoichiometries()) {
+		val += s.second * _potentials->getPotential(s.first);
+	}
+	return val;
+}
+
 bool CycleDeletionHeur::perturb() {
 	ScipModelPtr scip = getScip();
 	foreach(ReactionPtr rxn, scip->getModel()->getReactions()) {
 		if(!rxn->isExchange()) {
-			double val = 0;
-			foreach(Stoichiometry s, rxn->getStoichiometries()) {
-				val += s.second * _potentials->getPotential(s.first);
-			}
+			double val = computePotDiff(_potentials, rxn);
 			if(val >= 0) _potentials->setDirection(rxn, true);
 			else _potentials->setDirection(rxn, false);
 			if(val > -1 && val < 1) { //TODO: ugly
@@ -165,6 +170,10 @@ bool CycleDeletionHeur::perturb() {
 				if(!_potentials->isFeasible()) {
 					return false;
 				}
+#ifndef NDEBUG
+				val = computePotDiff(_potentials, rxn);
+				assert(val < -1+EPSILON || val > 1-EPSILON);
+#endif
 			}
 		}
 	}
