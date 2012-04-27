@@ -60,7 +60,7 @@ private:
 	 * perturb current solution s.t. every reaction has a nonzero potential difference.
 	 * Due to potential bounds, this may fail.
 	 */
-	bool perturb();
+	//bool perturb();
 };
 
 ScipModelPtr CycleDeletionHeur::getScip() const {

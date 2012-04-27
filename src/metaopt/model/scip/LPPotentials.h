@@ -73,15 +73,10 @@ public:
 
 	/**
 	 * Computes optimal flux using primal simplex.
-	 * Use this, if you only changed objective coefficients (or the objective sense).
+	 *
+	 * true is returned, iff the computation was successful
 	 */
-	void solvePrimal();
-
-	/**
-	 * Computes optimal flux using dual simplex.
-	 * Use this, if you only changed bounds.
-	 */
-	void solveDual();
+	bool optimize();
 
 	/**
 	 * fetch computed potential
@@ -89,13 +84,43 @@ public:
 	double getPotential(MetabolitePtr met);
 
 	/**
-	 * checks, if the current solution is feasible
-	 * does no computation.
-	 * TODO: maybe change this!
+	 * checks, if the current problem is strictly feasible
+	 * solves an LP for this
+	 * the result of the feasibility test is stored in result
+	 *
+	 * true is returned, iff we successfully determined the feasibility state
 	 */
-	bool isFeasible();
+	bool testStrictFeasible(bool& result);
+
+	/**
+	 * check, if current solution is primal feasible.
+	 * This does not involve expensive computations.
+	 * The result depends on the problem that was solved.
+	 * If testStrictFeasible was executed before this call, true should always be returned.
+	 * If optimize was executed before this call, the function should return true, if the problem is weak feasible.
+	 *
+	 * This function, however may also return false in those cases, where numerical problems and other issues prevented a computation of the solution.
+	 */
+	bool isCurrentSolutionFeasible();
 
 private:
+
+	/**
+	 * stores basis solution as needed in SCIPlpiSetBase
+	 */
+	struct Basis {
+		std::vector<int> cstat;
+		std::vector<int> rstat;
+	};
+
+
+	/**
+	 * reserve sufficient for Basis amounts of memory
+	 */
+	void init(Basis& b);
+
+	Basis _feasTest; //< initial base for feasibility testing
+
 	ModelPtr _model;
 	boost::unordered_map<ReactionPtr, int> _reactions; // in the internal LP problem, rows are only identified by indices, so we have to map reactions to indices
 	boost::unordered_map<MetabolitePtr, int> _metabolites; // in the internal LP problem, columns are only identified by indices, so we have to map metabolites to indices
@@ -104,6 +129,9 @@ private:
 	int _num_reactions; //< number of reactions in the LP model
 
 	std::vector<double> _primsol; // use vector to store primal solution to circumvent deallocation hassle
+	std::vector<double> _orig_obj; // store objective function for switching to optimization call
+	std::vector<double> _zero_obj; // store a zero objective for feas testing
+	std::vector<int> _obj_ind; // store indices of objective coefficients
 
 	SCIP_RETCODE init_lp();
 	SCIP_RETCODE free_lp();

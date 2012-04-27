@@ -5,11 +5,11 @@
  *      Author: arnem
  */
 
-#include "WeakNaiveThermoConstraint.h"
+#include "RelaxedNaiveThermoConstraint.h"
 
 namespace metaopt {
 
-void createWeakNaiveThermoConstraint(ScipModelPtr model, ReactionDirectionsPtr dirs) {
+void createRelaxedNaiveThermoConstraint(ScipModelPtr model, ReactionDirectionsPtr dirs) {
 	ModelPtr m = model->getModel();
 	foreach(ReactionPtr rxn, m->getReactions()) {
 		if(!rxn->isExchange()) {

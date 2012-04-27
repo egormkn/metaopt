@@ -21,9 +21,14 @@ namespace metaopt {
 LPPotentials::LPPotentials(ModelPtr model) {
 	_model = model;
 	BOOST_SCIP_CALL( init_lp() );
+
+	// we have the lp, we now know the size of the base
+	init(_feasTest);
 }
 
 SCIP_RETCODE LPPotentials::init_lp() {
+	// we initially build the feas-test LP, because feas test should always be called before the optimization step
+
 	_lpi = NULL;
 	SCIP_CALL( SCIPlpiCreate(&_lpi, "LPFlux", SCIP_OBJSEN_MAXIMIZE) );
 
@@ -75,13 +80,11 @@ SCIP_RETCODE LPPotentials::init_lp() {
 	// set bounds on metabolite potentials
 	double lb[_num_metabolites+1];
 	double ub[_num_metabolites+1];
-	double obj[_num_metabolites+1];
 	int ind[_num_metabolites+1];
 
 	// set vals for feastest var
 	lb[0] = -INFINITY;
-	ub[0] = INFINITY;
-	obj[0] = 0;
+	ub[0] = 1; // else we may get unbounded feas-test solutions
 	ind[0] = 0;
 
 	typedef pair<MetabolitePtr, int> PotVar;
@@ -90,12 +93,24 @@ SCIP_RETCODE LPPotentials::init_lp() {
 		assert(v.first->getPotLb() <= v.first->getPotUb()); // am I allowed to check for equality?
 		lb[v.second] = v.first->getPotLb();
 		ub[v.second] = v.first->getPotUb();
-		obj[v.second] = v.first->getPotObj();
+		double vobj = v.first->getPotObj();
+		if( vobj < -EPSILON || vobj > EPSILON) {
+			_orig_obj.push_back(vobj);
+			_obj_ind.push_back(v.second);
+			_zero_obj.push_back(0);
+		}
 	}
 	SCIP_CALL( SCIPlpiChgBounds(_lpi, _num_metabolites+1, ind, lb, ub));
-	SCIP_CALL( SCIPlpiChgObj(_lpi, _num_metabolites+1, ind, obj));
+	double obj = 1;
+	// ind already has the correct value at index 0
+	SCIP_CALL( SCIPlpiChgObj(_lpi, 1, ind, &obj));
 
 	return SCIP_OKAY;
+}
+
+void LPPotentials::init(Basis& b) {
+	b.rstat.resize(_num_reactions,0);
+	b.cstat.resize(_num_metabolites+1,0); // don't forget the extra variable for the strict feasibility test variable
 }
 
 SCIP_RETCODE LPPotentials::free_lp() {
@@ -153,26 +168,53 @@ void LPPotentials::setDirection(ReactionPtr rxn, bool fwd) {
 	BOOST_SCIP_CALL( SCIPlpiChgSides(_lpi, 1, &ind, &lhs, &rhs));
 }
 
-void LPPotentials::solvePrimal() {
+bool LPPotentials::optimize() {
+	// set original objective
+	BOOST_SCIP_CALL( SCIPlpiChgObj(_lpi, _obj_ind.size(), _obj_ind.data(), _orig_obj.data()));
+
+	// we onl< changed objective, so use primal simplex
 	BOOST_SCIP_CALL( SCIPlpiSolvePrimal(_lpi) );
+
+	if(! SCIPlpiIsOptimal(_lpi) ) {
+		return false; // we somehow failed to solve the LP. Thus, we cannot determine if it is strictly feasible
+	}
+
 	// capture solution in _primsol
 	BOOST_SCIP_CALL( SCIPlpiGetSol(_lpi, NULL, _primsol.data(), NULL, NULL, NULL) );
+	return true;
 }
 
-void LPPotentials::solveDual() {
-	BOOST_SCIP_CALL( SCIPlpiSolveDual(_lpi) );
-	// capture solution in _primsol
-	BOOST_SCIP_CALL( SCIPlpiGetSol(_lpi, NULL, _primsol.data(), NULL, NULL, NULL) );
-}
-
-bool LPPotentials::isFeasible() {
-	return SCIPlpiIsPrimalFeasible(_lpi);
-}
-
-bool LPPotentials::isStrictFeasible() {
+bool LPPotentials::testStrictFeasible(bool& result) {
 	// actually solve and test feasibility
 
-	return SCIPlpiIsPrimalFeasible(_lpi);
+	// set feastest objective
+	BOOST_SCIP_CALL( SCIPlpiChgObj(_lpi, _obj_ind.size(), _obj_ind.data(), _zero_obj.data()));
+	int ind = FEASTEST_VAR;
+	double obj = 1;
+	BOOST_SCIP_CALL( SCIPlpiChgObj(_lpi, 1, &ind, &obj));
+
+	// set base
+	BOOST_SCIP_CALL( SCIPlpiSetBase(_lpi, _feasTest.cstat.data(), _feasTest.rstat.data()) );
+
+	// solve
+	SCIPlpiSolveDual(_lpi);
+
+	// store base
+	BOOST_SCIP_CALL( SCIPlpiGetBase(_lpi, _feasTest.cstat.data(), _feasTest.rstat.data()) );
+
+	// by the structure of the problem, the problem should always be primal feasible, however numerical issues may prevent the solver from seeing this
+	// in this case, we will not want to throw a runtime error
+	// hence we do not check by assert
+	if(! SCIPlpiIsOptimal(_lpi) ) {
+		return false; // we somehow failed to solve the LP. Thus, we cannot determine if it is strictly feasible
+	}
+	BOOST_SCIP_CALL( SCIPlpiGetSol(_lpi, NULL, _primsol.data(), NULL, NULL, NULL) );
+
+	double val; // objective value
+	BOOST_SCIP_CALL( SCIPlpiGetObjval(_lpi, &val) );
+
+	result = val >= EPSILON; // test against epsilon (because of rounding issues)
+	return true;
 }
 
 double LPPotentials::getPotential(MetabolitePtr met) {
@@ -180,5 +222,8 @@ double LPPotentials::getPotential(MetabolitePtr met) {
 	return _primsol.at(i);
 }
 
+bool LPPotentials::isCurrentSolutionFeasible() {
+	return SCIPlpiIsPrimalFeasible(_lpi);
+}
 
 } /* namespace metaopt */

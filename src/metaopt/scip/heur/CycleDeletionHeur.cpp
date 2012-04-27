@@ -109,7 +109,10 @@ bool CycleDeletionHeur::isDifficult() {
 	_difficultyTestFlux->solveDual(); // we only change bounds, so solve using dual Simplex
 
 	// zero flux is always possible, so only check feasibility for sanity
-	assert( _difficultyTestFlux->isFeasible() );
+	if( !_difficultyTestFlux->isFeasible() ) {
+		// numerical issues may cause this - we then don't want to fail completely
+		return true; // if we have numerical issues, the problem is difficult!
+	}
 	return _difficultyTestFlux->getObjVal() > EPSILON || _difficultyTestFlux->getObjVal() < -EPSILON;
 }
 
@@ -127,7 +130,11 @@ bool CycleDeletionHeur::computeFluxSolution(SolutionPtr sol) {
 		// only allow flux through reactions that still carry flux
 		_cycle->setDirectionBounds(_tflux);
 		_cycle->solve();
-		assert(_cycle->isFeasible());
+		if(!_cycle->isFeasible()) {
+			// usually, this should never happen, but we may run into numerical issues
+			// these numerical issues should not kill the program
+			return false;
+		}
 		hasFlux = _cycle->getObjVal() > EPSILON;
 		if(hasFlux) {
 			// now subtract computed flux from solution flux
@@ -157,7 +164,7 @@ inline double computePotDiff(LPPotentialsPtr& _potentials, ReactionPtr& rxn) {
 	return val;
 }
 
-bool CycleDeletionHeur::perturb() {
+/*bool CycleDeletionHeur::perturb() {
 	ScipModelPtr scip = getScip();
 	foreach(ReactionPtr rxn, scip->getModel()->getReactions()) {
 		if(!rxn->isExchange()) {
@@ -178,30 +185,33 @@ bool CycleDeletionHeur::perturb() {
 		}
 	}
 	return true;
-}
+}*/
 
 bool CycleDeletionHeur::computePotentials(SolutionPtr sol) {
 	ScipModelPtr scip = getScip();
 	if(scip->hasPotentials()) {
 		_potentials->setDirections(_tflux);
-		_potentials->solveDual(); // we only changed bounds, so use dual simplex
-		if(_potentials->isFeasible()) {
-			perturb(); // make sure all potential differences are either <= -1 or >= 1
-		}
-		if(_potentials->isFeasible()) {
-			// copy solution into sol
-			foreach(MetabolitePtr met, scip->getModel()->getMetabolites()) {
-				double val = _potentials->getPotential(met);
-				if(scip->hasPotentialVar(met)) {
-					SCIP_VAR* var = scip->getPotential(met);
-					BOOST_SCIP_CALL( SCIPsetSolVal(scip->getScip(), sol.get(), var, val) );
-				}
-			}
-			return true;
-		}
-		else {
+		// first check if we can find an optimal solution
+		bool feasible;
+		if(!_potentials->testStrictFeasible(feasible)) {
+			// we failed to determine feasibility status, so be pessimistic and return false
 			return false;
 		}
+		if(!feasible) return false;
+		_potentials->optimize(); // we don't care if we failed to compute an optimal solution.
+		// it suffices if the computed solution is feasible
+		if(!_potentials->isCurrentSolutionFeasible()) {
+			return false;
+		}
+		// copy solution into sol
+		foreach(MetabolitePtr met, scip->getModel()->getMetabolites()) {
+			double val = _potentials->getPotential(met);
+			if(scip->hasPotentialVar(met)) {
+				SCIP_VAR* var = scip->getPotential(met);
+				BOOST_SCIP_CALL( SCIPsetSolVal(scip->getScip(), sol.get(), var, val) );
+			}
+		}
+		return true;
 	}
 	else {
 		// nothing to do

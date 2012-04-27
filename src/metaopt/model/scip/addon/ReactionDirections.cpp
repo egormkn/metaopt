@@ -16,7 +16,7 @@ using namespace boost;
 namespace metaopt {
 
 // For the strict inequalities, we have to introduce an epsilon for now
-#define REACTION_DIRECTIONS_EPSILON 1
+//#define REACTION_DIRECTIONS_EPSILON 1
 
 ReactionDirections::ReactionDirections(ScipModelPtr model, PotentialDifferencesPtr potDiff)
 		: ModelAddOn(model, "reaction directions")
@@ -34,14 +34,17 @@ void ReactionDirections::destroy(ScipModel* model) {
 	foreach(DirVar r, _dirs) {
 		int code = SCIPreleaseVar(model->getScip(), &r.second.dir);
 		assert(code == SCIP_OKAY);
-		code = SCIPreleaseVar(model->getScip(), &r.second.slack_flux_fwd);
-		assert(code == SCIP_OKAY);
-		code = SCIPreleaseVar(model->getScip(), &r.second.slack_flux_bwd);
-		assert(code == SCIP_OKAY);
-		code = SCIPreleaseVar(model->getScip(), &r.second.slack_pot_fwd);
-		assert(code == SCIP_OKAY);
-		code = SCIPreleaseVar(model->getScip(), &r.second.slack_pot_bwd);
-		assert(code == SCIP_OKAY);
+		// apparently I don't have to do memory management for the slack variables
+		// The variables get freed automatically at Scip destruction (I checked that)
+		// manually freeing them will lead to an error
+		//code = SCIPreleaseVar(model->getScip(), &r.second.slack_flux_fwd);
+		//assert(code == SCIP_OKAY);
+		//code = SCIPreleaseVar(model->getScip(), &r.second.slack_flux_bwd);
+		//assert(code == SCIP_OKAY);
+		//code = SCIPreleaseVar(model->getScip(), &r.second.slack_pot_fwd);
+		//assert(code == SCIP_OKAY);
+		//code = SCIPreleaseVar(model->getScip(), &r.second.slack_pot_bwd);
+		//assert(code == SCIP_OKAY);
 	}
 	_dirs.clear(); // make sure there are no invalid pointers hanging around
 	_potDiff.reset();
@@ -106,7 +109,7 @@ SCIP_VAR* ReactionDirections::getDirection(ReactionPtr rxn) {
 		// if var = 1, potDiff <= -EPSILON
 		std::string name_pot_fwd = name+"_pot_fwd";
 		val = 1; // coefficient of pot var
-		BOOST_SCIP_CALL( SCIPcreateConsIndicator(scip, &cons, name_pot_fwd.c_str(), var.dir, 1, &pot_var, &val, -REACTION_DIRECTIONS_EPSILON, true, true, true, true, true, false, false, false, false) );
+		BOOST_SCIP_CALL( SCIPcreateConsIndicator(scip, &cons, name_pot_fwd.c_str(), var.dir, 1, &pot_var, &val, 0, true, true, true, true, true, false, false, false, false) );
 		BOOST_SCIP_CALL( SCIPaddCons(scip, cons));
 		var.slack_pot_fwd = SCIPgetSlackVarIndicator(cons);
 		BOOST_SCIP_CALL( SCIPreleaseCons(scip, &cons));
@@ -114,7 +117,7 @@ SCIP_VAR* ReactionDirections::getDirection(ReactionPtr rxn) {
 		// if var = 0, potDiff >= EPSILON
 		std::string name_pot_bwd = name+"_pot_bwd";
 		val = -1; // coefficient of pot var
-		BOOST_SCIP_CALL( SCIPcreateConsIndicator(scip, &cons, name_pot_bwd.c_str(), neg_var, 1, &pot_var, &val, -REACTION_DIRECTIONS_EPSILON, true, true, true, true, true, false, false, false, false) );
+		BOOST_SCIP_CALL( SCIPcreateConsIndicator(scip, &cons, name_pot_bwd.c_str(), neg_var, 1, &pot_var, &val, 0, true, true, true, true, true, false, false, false, false) );
 		BOOST_SCIP_CALL( SCIPaddCons(scip, cons));
 		var.slack_pot_bwd = SCIPgetSlackVarIndicator(cons);
 		BOOST_SCIP_CALL( SCIPreleaseCons(scip, &cons));
@@ -137,24 +140,22 @@ bool ReactionDirections::computeSolutionVals(SolutionPtr sol) const {
 
 		if(val < 0) {
 			// if it is negative, set direction to 1 (fwd flux)
-			assert(val < -REACTION_DIRECTIONS_EPSILON+EPSILON);
 			assert(flux > -EPSILON);
-			// flux should be positive
+			// flux should be positive or zero
 			BOOST_SCIP_CALL( SCIPsetSolVal(model->getScip(), sol.get(), v.second.dir, 1) );
 			BOOST_SCIP_CALL( SCIPsetSolVal(model->getScip(), sol.get(), v.second.slack_flux_fwd, 0) );
 			BOOST_SCIP_CALL( SCIPsetSolVal(model->getScip(), sol.get(), v.second.slack_flux_bwd, flux) );
 			BOOST_SCIP_CALL( SCIPsetSolVal(model->getScip(), sol.get(), v.second.slack_pot_fwd, 0) );
-			BOOST_SCIP_CALL( SCIPsetSolVal(model->getScip(), sol.get(), v.second.slack_pot_bwd, REACTION_DIRECTIONS_EPSILON-val) );
+			BOOST_SCIP_CALL( SCIPsetSolVal(model->getScip(), sol.get(), v.second.slack_pot_bwd, -val) );
 		}
 		else {
 			// set to 0 (bwd flux)
-			assert(val > REACTION_DIRECTIONS_EPSILON-EPSILON);
 			assert(flux < EPSILON);
-			// flux should be negative
+			// flux should be negative or zero
 			BOOST_SCIP_CALL( SCIPsetSolVal(model->getScip(), sol.get(), v.second.dir, 0) );
 			BOOST_SCIP_CALL( SCIPsetSolVal(model->getScip(), sol.get(), v.second.slack_flux_fwd, -flux) );
 			BOOST_SCIP_CALL( SCIPsetSolVal(model->getScip(), sol.get(), v.second.slack_flux_bwd, 0) );
-			BOOST_SCIP_CALL( SCIPsetSolVal(model->getScip(), sol.get(), v.second.slack_pot_fwd, REACTION_DIRECTIONS_EPSILON+val) );
+			BOOST_SCIP_CALL( SCIPsetSolVal(model->getScip(), sol.get(), v.second.slack_pot_fwd, val) );
 			BOOST_SCIP_CALL( SCIPsetSolVal(model->getScip(), sol.get(), v.second.slack_pot_bwd, 0) );
 		}
 	}

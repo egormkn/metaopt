@@ -33,6 +33,14 @@ struct ReactionDirVars {
 	}
 };
 
+/**
+ * ReactionDirections couple flux directions to potential differences.
+ *
+ * However, this link is realized by relaxing the strict inequalities that are used usually.
+ * In particular, if a potential difference is zero, nonnegative flux in any direction will still be allowed.
+ *
+ * To deal with this problem, please create a WeakThermoConstraint. (TODO: implement!)
+ */
 class ReactionDirections : public ModelAddOn {
 public:
 	ReactionDirections(ScipModelPtr model, PotentialDifferencesPtr potDiff);
