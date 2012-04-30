@@ -65,6 +65,14 @@ public:
 	void setDirectionBounds(ScipModelPtr flux);
 
 	/**
+	 * Sets flux bounds according to the specified solution of specified ScipModel.
+	 * If the reaction carries positive flux, the lower bound is set to 0 and the upper bound is set to 1.
+	 * If the reaction carries negative flux, the upper bound is set to 0 and the lower bound is set to -1.
+	 * If the reaction carries no flux, the lower and upper bound are set to 0.
+	 */
+	void setDirectionBounds(SolutionPtr sol, ScipModelPtr flux);
+
+	/**
 	 * sets the objective value such that reactions with positive flux are maximized,
 	 * reactions with negative flux are minimized and reactions without flux have objective coef of 0.
 	 */
@@ -75,6 +83,12 @@ public:
 	 * reactions with negative flux are minimized and reactions without flux have objective coef of 0.
 	 */
 	void setDirectionObj(ScipModelPtr flux);
+
+	/**
+	 * sets the objective value such that reactions with positive flux (in the specified solution) are maximized,
+	 * reactions with negative flux are minimized and reactions without flux have objective coef of 0.
+	 */
+	void setDirectionObj(SolutionPtr sol, ScipModelPtr flux);
 
 	/**
 	 * specifies, if we want to maximize (true) or minimize (false)

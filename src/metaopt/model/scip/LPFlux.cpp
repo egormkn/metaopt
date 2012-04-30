@@ -188,6 +188,21 @@ void LPFlux::setDirectionBounds(ScipModelPtr flux) {
 	BOOST_SCIP_CALL( SCIPlpiChgBounds(_lpi, _num_reactions, ind, lb, ub) );
 }
 
+void LPFlux::setDirectionBounds(SolutionPtr sol, ScipModelPtr flux) {
+	// Here, we have no other option than to iterate through all reactions and do a seperate function call to get the bounds
+	double lb[_num_reactions];
+	double ub[_num_reactions];
+	int ind[_num_reactions];
+	int i = 0;
+	foreach(VarAssign v, _reactions) {
+		ind[i] = v.second;
+		lb[i] = flux->getFlux(sol, v.first) < -EPSILON ? -1 : 0;
+		ub[i] = flux->getFlux(sol, v.first) >  EPSILON ?  1 : 0;
+		i++;
+	}
+	BOOST_SCIP_CALL( SCIPlpiChgBounds(_lpi, _num_reactions, ind, lb, ub) );
+}
+
 void LPFlux::setDirectionObj(LPFluxPtr flux) {
 	// the data may be stored in a different order, so we cannot simply do a batch copy, but have to translate the indices.
 	// oind stores the desired permutation
@@ -216,6 +231,22 @@ void LPFlux::setDirectionObj(ScipModelPtr flux) {
 	foreach(VarAssign v, _reactions) {
 		ind[i] = v.second;
 		double val = flux->getCurrentFlux(v.first);
+		if(val < -EPSILON) obj[i] = -1;
+		else if(val > EPSILON) obj[i] = 1;
+		else obj[i] = 0;
+		i++;
+	}
+	BOOST_SCIP_CALL( SCIPlpiChgObj(_lpi, _num_reactions, ind, obj) );
+}
+
+void LPFlux::setDirectionObj(SolutionPtr sol, ScipModelPtr flux) {
+	// Here, we have no other option than to iterate through all reactions and do a seperate function call to get the bounds
+	double obj[_num_reactions];
+	int ind[_num_reactions];
+	int i = 0;
+	foreach(VarAssign v, _reactions) {
+		ind[i] = v.second;
+		double val = flux->getFlux(sol, v.first);
 		if(val < -EPSILON) obj[i] = -1;
 		else if(val > EPSILON) obj[i] = 1;
 		else obj[i] = 0;

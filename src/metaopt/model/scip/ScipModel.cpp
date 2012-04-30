@@ -243,6 +243,18 @@ double ScipModel::getCurrentPotential(MetabolitePtr met) {
 	}
 }
 
+
+double ScipModel::getFlux(SolutionPtr sol, ReactionPtr rxn) {
+	assert( hasFluxVar(rxn) );
+	return SCIPgetSolVal(_scip, sol.get(), getFlux(rxn));
+}
+
+
+double ScipModel::getPotential(SolutionPtr sol, MetabolitePtr met) {
+	assert( hasPotentialVar(met) );
+	return SCIPgetSolVal(_scip, sol.get(), getPotential(met));
+}
+
 void ScipModel::solve() {
 	BOOST_SCIP_CALL( SCIPsolve(_scip) );
 }

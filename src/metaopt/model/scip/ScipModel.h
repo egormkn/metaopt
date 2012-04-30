@@ -118,6 +118,17 @@ public:
 	 */
 	double getCurrentPotential(MetabolitePtr met);
 
+
+	/**
+	 * Returns the flux value of specified solution through the specified reaction.
+	 */
+	double getFlux(SolutionPtr sol, ReactionPtr rxn);
+
+	/**
+	 * Returns the potential of the specified metabolite in the specified solution.
+	 */
+	double getPotential(SolutionPtr sol, MetabolitePtr met);
+
 	/**
 	 * checks if the variable representing the flux has already been created
 	 */
