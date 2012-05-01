@@ -73,6 +73,29 @@ public:
 	void setDirectionBounds(SolutionPtr sol, ScipModelPtr flux);
 
 	/**
+	 * Sets flux bounds according to the current solution of specified LPFlux.
+	 * If the reaction carries positive flux, the lower bound is set to 0 and the upper bound is set to +infinity.
+	 * If the reaction carries negative flux, the upper bound is set to 0 and the lower bound is set to -infinity.
+	 * If the reaction carries no flux, the lower and upper bound are set to 0.
+	 */
+	void setDirectionBoundsInfty(LPFluxPtr flux);
+	/**
+	 * Sets flux bounds according to the current solution of specified ScipModel.
+	 * If the reaction carries positive flux, the lower bound is set to 0 and the upper bound is set to +infinity.
+	 * If the reaction carries negative flux, the upper bound is set to 0 and the lower bound is set to -infinity.
+	 * If the reaction carries no flux, the lower and upper bound are set to 0.
+	 */
+	void setDirectionBoundsInfty(ScipModelPtr flux);
+
+	/**
+	 * Sets flux bounds according to the specified solution of specified ScipModel.
+	 * If the reaction carries positive flux, the lower bound is set to 0 and the upper bound is set to +infinity.
+	 * If the reaction carries negative flux, the upper bound is set to 0 and the lower bound is set to -infinity.
+	 * If the reaction carries no flux, the lower and upper bound are set to 0.
+	 */
+	void setDirectionBoundsInfty(SolutionPtr sol, ScipModelPtr flux);
+
+	/**
 	 * sets the objective value such that reactions with positive flux are maximized,
 	 * reactions with negative flux are minimized and reactions without flux have objective coef of 0.
 	 */
@@ -142,6 +165,11 @@ public:
 	 * copy the flux of the current solution of the ScipModel into this solution
 	 */
 	void set(ScipModelPtr);
+
+	/**
+	 * copy the flux of the specified solution of the ScipModel into this solution
+	 */
+	void set(SolutionPtr sol, ScipModelPtr);
 
 	/**
 	 * subtracts current solution of flux from this solution.

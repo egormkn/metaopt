@@ -5,19 +5,27 @@
  *      Author: arne
  */
 
-#ifndef ANTICYCLECONSTRAINT_H_
-#define ANTICYCLECONSTRAINT_H_
+#ifndef THERMOCONSTRAINTHANDLER_H_
+#define THERMOCONSTRAINTHANDLER_H_
 
 #include "objscip/objconshdlr.h"
 #include "metaopt/model/scip/ScipModel.h"
 
 namespace metaopt {
 
-class AntiCycleConstraint: public scip::ObjConshdlr {
+class ThermoConstraintHandler: public scip::ObjConshdlr {
 public:
 
 	struct ConstraintData : SCIP_ConsData {
-		LPFluxPtr flux;
+		// for step 1
+		LPFluxPtr cycle_find; // for finding small violating cycles
+
+		// for step 2
+		LPFluxPtr flux_simpl; // for eliminating unimportant cycles
+		LPPotentialsPtr is_find; // for finding general infeasible sets
+
+		// for finding any violating cycle
+		LPFluxPtr cycle_test; // for testing feasibility
 	};
 
 	/**
@@ -26,19 +34,25 @@ public:
 	 * Generally, only important cycle, i.e. cycle that either contain objective reactions or flux forcing reactions, are checked.
 	 *
 	 * However, cycles that contain objective reactions should be priorized.
-	 * Hence, the objective parameter specifies, if only cycles with objective reactions shall be checked.
-	 * If objective is true, feasibility for cycles with objective reactions are enforced.
-	 * If objective is false, feasibility for cycles with flux forcing reactions are enforced.
-	 * If you want to check both, you have to create two instances of this constraint handler.
 	 *
 	 */
-	AntiCycleConstraint(ScipModelPtr model, bool objective);
-	virtual ~AntiCycleConstraint();
+	ThermoConstraintHandler(ScipModelPtr model);
+	virtual ~ThermoConstraintHandler();
 
 	/**
-	 * enforce one constraint
+	 * branch on the cycle of the current solution
 	 */
-	SCIP_RESULT enforce(ConstraintData& data, SolutionPtr sol);
+	SCIP_RESULT branchCycle(ConstraintData& data, SolutionPtr sol);
+
+	/**
+	 * enforce that the constraint contains no objective cycles (if it has, branch)
+	 */
+	SCIP_RESULT enforceObjectiveCycles(ConstraintData& data, SolutionPtr sol);
+
+	/**
+	 * enforce infeasible sets that are either not cycles or flux-forcing cycles
+	 */
+	SCIP_RESULT enforceNonSimple(ConstraintData& data, SolutionPtr sol);
 
 	/**
 	 * main method for enforcing constraints of this constrainthandler
@@ -110,33 +124,14 @@ public:
 private:
 	inline ScipModelPtr getScip();
 
-	/**
-	 * returns list of important reactions.
-	 * Depending on the value of _objective,
-	 * important reactions are either objective or flux forcing
-	 */
-	inline boost::unordered_set<ReactionPtr>& getImportantReactions();
-
-	/// specifies if only cycles with objective reactions or only cycles with flux forcing reactions shall be checked
-	const bool _objective;
-
 	const boost::weak_ptr<ScipModel> _model;
 
 };
 
-inline ScipModelPtr AntiCycleConstraint::getScip() {
+inline ScipModelPtr ThermoConstraintHandler::getScip() {
 	assert(!_model.expired());
 	return _model.lock();
 }
 
-inline boost::unordered_set<ReactionPtr>& AntiCycleConstraint::getImportantReactions() {
-	if(_objective) {
-		return getScip()->getModel()->getObjectiveReactions();
-	}
-	else {
-		return getScip()->getModel()->getFluxForcingReactions();
-	}
-}
-
 } /* namespace metaopt */
-#endif /* ANTICYCLECONSTRAINT_H_ */
+#endif /* THERMOCONSTRAINTHANDLER_H_ */
