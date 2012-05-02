@@ -183,6 +183,40 @@ double ReactionDirections::getCurrentDirection(ReactionPtr rxn) {
 	}
 }
 
+void ReactionDirections::setDirection(SCIP_NODE* node, ReactionPtr rxn, bool fwd) {
+	assert(!isDestroyed());
+	assert( hasDirection(rxn) );
+	ScipModelPtr model = getModel();
+	SCIP_VAR* var = getDirection(rxn);
+	if(fwd) {
+		BOOST_SCIP_CALL( SCIPchgVarLbNode(model->getScip(), node, var, 1) );
+	}
+	else {
+		BOOST_SCIP_CALL( SCIPchgVarUbNode(model->getScip(), node, var, 0) );
+	}
+}
+
+shared_ptr<const unordered_set<ReactionPtr> > ReactionDirections::retainFixedDirections(shared_ptr<const unordered_set<ReactionPtr> > candidates) {
+	assert(!isDestroyed());
+	shared_ptr<unordered_set<ReactionPtr> > result( new unordered_set<ReactionPtr>() );
+
+	foreach(ReactionPtr rxn, *candidates) {
+		if(hasDirection(rxn)) {
+			SCIP_VAR* var = getDirection(rxn);
+			double lb = SCIPvarGetLbLocal(var);
+			double ub = SCIPvarGetUbLocal(var);
+			if(ub - lb < EPSILON) result->insert(rxn);
+		}
+		else {
+			// we cannot say anything about the reaction
+			result->insert(rxn);
+		}
+	}
+
+	return result;
+}
+
+
 bool ReactionDirections::hasDirection(ReactionPtr rxn) {
 	assert(!isDestroyed());
 	return ( _dirs.find(rxn) != _dirs.end() );

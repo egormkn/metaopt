@@ -182,6 +182,31 @@ public:
 	 */
 	bool computeAddOnValues(SolutionPtr sol);
 
+	/**
+	 * Set the direction of a reaction for the specified node of the search tree.
+	 *
+	 * This method is used for setting branching decisions.
+	 * In particular, the specified direction does not only manipulate the direction of a reaction,
+	 * but also the sign of the potential difference.
+	 * This is not the same, because a reaction may be irreversible (allowing only forward flux),
+	 * but can have negative potential difference (if it does not carry any flux).
+	 *
+	 * If fwd is set to true, the potential difference of the reaction is forced to be non-positive.
+	 * This implies that backward flux is impossible.
+	 * If fwd is set to false, the potential difference of the reaction is forced to be non-negative.
+	 * This implies that forward flux is impossible.
+	 *
+	 * The pointer node must not be stored anywhere. It may only live as long as the function call goes.
+	 *
+	 * This method will call the setDirection method of the addons allowing addons to implement additional fixings.
+	 */
+	void setDirection(SCIP_NODE* node, ReactionPtr rxn, bool fwd);
+
+	/**
+	 * returns a sublist of the candidate reactions that have fixed directions.
+	 */
+	boost::shared_ptr<boost::unordered_set<ReactionPtr> > getFixedDirections(const boost::unordered_set<ReactionPtr>& candidates);
+
 private:
 	ModelPtr _model;
 	SCIP* _scip;

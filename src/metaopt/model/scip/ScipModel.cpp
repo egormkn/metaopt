@@ -277,4 +277,41 @@ bool ScipModel::computeAddOnValues(SolutionPtr sol) {
 	return success;
 }
 
+void ScipModel::setDirection(SCIP_NODE* node, ReactionPtr rxn, bool fwd) {
+	assert( hasFluxVar(rxn) );
+	// set direction on the flux vars
+	SCIP_VAR* var = getFlux(rxn);
+	if(fwd) {
+		BOOST_SCIP_CALL( SCIPchgVarLbNode(_scip, node, var, 0) ); // exclude negative flux
+	}
+	else {
+		BOOST_SCIP_CALL( SCIPchgVarUbNode(_scip, node, var, 0) ); // exclude positive flux
+	}
+	// notify addons
+	for(vector<ModelAddOnPtr>::iterator iter = _addons.begin(); iter != _addons.end(); iter++) {
+		(*iter)->setDirection(node, rxn, fwd);
+	}
+}
+
+shared_ptr<unordered_set<ReactionPtr> > ScipModel::getFixedDirections(const unordered_set<ReactionPtr>& candidates) {
+	shared_ptr<const unordered_set<ReactionPtr> > cands(&candidates); // this is a very ugly hack, but it saves us from copying the candidates list
+	// first hope that the addons are more restricting than the model itself
+	for(vector<ModelAddOnPtr>::iterator iter = _addons.begin(); iter != _addons.end(); iter++) {
+		cands = (*iter)->retainFixedDirections(cands);
+	}
+
+	// then apply the restrictions that the model itself poses (a direction is fixed, if either flux-lb is non-negative or flux-ub is non-positive)
+	shared_ptr<unordered_set<ReactionPtr> > result(new unordered_set<ReactionPtr>());
+	foreach(ReactionPtr rxn, *cands) {
+		if(getCurrentFluxLb(rxn) > -EPSILON) {
+			result->insert(rxn);
+		}
+		else if(getCurrentFluxUb(rxn) < EPSILON) {
+			result->insert(rxn);
+		}
+	}
+	return result;
+}
+
+
 } /* namespace metaopt */

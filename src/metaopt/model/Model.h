@@ -61,6 +61,13 @@ public:
 	const boost::unordered_set<ReactionPtr>& getObjectiveReactions() const;
 
 	/**
+	 * Returns the list of all internal reactions in this model.
+	 *
+	 * Important: This returns a reference to the internally stored list. Do not modify it.
+	 */
+	const boost::unordered_set<ReactionPtr>& getInternalReactions() const;
+
+	/**
 	 * Updates a reaction in this Model.
 	 *
 	 * This method must be called, if bounds or objective coefficients have changed.
@@ -90,6 +97,7 @@ public:
 protected:
 	boost::unordered_set<ReactionPtr> _fluxforcing; /** list of all flux forcing reactions */
 	boost::unordered_set<ReactionPtr> _objective; /** list of all objective reactions */
+	boost::unordered_set<ReactionPtr> _internal; /** list of all internal reactions */
 
 };
 

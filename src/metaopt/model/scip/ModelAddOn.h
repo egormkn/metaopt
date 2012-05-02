@@ -34,6 +34,22 @@ public:
 	 */
 	virtual bool computeSolutionVals(SolutionPtr sol) const = 0;
 
+	/**
+	 * Allows the addon to perform additional fixations according to branching decisions.
+	 *
+	 * For a complete explanation, see ScipModel#setDirection(SCIP_NODE*, ReactionPtr, bool)
+	 *
+	 * If this method is not implemented, the addon does nothing.
+	 */
+	virtual void setDirection(SCIP_NODE* node, ReactionPtr rxn, bool fwd);
+
+	/**
+	 * Allows the addon to exclude reactions that are not yet fixed (from the perspective of the addon).
+	 *
+	 * The default implementation simply returns the original list.
+	 */
+	virtual boost::shared_ptr<const boost::unordered_set<ReactionPtr> > retainFixedDirections(boost::shared_ptr<const boost::unordered_set<ReactionPtr> > candidates);
+
 	/** returns the name of this Addon. Useful for debugging */
 	inline const std::string& getName() const;
 

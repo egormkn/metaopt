@@ -10,6 +10,8 @@
 
 #define CONSTRAINT_NAME "ThermoConstraint"
 
+using namespace boost;
+
 namespace metaopt {
 
 ThermoConstraintHandler::ThermoConstraintHandler(ScipModelPtr model) :
@@ -25,8 +27,14 @@ ThermoConstraintHandler::~ThermoConstraintHandler() {
 SCIP_RESULT ThermoConstraintHandler::enforceObjectiveCycles(ConstraintData &data, SolutionPtr sol) {
 	ScipModelPtr model = getScip();
 	data.cycle_find->setDirectionBoundsInfty(sol, model);
-	// TODO: include preference on variables that are not yet fixed to one sign
+
 	data.cycle_find->setDirectionObj(sol, model);
+	// only include preference on variables that are not yet fixed to one sign
+	shared_ptr<unordered_set<ReactionPtr> > fixedDirs = model->getFixedDirections(model->getModel()->getInternalReactions());
+	foreach(ReactionPtr rxn, fixedDirs) {
+		data.cycle_find->setObj(rxn, 0);
+	}
+
 	foreach(ReactionPtr rxn, model->getModel()->getObjectiveReactions()) {
 		double val = model->getFlux(sol, rxn);
 		// force a tiny flow through the reaction in the current direction
@@ -70,7 +78,7 @@ SCIP_RESULT ThermoConstraintHandler::branchCycle(ConstraintData& data, SolutionP
 #else
 				BOOST_SCIP_CALL( SCIPcreateChild(model->getScip(), &node, prio, SCIPtransformObj(model->getScip(),SCIPgetSolOrigObj(model->getScip(), sol.get()))) ); // estimate must SCIPgetSolTransObj(scip, NULL)-lpobjval/prio)be for transformed node, sp transform estimated value for orig prob
 #endif
-				BOOST_SCIP_CALL( SCIPchgVarUbNode(model->getScip(), node, model->getFlux(rxn), 0) ); // exclude positive flux
+				model->setDirection(node, rxn, false); // restrict reaction to backward direction
 				count ++;
 			}
 		}
@@ -85,7 +93,7 @@ SCIP_RESULT ThermoConstraintHandler::branchCycle(ConstraintData& data, SolutionP
 #else
 				BOOST_SCIP_CALL( SCIPcreateChild(model->getScip(), &node, prio, SCIPtransformObj(model->getScip(),SCIPgetSolOrigObj(model->getScip(), sol.get()))) ); // estimate must SCIPgetSolTransObj(scip, NULL)-lpobjval/prio)be for transformed node, sp transform estimated value for orig prob
 #endif
-				BOOST_SCIP_CALL( SCIPchgVarLbNode(model->getScip(), node, model->getFlux(rxn), 0) ); // exclude negative flux
+				model->setDirection(node, rxn, true); // restrict reaction to forward direction
 				count ++;
 			}
 		}
@@ -149,7 +157,8 @@ SCIP_RESULT ThermoConstraintHandler::enforceNonSimple(ConstraintData& data, Solu
 	// data.flux_simpl now contains a still valid solution without easy cycles.
 	// we now start looking for infeasible sets
 
-	data.is_find->setDirections(data.flux_simpl);
+	shared_ptr<unordered_set<ReactionPtr> > fixedDirs = model->getFixedDirections(model->getModel()->getInternalReactions());
+	data.is_find->setDirections(data.flux_simpl, fixedDirs);
 }
 
 /**

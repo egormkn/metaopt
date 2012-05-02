@@ -10,6 +10,7 @@
 
 #include "objscip/objconshdlr.h"
 #include "metaopt/model/scip/ScipModel.h"
+#include "metaopt/model/scip/DualPotentials.h"
 
 namespace metaopt {
 
@@ -22,7 +23,7 @@ public:
 
 		// for step 2
 		LPFluxPtr flux_simpl; // for eliminating unimportant cycles
-		LPPotentialsPtr is_find; // for finding general infeasible sets
+		DualPotentialsPtr is_find; // for finding general infeasible sets
 
 		// for finding any violating cycle
 		LPFluxPtr cycle_test; // for testing feasibility

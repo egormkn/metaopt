@@ -26,4 +26,12 @@ void ModelAddOn::destroy(ScipModel* model) {
 	_destroyed = true;
 }
 
+void ModelAddOn::setDirection(SCIP_NODE* node, ReactionPtr rxn, bool fwd) {
+	// don't do anything by default.
+}
+
+boost::shared_ptr<const boost::unordered_set<ReactionPtr> > ModelAddOn::retainFixedDirections(boost::shared_ptr<const boost::unordered_set<ReactionPtr> > candidates) {
+	return candidates;
+}
+
 } /* namespace metaopt */

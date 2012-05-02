@@ -32,6 +32,7 @@ void FullModel::deleteReaction(ReactionPtr reaction) {
 	_reactions.erase(reaction);
 	_fluxforcing.erase(reaction);
 	_objective.erase(reaction);
+	_internal.erase(reaction);
 }
 
 void FullModel::deleteMetabolite(MetabolitePtr metabolite) {

@@ -32,10 +32,16 @@ const unordered_set<ReactionPtr>& Model::getObjectiveReactions() const {
 	return _objective;
 }
 
+const unordered_set<ReactionPtr>& Model::getInternalReactions() const {
+	return _internal;
+}
+
+
 void Model::updateReaction(ReactionPtr reaction) {
 	assert(getReactions().find(reaction) != getReactions().end());
 	bool was_fluxforcing = _fluxforcing.find(reaction) != _fluxforcing.end();
 	bool was_objective = _objective.find(reaction) != _objective.end();
+	bool was_internal = _internal.find(reaction) != _internal.end();
 	if(was_fluxforcing) {
 		if(reaction->getLb() < EPSILON && reaction->getUb() > -EPSILON) _fluxforcing.erase(reaction);
 	}
@@ -47,6 +53,12 @@ void Model::updateReaction(ReactionPtr reaction) {
 	}
 	else {
 		if(reaction->getObj() > EPSILON || reaction->getObj() < -EPSILON) _objective.insert(reaction);
+	}
+	if(was_internal) {
+		if(reaction->isExchange()) _internal.erase(reaction);
+	}
+	else {
+		if(!reaction->isExchange()) _internal.insert(reaction);
 	}
 }
 

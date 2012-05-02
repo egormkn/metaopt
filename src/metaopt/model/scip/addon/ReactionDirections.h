@@ -79,6 +79,13 @@ public:
 	bool computeSolutionVals(SolutionPtr sol) const;
 
 	/**
+	 * fixes the decision variable.
+	 */
+	virtual void setDirection(SCIP_NODE* node, ReactionPtr rxn, bool fwd);
+
+	virtual boost::shared_ptr<const boost::unordered_set<ReactionPtr> > retainFixedDirections(boost::shared_ptr<const boost::unordered_set<ReactionPtr> > candidates);
+
+	/**
 	 * Helper method for ScipModel destruction process.
 	 * This method should only be called from the destructor of ScipModel.
 	 * It processes the destruction of this ModelAddOn that still requires data of ScipModel.
