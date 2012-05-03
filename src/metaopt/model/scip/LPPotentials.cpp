@@ -153,6 +153,35 @@ void LPPotentials::setDirections(LPFluxPtr other) {
 	BOOST_SCIP_CALL( SCIPlpiChgSides(_lpi, _num_reactions, ind, lhs, rhs));
 }
 
+void LPPotentials::setDirections(SolutionPtr sol, ScipModelPtr smodel) {
+	double lhs[_num_reactions];
+	double rhs[_num_reactions];
+	int ind[_num_reactions];
+
+	typedef pair<ReactionPtr, int> RxnCon;
+
+	foreach(RxnCon c, _reactions) {
+		double val = smodel->getFlux(sol, c.first);
+		lhs[c.second] = -INFINITY;
+		rhs[c.second] = INFINITY;
+		if(val > EPSILON) {
+			//rhs[c.second] = -REACTION_DIRECTIONS_EPSILON;
+			rhs[c.second] = 0;
+			BOOST_SCIP_CALL( SCIPlpiChgCoef(_lpi, c.second, 0, 1) );
+		}
+		else if(val < -EPSILON) {
+			//lhs[c.second] = REACTION_DIRECTIONS_EPSILON;
+			lhs[c.second] = 0;
+			BOOST_SCIP_CALL( SCIPlpiChgCoef(_lpi, c.second, 0, -1) );
+		}
+		else {
+			BOOST_SCIP_CALL( SCIPlpiChgCoef(_lpi, c.second, 0, 0) );
+		}
+		ind[c.second] = c.second;
+	}
+	BOOST_SCIP_CALL( SCIPlpiChgSides(_lpi, _num_reactions, ind, lhs, rhs));
+}
+
 void LPPotentials::setDirection(ReactionPtr rxn, bool fwd) {
 	double lhs = -INFINITY;
 	double rhs = INFINITY;

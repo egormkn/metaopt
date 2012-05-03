@@ -47,6 +47,21 @@ public:
 	 */
 	void setDirections(LPFluxPtr flux, boost::shared_ptr<boost::unordered_set<ReactionPtr> > fixed_rxns);
 
+	/**
+	 * run the optuimization step
+	 */
+	void optimize();
+
+	/**
+	 * check, if a feasible solution (a violating set) has been found
+	 */
+	bool isFeasible();
+
+	/**
+	 * compute a small infeasible set
+	 */
+	boost::shared_ptr<boost::unordered_set<ReactionPtr> > getIS();
+
 private:
 	std::vector<double> _primsol; // use vector to store primal solution to circumvent deallocation hassle
 
@@ -56,6 +71,8 @@ private:
 	SCIP_LPI* _lpi; //< internal LP problem
 	int _num_metabolites; //< number of metabolites in the LP model
 	int _num_reactions; //< number of reactions in the LP model
+
+	int _num_beta_vars;
 
 	SCIP_RETCODE init_lp();
 	SCIP_RETCODE free_lp();

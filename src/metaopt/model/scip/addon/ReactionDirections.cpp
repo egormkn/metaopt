@@ -196,21 +196,17 @@ void ReactionDirections::setDirection(SCIP_NODE* node, ReactionPtr rxn, bool fwd
 	}
 }
 
-shared_ptr<const unordered_set<ReactionPtr> > ReactionDirections::retainFixedDirections(shared_ptr<const unordered_set<ReactionPtr> > candidates) {
+shared_ptr<const unordered_set<ReactionPtr> > ReactionDirections::getFixedDirections() {
 	assert(!isDestroyed());
 	shared_ptr<unordered_set<ReactionPtr> > result( new unordered_set<ReactionPtr>() );
 
-	foreach(ReactionPtr rxn, *candidates) {
-		if(hasDirection(rxn)) {
-			SCIP_VAR* var = getDirection(rxn);
-			double lb = SCIPvarGetLbLocal(var);
-			double ub = SCIPvarGetUbLocal(var);
-			if(ub - lb < EPSILON) result->insert(rxn);
-		}
-		else {
-			// we cannot say anything about the reaction
-			result->insert(rxn);
-		}
+	typedef std::pair<ReactionPtr, ReactionDirVars> RxnDir;
+
+	foreach(RxnDir dir, _dirs) {
+		SCIP_VAR* var = dir.second.dir;
+		double lb = SCIPvarGetLbLocal(var);
+		double ub = SCIPvarGetUbLocal(var);
+		if(ub - lb < EPSILON) result->insert(dir.first);
 	}
 
 	return result;

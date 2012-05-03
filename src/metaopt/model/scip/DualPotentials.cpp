@@ -16,11 +16,11 @@ namespace metaopt {
 
 // Variables
 // for each reaction, we have an \alpha variable
-#define ALPHA_START (2*_num_metabolites)
+#define ALPHA_START _num_beta_vars
 // for each metabolite, we have a \beta^+ and a \beta^- variable, indexing alternates (\beta^+_1, \beta^-_1, \beta^+_2, \beta^-_2, ...)
 #define BETA_START 0
 // we have a single gamma variable
-#define GAMMA (_num_reactions+2*_num_metabolites)
+#define GAMMA (_num_reactions+_num_beta_vars)
 
 // Constraints
 // for each metabolite m, we have the "\mu" constraint S \alpha + \beta^+_m - \beta^-_m = 0
@@ -44,6 +44,7 @@ SCIP_RETCODE DualPotentials::init_lp() {
 	// create metabolite -> index map
 	// initialize beta variables
 	int metabolite_index = 0;
+	_num_beta_vars = 0;
 	foreach(const MetabolitePtr m, _model->getMetabolites()) {
 		_metabolites[m] = metabolite_index;
 		vector<int> ind;
@@ -54,6 +55,7 @@ SCIP_RETCODE DualPotentials::init_lp() {
 
 		// X constraint
 		ind.push_back(X_CONSTRAINT);
+		// if PotUb or PotLb is INFINITY, we will not add the corresponding beta variable (but, for simplicity, we will create it)
 		coefpos.push_back(m->getPotUb());
 		coefneg.push_back(-m->getPotLb());
 
@@ -66,9 +68,14 @@ SCIP_RETCODE DualPotentials::init_lp() {
 		double lb = 0;
 		double ub = INFINITY;
 		int beg = 0;
-		SCIP_CALL( SCIPlpiAddCols(_lpi, 1, &obj, &lb, &ub, NULL, ind.size(), &beg, ind.data(), coefpos.data()) );
-		SCIP_CALL( SCIPlpiAddCols(_lpi, 1, &obj, &lb, &ub, NULL, ind.size(), &beg, ind.data(), coefneg.data()) );
-
+		if(isinf(m->getPotUb()) == 0) {
+			SCIP_CALL( SCIPlpiAddCols(_lpi, 1, &obj, &lb, &ub, NULL, ind.size(), &beg, ind.data(), coefpos.data()) );
+			_num_beta_vars++;
+		}
+		if(isinf(m->getPotLb()) == 0) {
+			SCIP_CALL( SCIPlpiAddCols(_lpi, 1, &obj, &lb, &ub, NULL, ind.size(), &beg, ind.data(), coefneg.data()) );
+			_num_beta_vars++;
+		}
 		metabolite_index++;
 	}
 	_num_metabolites = metabolite_index;
@@ -116,7 +123,7 @@ SCIP_RETCODE DualPotentials::init_lp() {
 		SCIP_CALL( SCIPlpiAddCols(_lpi, 1, &obj, &lb, &ub, NULL, ind.size(), &beg, ind.data(), coef.data()) );
 	}
 
-	_primsol.resize(2*_num_metabolites+_num_reactions +1, 0); // allocate sufficient memory (\beta^+, \beta^-, \alpha, \gamma)
+	_primsol.resize(_num_beta_vars+_num_reactions +1, 0); // allocate sufficient memory (\beta^+, \beta^-, \alpha, \gamma)
 
 	// set sides of constraints
 	// MU
@@ -215,6 +222,32 @@ void DualPotentials::setDirections(LPFluxPtr flux, shared_ptr<unordered_set<Reac
 		BOOST_SCIP_CALL( SCIPlpiChgObj(_lpi, 1, &ind, &obj) );
 		BOOST_SCIP_CALL( SCIPlpiChgCoef(_lpi, Z_CONSTRAINT, ind, coef));
 	}
+}
+
+void DualPotentials::optimize() {
+	BOOST_SCIP_CALL( SCIPlpiSolveDual(_lpi) );
+
+	BOOST_SCIP_CALL( SCIPlpiGetSol(_lpi, NULL, _primsol.data(), NULL, NULL, NULL) );
+}
+
+bool DualPotentials::isFeasible() {
+	return SCIPlpiIsPrimalFeasible(_lpi);
+}
+
+shared_ptr<unordered_set<ReactionPtr> > DualPotentials::getIS() {
+	// TODO: does not necessarily compute a minimal infeasible set, but for now it should be ok.
+
+	shared_ptr<unordered_set<ReactionPtr> > result(new unordered_set<ReactionPtr>());
+
+	typedef pair<ReactionPtr, int> RxnIndex;
+	foreach(RxnIndex ri, _reactions) {
+		double val = _primsol.at(ALPHA_START + ri.second);
+		if(val > EPSILON || val < -EPSILON) {
+			result->insert(ri.first);
+		}
+	}
+
+	return result;
 }
 
 

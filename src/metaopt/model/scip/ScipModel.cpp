@@ -293,23 +293,18 @@ void ScipModel::setDirection(SCIP_NODE* node, ReactionPtr rxn, bool fwd) {
 	}
 }
 
-shared_ptr<unordered_set<ReactionPtr> > ScipModel::getFixedDirections(const unordered_set<ReactionPtr>& candidates) {
-	shared_ptr<const unordered_set<ReactionPtr> > cands(&candidates); // this is a very ugly hack, but it saves us from copying the candidates list
-	// first hope that the addons are more restricting than the model itself
+shared_ptr<unordered_set<ReactionPtr> > ScipModel::getFixedDirections() {
+	shared_ptr<unordered_set<ReactionPtr> > result(new unordered_set<ReactionPtr>());
 	for(vector<ModelAddOnPtr>::iterator iter = _addons.begin(); iter != _addons.end(); iter++) {
-		cands = (*iter)->retainFixedDirections(cands);
+		shared_ptr<const unordered_set<ReactionPtr> > fixed = (*iter)->getFixedDirections();
+		result->insert(fixed->begin(), fixed->end());
 	}
 
-	// then apply the restrictions that the model itself poses (a direction is fixed, if either flux-lb is non-negative or flux-ub is non-positive)
-	shared_ptr<unordered_set<ReactionPtr> > result(new unordered_set<ReactionPtr>());
-	foreach(ReactionPtr rxn, *cands) {
-		if(getCurrentFluxLb(rxn) > -EPSILON) {
-			result->insert(rxn);
-		}
-		else if(getCurrentFluxUb(rxn) < EPSILON) {
-			result->insert(rxn);
-		}
-	}
+	// alternatively the model may also know about fixed reactions
+	// But, this is currently not implemented, since we would need to track this information in the nodes.
+	// And I do not know how to store user-data in the search-tree nodes.
+	// Ofcourse it would be possible to store a hash-map that performs the lookup,
+	// however, this solution would not know about nodes that have already been cut off.
 	return result;
 }
 

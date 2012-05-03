@@ -83,7 +83,7 @@ public:
 	 */
 	virtual void setDirection(SCIP_NODE* node, ReactionPtr rxn, bool fwd);
 
-	virtual boost::shared_ptr<const boost::unordered_set<ReactionPtr> > retainFixedDirections(boost::shared_ptr<const boost::unordered_set<ReactionPtr> > candidates);
+	virtual boost::shared_ptr<const boost::unordered_set<ReactionPtr> > getFixedDirections();
 
 	/**
 	 * Helper method for ScipModel destruction process.

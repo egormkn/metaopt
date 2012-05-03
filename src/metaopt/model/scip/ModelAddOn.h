@@ -44,11 +44,10 @@ public:
 	virtual void setDirection(SCIP_NODE* node, ReactionPtr rxn, bool fwd);
 
 	/**
-	 * Allows the addon to exclude reactions that are not yet fixed (from the perspective of the addon).
-	 *
-	 * The default implementation simply returns the original list.
+	 * Fetches the list of fixed reactions the addon knows about.
+	 * The default implementation simply returns an empty list.
 	 */
-	virtual boost::shared_ptr<const boost::unordered_set<ReactionPtr> > retainFixedDirections(boost::shared_ptr<const boost::unordered_set<ReactionPtr> > candidates);
+	virtual boost::shared_ptr<const boost::unordered_set<ReactionPtr> > getFixedDirections();
 
 	/** returns the name of this Addon. Useful for debugging */
 	inline const std::string& getName() const;

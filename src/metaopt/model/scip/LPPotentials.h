@@ -69,6 +69,12 @@ public:
 	 */
 	void setDirections(LPFluxPtr flux);
 
+	/**
+	 * Sets reaction directions initialized from the specified solution.
+	 * This does exactly the same as #setDirections(LPFluxPtr) it simply sources the data from elsewhere.
+	 */
+	void setDirections(SolutionPtr sol, ScipModelPtr smodel);
+
 	void setDirection(ReactionPtr rxn, bool fwd);
 
 	/**

@@ -203,9 +203,9 @@ public:
 	void setDirection(SCIP_NODE* node, ReactionPtr rxn, bool fwd);
 
 	/**
-	 * returns a sublist of the candidate reactions that have fixed directions.
+	 * returns all reactions that have fixed directions.
 	 */
-	boost::shared_ptr<boost::unordered_set<ReactionPtr> > getFixedDirections(const boost::unordered_set<ReactionPtr>& candidates);
+	boost::shared_ptr<boost::unordered_set<ReactionPtr> > getFixedDirections();
 
 private:
 	ModelPtr _model;
@@ -216,6 +216,7 @@ private:
 
 	boost::unordered_map<MetabolitePtr, SCIP_VAR*> _metabolites; // map of initialized potential vars
 	boost::unordered_map<ReactionPtr, SCIP_VAR*> _reactions; // map of initialized reaction vars
+
 
 	/**
 	 * A topologically sorted list of addons.

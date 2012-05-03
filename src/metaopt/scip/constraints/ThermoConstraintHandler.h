@@ -11,23 +11,12 @@
 #include "objscip/objconshdlr.h"
 #include "metaopt/model/scip/ScipModel.h"
 #include "metaopt/model/scip/DualPotentials.h"
+#include "metaopt/model/scip/LPPotentials.h"
 
 namespace metaopt {
 
 class ThermoConstraintHandler: public scip::ObjConshdlr {
 public:
-
-	struct ConstraintData : SCIP_ConsData {
-		// for step 1
-		LPFluxPtr cycle_find; // for finding small violating cycles
-
-		// for step 2
-		LPFluxPtr flux_simpl; // for eliminating unimportant cycles
-		DualPotentialsPtr is_find; // for finding general infeasible sets
-
-		// for finding any violating cycle
-		LPFluxPtr cycle_test; // for testing feasibility
-	};
 
 	/**
 	 * Creates a new AntiCycleConstraint handler.
@@ -43,22 +32,27 @@ public:
 	/**
 	 * branch on the cycle of the current solution
 	 */
-	SCIP_RESULT branchCycle(ConstraintData& data, SolutionPtr sol);
+	SCIP_RESULT branchCycle(SolutionPtr sol);
 
 	/**
 	 * enforce that the constraint contains no objective cycles (if it has, branch)
 	 */
-	SCIP_RESULT enforceObjectiveCycles(ConstraintData& data, SolutionPtr sol);
+	SCIP_RESULT enforceObjectiveCycles(SolutionPtr sol);
 
 	/**
 	 * enforce infeasible sets that are either not cycles or flux-forcing cycles
 	 */
-	SCIP_RESULT enforceNonSimple(ConstraintData& data, SolutionPtr sol);
+	SCIP_RESULT enforceNonSimple(SolutionPtr sol);
 
 	/**
 	 * main method for enforcing constraints of this constrainthandler
 	 */
 	SCIP_RETCODE enforce(SCIP_CONS** cons, int nconss, SCIP_SOL* sol, SCIP_RESULT* result);
+
+	/**
+	 * check a single constraint
+	 */
+	SCIP_RESULT check(SolutionPtr sol);
 
 	/**
 	 * main method for checking constraints of the constrainthandler
@@ -122,16 +116,47 @@ public:
 			FILE*              file                /**< the text file to store the information into */
 	);
 
+	/// Transforms constraint data into data belonging to the transformed problem.
+	virtual SCIP_RETCODE scip_trans(
+			SCIP*              scip,               /**< SCIP data structure */
+			SCIP_CONSHDLR*     conshdlr,           /**< the constraint handler itself */
+			SCIP_CONS*         sourcecons,         /**< source constraint to transform */
+			SCIP_CONS**        targetcons          /**< pointer to store created target constraint */
+	);
+
+
+
 private:
 	inline ScipModelPtr getScip();
 
 	const boost::weak_ptr<ScipModel> _model;
 
+	///////////////////////////////////////////////////
+	// Helper variables
+	///////////////////////////////////////////////////
+
+	// for step 1
+	LPFluxPtr _cycle_find; // for finding small violating cycles
+
+	// for step 2
+	LPFluxPtr _flux_simpl; // for eliminating unimportant cycles
+	DualPotentialsPtr _is_find; // for finding general infeasible sets
+
+	// for finding any violating cycle
+	LPFluxPtr _cycle_test; // for testing feasibility
+
+	// for checking feasibility
+	LPPotentialsPtr _pot_test;
 };
 
 inline ScipModelPtr ThermoConstraintHandler::getScip() {
 	assert(!_model.expired());
 	return _model.lock();
+}
+
+inline void createThermoConstraint(ScipModelPtr model) {
+	ThermoConstraintHandler* handler = new ThermoConstraintHandler(model);
+	BOOST_SCIP_CALL( SCIPincludeObjConshdlr( model->getScip(), handler, TRUE ) );
 }
 
 } /* namespace metaopt */
