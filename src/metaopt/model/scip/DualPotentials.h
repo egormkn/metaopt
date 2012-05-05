@@ -10,6 +10,7 @@
 
 #include "ScipModel.h"
 #include "LPFlux.h"
+#include "metaopt/Uncopyable.h"
 
 namespace metaopt {
 
@@ -32,7 +33,7 @@ namespace metaopt {
  *
  *
  */
-class DualPotentials {
+class DualPotentials : Uncopyable {
 public:
 	DualPotentials(ModelPtr model);
 	virtual ~DualPotentials();

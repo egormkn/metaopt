@@ -15,6 +15,7 @@
 #include "metaopt/model/Model.h"
 #include "Solution.h"
 #include "metaopt/scip/ScipError.h"
+#include "metaopt/Uncopyable.h"
 
 namespace metaopt {
 
@@ -23,7 +24,7 @@ struct PreconditionViolatedException : virtual boost::exception, virtual std::ex
 class ModelAddOn;
 typedef boost::shared_ptr<ModelAddOn> ModelAddOnPtr;
 
-class ScipModel {
+class ScipModel : Uncopyable {
 public:
 	/** do not use, use factory method of Model instead! */
 	ScipModel(ModelPtr model);

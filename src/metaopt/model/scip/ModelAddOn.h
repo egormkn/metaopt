@@ -12,6 +12,7 @@
 #include "metaopt/model/scip/ScipModel.h"
 #include "Solution.h"
 #include "metaopt/scip/ScipError.h"
+#include "metaopt/Uncopyable.h"
 
 namespace metaopt {
 
@@ -22,7 +23,7 @@ namespace metaopt {
  * each add on has to supply a method computeSolutionVals that tries to compute solution values
  * for the additional variables from the basic variables of the ScipModel or other add ons.
  */
-class ModelAddOn {
+class ModelAddOn : Uncopyable {
 public:
 	ModelAddOn(ScipModelPtr model, std::string name);
 	virtual ~ModelAddOn();

@@ -12,10 +12,11 @@
 #include "metaopt/model/scip/ScipModel.h"
 #include "metaopt/model/scip/DualPotentials.h"
 #include "metaopt/model/scip/LPPotentials.h"
+#include "metaopt/Uncopyable.h"
 
 namespace metaopt {
 
-class ThermoConstraintHandler: public scip::ObjConshdlr {
+class ThermoConstraintHandler: public scip::ObjConshdlr, Uncopyable {
 public:
 
 	/**
@@ -30,19 +31,30 @@ public:
 	virtual ~ThermoConstraintHandler();
 
 	/**
-	 * branch on the cycle of the current solution
+	 * branch on the cycle of the current solution of _cycle_find
 	 */
-	SCIP_RESULT branchCycle(SolutionPtr sol);
+	SCIP_RESULT branchCycle(SolutionPtr& sol);
 
 	/**
 	 * enforce that the constraint contains no objective cycles (if it has, branch)
 	 */
-	SCIP_RESULT enforceObjectiveCycles(SolutionPtr sol);
+	SCIP_RESULT enforceObjectiveCycles(SolutionPtr& sol);
+
+	/**
+	 * find an infeasible set in _flux_simpl and branch on it
+	 */
+	SCIP_RESULT branchIS(SolutionPtr& sol);
 
 	/**
 	 * enforce infeasible sets that are either not cycles or flux-forcing cycles
 	 */
-	SCIP_RESULT enforceNonSimple(SolutionPtr sol);
+	SCIP_RESULT enforceNonSimple(SolutionPtr& sol);
+
+	/**
+	 * Look generally for infeasible sets, including cycles that are neither flux-forcing nor objective.
+	 * If this constraint is infeasible, this method will not return feasible!
+	 */
+	SCIP_RESULT enforceLastResort(SolutionPtr& sol);
 
 	/**
 	 * main method for enforcing constraints of this constrainthandler
@@ -52,7 +64,7 @@ public:
 	/**
 	 * check a single constraint
 	 */
-	SCIP_RESULT check(SolutionPtr sol);
+	SCIP_RESULT check(SolutionPtr& sol);
 
 	/**
 	 * main method for checking constraints of the constrainthandler
@@ -129,7 +141,8 @@ public:
 private:
 	inline ScipModelPtr getScip();
 
-	const boost::weak_ptr<ScipModel> _model;
+	const boost::weak_ptr<ScipModel> _smodel;
+	const ModelPtr _model;
 
 	///////////////////////////////////////////////////
 	// Helper variables
@@ -147,11 +160,25 @@ private:
 
 	// for checking feasibility
 	LPPotentialsPtr _pot_test;
+
+
+	//////////////////////////////////////////////////
+	// ugly hack for locking numbers
+	//////////////////////////////////////////////////
+
+	struct LockingInfo {
+		SCIP_VAR* var; // weak pointer to variable with locking information (must not free, lives as long as _smodel)
+		bool down_safe; // true if it is save to round variable down
+		bool up_safe; // true if it is save to round variable up
+	};
+
+	std::vector<LockingInfo> _lockingInfos;
+
 };
 
 inline ScipModelPtr ThermoConstraintHandler::getScip() {
-	assert(!_model.expired());
-	return _model.lock();
+	assert(!_smodel.expired());
+	return _smodel.lock();
 }
 
 inline void createThermoConstraint(ScipModelPtr model) {

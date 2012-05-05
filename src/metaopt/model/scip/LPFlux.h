@@ -13,13 +13,14 @@
 #include "metaopt/model/Model.h"
 #include "metaopt/model/scip/ScipModel.h"
 #include <boost/unordered_map.hpp>
+#include "metaopt/Uncopyable.h"
 
 namespace metaopt {
 
 class LPFlux;
 typedef boost::shared_ptr<LPFlux> LPFluxPtr;
 
-class LPFlux {
+class LPFlux : Uncopyable {
 public:
 	/**
 	 * creates a new LPFlux.

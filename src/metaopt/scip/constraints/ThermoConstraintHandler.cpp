@@ -5,6 +5,8 @@
  *      Author: arne
  */
 
+#include <iostream>
+
 #include "ThermoConstraintHandler.h"
 #include "metaopt/scip/ScipError.h"
 
@@ -48,7 +50,6 @@ using namespace boost;
 namespace metaopt {
 
 ThermoConstraintHandler::ThermoConstraintHandler(ScipModelPtr model) :
-	_model(model),
 	scip::ObjConshdlr(model->getScip(),
 			CONSTRAINT_NAME,
 			CONSTRAINT_DESCRIPTION,
@@ -59,11 +60,15 @@ ThermoConstraintHandler::ThermoConstraintHandler(ScipModelPtr model) :
 			PROP_FREQ,
 			EAGER_FREQ,
 			MAX_PRESOLVER_ROUNDS,
-			DELAY_SEPA, DELAY_PROP, DELAY_PRESOL, FALSE, PROPAGATION_TIMING)
+			DELAY_SEPA, DELAY_PROP, DELAY_PRESOL, FALSE, PROPAGATION_TIMING),
+	_smodel(model),
+	_model(model->getModel())
 {
 	// init helper variables
 	_cycle_find = LPFluxPtr( new LPFlux(model->getModel(), false));
+	_cycle_find->setObjSense(false); // minimize
 	_cycle_test = LPFluxPtr( new LPFlux(model->getModel(), false));
+	_cycle_test->setObjSense(true); // maximize
 	_flux_simpl = LPFluxPtr( new LPFlux(model->getModel(), true));
 	_is_find = DualPotentialsPtr( new DualPotentials(model->getModel()));
 	_pot_test = LPPotentialsPtr( new LPPotentials(model->getModel()));
@@ -73,15 +78,17 @@ ThermoConstraintHandler::~ThermoConstraintHandler() {
 	// nothing to do
 }
 
-SCIP_RESULT ThermoConstraintHandler::enforceObjectiveCycles(SolutionPtr sol) {
+SCIP_RESULT ThermoConstraintHandler::enforceObjectiveCycles(SolutionPtr& sol) {
 	ScipModelPtr model = getScip();
 	_cycle_find->setDirectionBoundsInfty(sol, model);
 
+	// _cycle_find is initialized to minimize
 	_cycle_find->setDirectionObj(sol, model);
 	// only include preference on variables that are not yet fixed to one sign
 	shared_ptr<unordered_set<ReactionPtr> > fixedDirs = model->getFixedDirections();
-	foreach(ReactionPtr rxn, fixedDirs) {
-		_cycle_find->setObj(rxn, 0);
+	foreach(ReactionPtr rxn, *fixedDirs) {
+		if(!rxn->isExchange())
+			_cycle_find->setObj(rxn, 0);
 	}
 
 	foreach(ReactionPtr rxn, model->getModel()->getObjectiveReactions()) {
@@ -107,7 +114,7 @@ SCIP_RESULT ThermoConstraintHandler::enforceObjectiveCycles(SolutionPtr sol) {
 	return SCIP_FEASIBLE;
 }
 
-SCIP_RESULT ThermoConstraintHandler::branchCycle(SolutionPtr sol) {
+SCIP_RESULT ThermoConstraintHandler::branchCycle(SolutionPtr& sol) {
 	int count = 0;
 	ScipModelPtr model = getScip();
 	foreach(ReactionPtr rxn, model->getModel()->getReactions()) {
@@ -158,20 +165,16 @@ SCIP_RESULT ThermoConstraintHandler::branchCycle(SolutionPtr sol) {
 	}
 }
 
-SCIP_RESULT ThermoConstraintHandler::enforceNonSimple(SolutionPtr sol) {
+SCIP_RESULT ThermoConstraintHandler::enforceNonSimple(SolutionPtr& sol) {
 	ScipModelPtr model = getScip();
 	// so lets first preprocess and get rid of the easy cycles
 	// to do so, we will simply remove all the easy cycles (this is actually what CycleDeletionHeur does )
 	// so, we will modify the current solution, hence, we have to copy it
 	_flux_simpl->set(sol, model);
-	// use cycle_test to find internal cycles
-	_cycle_test->setDirectionBounds(_flux_simpl);
-	// we don't want to find flux through flux forcing reactions
-	// so set bounds there already to zero
-	foreach(ReactionPtr rxn, model->getModel()->getFluxForcingReactions()) {
-		_cycle_test->setLb(rxn,0);
-		_cycle_test->setUb(rxn,0);
-	}
+	// use cycle_test to find internal cycles, first set the objective, because it will stay the same
+	// _cycle_test is initialized to maximize
+	// in the loop, we will adopt the bounds
+	_cycle_test->setDirectionObj(_flux_simpl);
 	// iteratively search for a cycle and subtract that cycle
 	bool hasFlux;
 	do {
@@ -204,7 +207,14 @@ SCIP_RESULT ThermoConstraintHandler::enforceNonSimple(SolutionPtr sol) {
 	while(hasFlux);
 
 	// data.flux_simpl now contains a still valid solution without easy cycles.
-	// we now start looking for infeasible sets
+
+	// we now start looking for infeasible sets that we will branch on
+
+	return branchIS(sol);
+}
+
+SCIP_RESULT ThermoConstraintHandler::branchIS(SolutionPtr& sol) {
+	ScipModelPtr model = getScip();
 
 	shared_ptr<unordered_set<ReactionPtr> > fixedDirs = model->getFixedDirections();
 	_is_find->setDirections(_flux_simpl, fixedDirs);
@@ -218,32 +228,54 @@ SCIP_RESULT ThermoConstraintHandler::enforceNonSimple(SolutionPtr sol) {
 		// we found an infeasible set we have to get rid by branching
 		shared_ptr<unordered_set<ReactionPtr> > is = _is_find->getIS();
 
-		if(is->empty()) {
-			return SCIP_CUTOFF;
-		}
-		else {
-			foreach(ReactionPtr rxn, *is) {
-				// reaction is in the basic solution, so its value is nonegative and of the same sign as in flux_simpl
-				double val = _flux_simpl->getFlux(rxn);
-				if(val > 0) {
+		int count = 0;
+		foreach(ReactionPtr rxn, *is) {
+			// reaction is in the basic solution, so its value is nonzero and of the same sign as in flux_simpl
+			double val = _flux_simpl->getFlux(rxn);
+			double lb = model->getCurrentFluxLb(rxn);
+			double ub = model->getCurrentFluxUb(rxn);
+			if(val > 0) {
+				if(lb < EPSILON) {
 					SCIP_NODE* node;
 					double prio = val/model->getFlux(sol, rxn); // idea: small reductions are better than large ones
 					//double prio = 1.0;
 					BOOST_SCIP_CALL( SCIPcreateChild(model->getScip(), &node, prio, SCIPtransformObj(model->getScip(),SCIPgetSolOrigObj(model->getScip(), sol.get()))) ); // estimate must SCIPgetSolTransObj(scip, NULL)-lpobjval/prio)be for transformed node, sp transform estimated value for orig prob
 					model->setDirection(node, rxn, false); // restrict reaction to backward direction
+					count++;
 				}
-				else {
+			}
+			else {
+				if(ub > -EPSILON) {
 					SCIP_NODE* node;
 					double prio = val/model->getFlux(sol, rxn); // idea: small reductions are better than large ones
 					//double prio = 1.0;
 					BOOST_SCIP_CALL( SCIPcreateChild(model->getScip(), &node, prio, SCIPtransformObj(model->getScip(),SCIPgetSolOrigObj(model->getScip(), sol.get()))) ); // estimate must SCIPgetSolTransObj(scip, NULL)-lpobjval/prio)be for transformed node, sp transform estimated value for orig prob
 					model->setDirection(node, rxn, true); // restrict reaction to forward direction
+					count++;
 				}
 			}
-
+		}
+		if(count >= 1) {
 			return SCIP_BRANCHED;
 		}
+		else {
+			return SCIP_CUTOFF;
+		}
 	}
+}
+
+SCIP_RESULT ThermoConstraintHandler::enforceLastResort(SolutionPtr& sol) {
+
+	std::cout << "Warning: ThermoConstraintHandler is now checking for infeasible simple cycles (CycleDeletionHeur can deal with them!)." << std::endl;
+
+	_flux_simpl->set(sol, getScip());
+	// don't subtract easy cycles, find infeasible set directly
+
+	SCIP_RESULT res = branchIS(sol);
+	if(res == SCIP_FEASIBLE) {
+		std::cout << "thermo constraint feasible" << std::endl;
+	}
+	return res;
 }
 
 /**
@@ -254,22 +286,31 @@ SCIP_RETCODE ThermoConstraintHandler::enforce(SCIP_CONS** conss, int nconss, SCI
 	*result = SCIP_FEASIBLE;
 	try {
 		// 1st step: try finding objective cycles
-		SolutionPtr solptr = wrap(sol, getScip());
+		SolutionPtr solptr = wrap_weak(sol);
 		*result = enforceObjectiveCycles(solptr);
-		if(*result == SCIP_INFEASIBLE) return SCIP_OKAY;
+		assert(solptr.unique());
+		if(*result != SCIP_FEASIBLE) return SCIP_OKAY;
 
 		//2nd step: try finding infeasible sets that are either not cycles or flux-forcing cycles
 		// the other cycles we can get rid of easily.
 		*result = enforceNonSimple(solptr);
-		if(*result == SCIP_INFEASIBLE) return SCIP_OKAY;
+		assert(solptr.unique());
+		if(*result != SCIP_FEASIBLE) return SCIP_OKAY;
+
+		//3rd step: Last resort, we didn't find anything difficult, so branch on something that the CycleDeletionHeur could also deal with.
+		// Usually, we should not need to do this.
+		// Hence, this will also print a warning
+		*result = enforceLastResort(solptr);
+		assert(solptr.unique());
 	}
 	catch( boost::exception& ex) {
 		return SCIP_ERROR;
 	}
+
 	return SCIP_OKAY;
 }
 
-SCIP_RESULT ThermoConstraintHandler::check(SolutionPtr sol) {
+SCIP_RESULT ThermoConstraintHandler::check(SolutionPtr& sol) {
 	_pot_test->setDirections(sol, getScip());
 	bool result = false;
 	if(_pot_test->testStrictFeasible(result)) {
@@ -289,8 +330,9 @@ SCIP_RETCODE ThermoConstraintHandler::check(SCIP_CONS** conss, int nconss, SCIP_
 	// We can directly check feasibility using LPPotentials.
 	// This is also the reason, why all those different kinds of enforcement methods are combined in one constraint handler.
 	try {
-		SolutionPtr solptr = wrap(sol, getScip());
+		SolutionPtr solptr = wrap_weak(sol);
 		*result = check(solptr);
+		assert(solptr.unique());
 	}
 	catch( boost::exception& ex) {
 		return SCIP_ERROR;
@@ -365,37 +407,74 @@ SCIP_RETCODE ThermoConstraintHandler::scip_lock(
       int                nlocksneg           /**< no. of times, the roundings should be locked for the constraint's negation */
       )
 {
-	ScipModelPtr smodel = getScip();
-	assert(smodel->getScip() == scip);
+	/*
+	 * The problem of this method is that it is also called during the destruction process of scip.
+	 * In this case the _smodel weak_ptr is already invalidated!
+	 */
 
-	shared_ptr<unordered_set<ReactionPtr> > fixed_dirs = smodel->getFixedDirections();
+	if(!_smodel.expired()) {
 
-	foreach(ReactionPtr rxn, smodel->getModel()->getInternalReactions()) {
-		if(fixed_dirs->find(rxn) == fixed_dirs->end()) {
-			// reaction direction is not yet fixed
+		ScipModelPtr smodel = _smodel.lock();
 
-			// if we cannot round down to zero, rounding down is safe
-			bool down_safe = smodel->getCurrentFluxUb(rxn) < EPSILON || smodel->getCurrentFluxLb(rxn) > EPSILON;
-			// if we cannot round up to zero, rounding up is safe
-			bool up_safe = smodel->getCurrentFluxLb(rxn) > -EPSILON || smodel->getCurrentFluxUb(rxn) < -EPSILON;
+		// capture results for the time when _smodel expires
+		_lockingInfos.clear();
 
-			if(!down_safe) {
-				if(!up_safe) {
-					BOOST_SCIP_CALL( SCIPaddVarLocks(scip, smodel->getFlux(rxn), nlockspos + nlocksneg, nlockspos + nlocksneg) );
+		//I'd love to incorporate current fixing data, but I don't know if this method is supposed to return a local or a global result.
+		// since this method is also called at destruction, I guess I am supposed to return globally valid information.
+
+		//shared_ptr<unordered_set<ReactionPtr> > fixed_dirs = smodel->getFixedDirections();
+
+		foreach(ReactionPtr rxn, smodel->getModel()->getInternalReactions()) {
+			// see above
+			//if(fixed_dirs->find(rxn) == fixed_dirs->end()) {
+				// reaction direction is not yet fixed
+
+				LockingInfo li;
+
+				// if we cannot round down to zero, rounding down is safe
+				li.down_safe = rxn->getUb() < EPSILON || rxn->getLb() > EPSILON;
+				// if we cannot round up to zero, rounding up is safe
+				li.up_safe = rxn->getLb() > -EPSILON || rxn->getUb() < -EPSILON;
+
+				li.var = smodel->getFlux(rxn);
+
+				if(!li.down_safe) {
+					if(!li.up_safe) {
+						BOOST_SCIP_CALL( SCIPaddVarLocks(scip, li.var, nlockspos + nlocksneg, nlockspos + nlocksneg) );
+					}
+					else {
+						BOOST_SCIP_CALL( SCIPaddVarLocks(scip, li.var, nlockspos, nlocksneg) );
+					}
+				}
+				else if(!li.up_safe) {
+					BOOST_SCIP_CALL( SCIPaddVarLocks(scip, li.var, nlocksneg, nlockspos) );
+				}
+
+				// store locking data
+				_lockingInfos.push_back(li);
+			//}
+		}
+	}
+	else {
+		foreach(LockingInfo li, _lockingInfos) {
+			if(!li.down_safe) {
+				if(!li.up_safe) {
+					BOOST_SCIP_CALL( SCIPaddVarLocks(scip, li.var, nlockspos + nlocksneg, nlockspos + nlocksneg) );
 				}
 				else {
-					BOOST_SCIP_CALL( SCIPaddVarLocks(scip, smodel->getFlux(rxn), nlockspos, nlocksneg) );
+					BOOST_SCIP_CALL( SCIPaddVarLocks(scip, li.var, nlockspos, nlocksneg) );
 				}
 			}
-			else if(!up_safe) {
-				BOOST_SCIP_CALL( SCIPaddVarLocks(scip, smodel->getFlux(rxn), nlocksneg, nlockspos) );
+			else if(!li.up_safe) {
+				BOOST_SCIP_CALL( SCIPaddVarLocks(scip, li.var, nlocksneg, nlockspos) );
 			}
 		}
 	}
+
 	return SCIP_OKAY;
 }
 
-virtual SCIP_RETCODE ThermoConstraintHandler::scip_trans(
+SCIP_RETCODE ThermoConstraintHandler::scip_trans(
 		SCIP*              scip,               /**< SCIP data structure */
 		SCIP_CONSHDLR*     conshdlr,           /**< the constraint handler itself */
 		SCIP_CONS*         sourcecons,         /**< source constraint to transform */

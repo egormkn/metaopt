@@ -13,6 +13,8 @@
 #include "scip/scip.h"
 #include <boost/shared_ptr.hpp>
 
+#include "metaopt/Uncopyable.h"
+
 namespace metaopt {
 
 class ScipModel;
@@ -28,8 +30,21 @@ struct SolutionDestructor {
 	void operator()(SCIP_SOL* sol);
 };
 
+/**
+ * Use for newly allocated solutions where the user needs to manually free the solution.
+ */
 inline SolutionPtr wrap(SCIP_SOL* sol, boost::shared_ptr<ScipModel> scip) {
 	return SolutionPtr(sol, SolutionDestructor(scip));
+}
+
+inline void noOpSolutionDestructor(SCIP_SOL* sol) {} // does nothing
+
+/**
+ * Use for solutions that are supplied by scip and that must not be deleted manually.
+ */
+inline SolutionPtr wrap_weak(SCIP_SOL* sol) {
+
+	return SolutionPtr(sol, noOpSolutionDestructor);
 }
 
 }

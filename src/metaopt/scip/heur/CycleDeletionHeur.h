@@ -12,10 +12,11 @@
 #include "metaopt/model/scip/ScipModel.h"
 #include "metaopt/model/scip/LPFlux.h"
 #include "metaopt/model/scip/LPPotentials.h"
+#include "metaopt/Uncopyable.h"
 
 namespace metaopt {
 
-class CycleDeletionHeur : public scip::ObjHeur{
+class CycleDeletionHeur : public scip::ObjHeur, Uncopyable {
 public:
 	CycleDeletionHeur(ScipModelPtr _scip);
 	virtual ~CycleDeletionHeur();

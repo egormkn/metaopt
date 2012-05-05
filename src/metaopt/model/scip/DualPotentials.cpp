@@ -146,7 +146,7 @@ SCIP_RETCODE DualPotentials::init_lp() {
 		double rhs = 0;
 		int ind = X_CONSTRAINT;
 
-		SCIP_CALL( SCIPlpiChgSides(_lpi, _num_metabolites, &ind, &lhs, &rhs) );
+		SCIP_CALL( SCIPlpiChgSides(_lpi, 1, &ind, &lhs, &rhs) );
 	}
 
 	// Z
@@ -155,7 +155,7 @@ SCIP_RETCODE DualPotentials::init_lp() {
 		double rhs = 1;
 		int ind = Z_CONSTRAINT;
 
-		SCIP_CALL( SCIPlpiChgSides(_lpi, _num_metabolites, &ind, &lhs, &rhs) );
+		SCIP_CALL( SCIPlpiChgSides(_lpi, 1, &ind, &lhs, &rhs) );
 	}
 
 	return SCIP_OKAY;

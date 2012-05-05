@@ -16,6 +16,7 @@
 #include <boost/unordered_map.hpp>
 
 #include "Metabolite.h"
+#include "metaopt/Uncopyable.h"
 
 namespace metaopt {
 
@@ -32,7 +33,7 @@ class Model;
  *
  * This class abstractely represents reactions with these properties. Implementations may use direct implementations or SBML-models as a data-backend.
  */
-class Reaction : public boost::enable_shared_from_this<Reaction>
+class Reaction : public boost::enable_shared_from_this<Reaction>, Uncopyable
 {
 public:
 	/** @brief Creates a new Reaction. Please do not use this, but use Model::createReaction() instead.

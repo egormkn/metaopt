@@ -7,6 +7,8 @@
 
 #define EPSILON 0.0001
 
+#define LPSOLVER_SOPLEX
+
 #ifdef __CDT_PARSER__
 	#define foreach(a, b) for(a : b)
 	#define BOOST_THROW_EXCEPTION(x)

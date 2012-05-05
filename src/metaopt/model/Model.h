@@ -13,6 +13,7 @@
 #include <boost/unordered_set.hpp>
 #include "Reaction.h"
 #include "Metabolite.h"
+#include "metaopt/Uncopyable.h"
 
 namespace metaopt {
 
@@ -34,7 +35,7 @@ public:
  * Also, a list of reactions with objective coefficient unequal to zero is maintained for the same reason.
  * Hence, it is important to call updateReaction(ReactionPtr) if a reaction was modified (usually the reaction implementation does this automatically).
  */
-class Model  : public boost::enable_shared_from_this<Model> {
+class Model  : public boost::enable_shared_from_this<Model>, Uncopyable {
 public:
 	Model();
 	virtual ~Model();

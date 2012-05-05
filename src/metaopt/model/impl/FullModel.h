@@ -10,6 +10,7 @@
 
 #include "metaopt/Properties.h"
 #include "metaopt/model/Model.h"
+#include "metaopt/Uncopyable.h"
 
 namespace metaopt {
 

@@ -7,6 +7,7 @@
 
 #include <vector>
 #include "LPPotentials.h"
+#include "metaopt/Properties.h"
 
 using namespace std;
 
@@ -85,7 +86,7 @@ SCIP_RETCODE LPPotentials::init_lp() {
 	// set vals for feastest var
 	lb[0] = -INFINITY;
 	ub[0] = 1; // else we may get unbounded feas-test solutions
-	ind[0] = 0;
+	ind[0] = FEASTEST_VAR;
 
 	typedef pair<MetabolitePtr, int> PotVar;
 	foreach(PotVar v, _metabolites) {
@@ -111,6 +112,7 @@ SCIP_RETCODE LPPotentials::init_lp() {
 void LPPotentials::init(Basis& b) {
 	b.rstat.resize(_num_reactions,0);
 	b.cstat.resize(_num_metabolites+1,0); // don't forget the extra variable for the strict feasibility test variable
+	b.initialized = false;
 }
 
 SCIP_RETCODE LPPotentials::free_lp() {
@@ -199,9 +201,10 @@ void LPPotentials::setDirection(ReactionPtr rxn, bool fwd) {
 
 bool LPPotentials::optimize() {
 	// set original objective
-	BOOST_SCIP_CALL( SCIPlpiChgObj(_lpi, _obj_ind.size(), _obj_ind.data(), _orig_obj.data()));
-
-	// we onl< changed objective, so use primal simplex
+	if(!_obj_ind.empty()) { // (if we have no objective potentials, we must not do this, else we get NULL-pointer issues)
+		BOOST_SCIP_CALL( SCIPlpiChgObj(_lpi, _obj_ind.size(), _obj_ind.data(), _orig_obj.data()));
+	}
+	// we only changed objective, so use primal simplex
 	BOOST_SCIP_CALL( SCIPlpiSolvePrimal(_lpi) );
 
 	if(! SCIPlpiIsOptimal(_lpi) ) {
@@ -217,24 +220,40 @@ bool LPPotentials::testStrictFeasible(bool& result) {
 	// actually solve and test feasibility
 
 	// set feastest objective
-	BOOST_SCIP_CALL( SCIPlpiChgObj(_lpi, _obj_ind.size(), _obj_ind.data(), _zero_obj.data()));
+	if(!_obj_ind.empty()) { // (if we have no objective potentials, we must not do this, else we get NULL-pointer issues)
+		BOOST_SCIP_CALL( SCIPlpiChgObj(_lpi, _obj_ind.size(), _obj_ind.data(), _zero_obj.data()));
+	}
 	int ind = FEASTEST_VAR;
 	double obj = 1;
 	BOOST_SCIP_CALL( SCIPlpiChgObj(_lpi, 1, &ind, &obj));
 
 	// set base
-	BOOST_SCIP_CALL( SCIPlpiSetBase(_lpi, _feasTest.cstat.data(), _feasTest.rstat.data()) );
+	if(_feasTest.initialized) {
+		BOOST_SCIP_CALL( SCIPlpiSetBase(_lpi, _feasTest.cstat.data(), _feasTest.rstat.data()) );
+	}
 
 	// solve
-	SCIPlpiSolveDual(_lpi);
+	BOOST_SCIP_CALL( SCIPlpiSolveDual(_lpi) );
+
+#ifdef LPSOLVER_SOPLEX
+	// the status code -4 has only this meaning for soplex
+	if(SCIPlpiGetInternalStatus(_lpi) == -4) {
+		// basis is singular, we should resolve from scratch
+		BOOST_SCIP_CALL( SCIPlpiClearState(_lpi) );
+		// resolve
+		BOOST_SCIP_CALL( SCIPlpiSolveDual(_lpi) );
+	}
+#endif
 
 	// store base
 	BOOST_SCIP_CALL( SCIPlpiGetBase(_lpi, _feasTest.cstat.data(), _feasTest.rstat.data()) );
+	_feasTest.initialized = true;
 
 	// by the structure of the problem, the problem should always be primal feasible, however numerical issues may prevent the solver from seeing this
 	// in this case, we will not want to throw a runtime error
 	// hence we do not check by assert
 	if(! SCIPlpiIsOptimal(_lpi) ) {
+		//SCIPlpiWriteLP(_lpi, "debug.lp");
 		return false; // we somehow failed to solve the LP. Thus, we cannot determine if it is strictly feasible
 	}
 	BOOST_SCIP_CALL( SCIPlpiGetSol(_lpi, NULL, _primsol.data(), NULL, NULL, NULL) );

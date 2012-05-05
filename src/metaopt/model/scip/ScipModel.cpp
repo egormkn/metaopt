@@ -301,10 +301,16 @@ shared_ptr<unordered_set<ReactionPtr> > ScipModel::getFixedDirections() {
 	}
 
 	// alternatively the model may also know about fixed reactions
-	// But, this is currently not implemented, since we would need to track this information in the nodes.
+	// But, this is currently only implemented in a very rudimentary way, since we would need to track this information in the nodes.
 	// And I do not know how to store user-data in the search-tree nodes.
 	// Ofcourse it would be possible to store a hash-map that performs the lookup,
 	// however, this solution would not know about nodes that have already been cut off.
+
+	// only, if we know that a reaction is flux forcing, it is fixed.
+	//TODO: change, if we create positive upper bounds etc.
+	const unordered_set<ReactionPtr>& fluxforcing = getModel()->getFluxForcingReactions();
+	result->insert(fluxforcing.begin(), fluxforcing.end());
+
 	return result;
 }
 

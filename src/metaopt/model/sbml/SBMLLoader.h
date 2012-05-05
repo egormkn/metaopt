@@ -14,10 +14,11 @@
 #include "sbml/SBMLTypes.h"
 #include <boost/unordered_map.hpp>
 #include "metaopt/model/impl/FullModel.h"
+#include "metaopt/Uncopyable.h"
 
 namespace metaopt {
 
-class SBMLLoader {
+class SBMLLoader : Uncopyable {
 public:
 	SBMLLoader();
 	virtual ~SBMLLoader();

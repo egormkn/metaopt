@@ -10,6 +10,7 @@
 
 #include "ScipModel.h"
 #include "LPFlux.h"
+#include "metaopt/Uncopyable.h"
 
 namespace metaopt {
 
@@ -56,7 +57,7 @@ namespace metaopt {
  * 		basic solution may not be basic anymore
  *
  */
-class LPPotentials {
+class LPPotentials : Uncopyable {
 public:
 	LPPotentials(ModelPtr model);
 	virtual ~LPPotentials();
@@ -117,6 +118,7 @@ private:
 	struct Basis {
 		std::vector<int> cstat;
 		std::vector<int> rstat;
+		bool initialized; // indicates if the basis is supplied with proper values
 	};
 
 

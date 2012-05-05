@@ -185,14 +185,15 @@ double ReactionDirections::getCurrentDirection(ReactionPtr rxn) {
 
 void ReactionDirections::setDirection(SCIP_NODE* node, ReactionPtr rxn, bool fwd) {
 	assert(!isDestroyed());
-	assert( hasDirection(rxn) );
-	ScipModelPtr model = getModel();
-	SCIP_VAR* var = getDirection(rxn);
-	if(fwd) {
-		BOOST_SCIP_CALL( SCIPchgVarLbNode(model->getScip(), node, var, 1) );
-	}
-	else {
-		BOOST_SCIP_CALL( SCIPchgVarUbNode(model->getScip(), node, var, 0) );
+	if( hasDirection(rxn) ) {
+		ScipModelPtr model = getModel();
+		SCIP_VAR* var = getDirection(rxn);
+		if(fwd) {
+			BOOST_SCIP_CALL( SCIPchgVarLbNode(model->getScip(), node, var, 1) );
+		}
+		else {
+			BOOST_SCIP_CALL( SCIPchgVarUbNode(model->getScip(), node, var, 0) );
+		}
 	}
 }
 

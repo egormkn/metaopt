@@ -14,12 +14,13 @@
 #include <string>
 #include <boost/exception/error_info.hpp>
 #include <boost/foreach.hpp>
+#include "metaopt/Uncopyable.h"
 
 namespace metaopt {
 
 class Model;
 
-class Metabolite : public boost::enable_shared_from_this<Metabolite>
+class Metabolite : public boost::enable_shared_from_this<Metabolite>, Uncopyable
 {
 public:
 	Metabolite(boost::weak_ptr<Model> model, std::string name);
