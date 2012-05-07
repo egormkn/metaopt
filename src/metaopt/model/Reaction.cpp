@@ -7,6 +7,7 @@
 
 #include <boost/throw_exception.hpp>
 #include <string>
+#include <sstream>
 
 #include "Reaction.h"
 #include "Model.h"
@@ -133,5 +134,13 @@ const boost::shared_ptr<Model> Reaction::getOwner() const {
 	return _model.lock();
 }
 
+string Reaction::toString() const {
+	basic_stringstream<char> out;
+	out << getName() << ": ";
+	foreach(Stoichiometry s, getStoichiometries()) {
+		out << string(" ") << s.second << "*" << s.first->getName();
+	}
+	return out.str();
+}
 
 } /* namespace metaopt */

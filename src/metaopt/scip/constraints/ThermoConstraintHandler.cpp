@@ -228,12 +228,20 @@ SCIP_RESULT ThermoConstraintHandler::branchIS(SolutionPtr& sol) {
 		// we found an infeasible set we have to get rid by branching
 		shared_ptr<unordered_set<ReactionPtr> > is = _is_find->getIS();
 
+#if 0
+		LPFlux debugFlux(_model, true);
+		debugFlux.setObjSense(true);
+		bool good = false;
+#endif
+
 		int count = 0;
 		foreach(ReactionPtr rxn, *is) {
+			assert(!rxn->isExchange());
 			// reaction is in the basic solution, so its value is nonzero and of the same sign as in flux_simpl
 			double val = _flux_simpl->getFlux(rxn);
 			double lb = model->getCurrentFluxLb(rxn);
 			double ub = model->getCurrentFluxUb(rxn);
+			std::cout << rxn->toString() << "; " << lb << " (" << rxn->getLb() << ") <= " << val << " <= " << ub << " (" << rxn->getUb() << ")" << std::endl;
 			if(val > 0) {
 				if(lb < EPSILON) {
 					SCIP_NODE* node;
@@ -242,6 +250,16 @@ SCIP_RESULT ThermoConstraintHandler::branchIS(SolutionPtr& sol) {
 					BOOST_SCIP_CALL( SCIPcreateChild(model->getScip(), &node, prio, SCIPtransformObj(model->getScip(),SCIPgetSolOrigObj(model->getScip(), sol.get()))) ); // estimate must SCIPgetSolTransObj(scip, NULL)-lpobjval/prio)be for transformed node, sp transform estimated value for orig prob
 					model->setDirection(node, rxn, false); // restrict reaction to backward direction
 					count++;
+
+#if 0
+					debugFlux.setBounds(model);
+					debugFlux.setUb(rxn, 0);
+					debugFlux.solve();
+					double debugVal = debugFlux.getObjVal();
+					std::cout << debugVal << std::endl;
+					good = good || debugVal > EPSILON;
+#endif
+
 				}
 			}
 			else {
@@ -252,9 +270,24 @@ SCIP_RESULT ThermoConstraintHandler::branchIS(SolutionPtr& sol) {
 					BOOST_SCIP_CALL( SCIPcreateChild(model->getScip(), &node, prio, SCIPtransformObj(model->getScip(),SCIPgetSolOrigObj(model->getScip(), sol.get()))) ); // estimate must SCIPgetSolTransObj(scip, NULL)-lpobjval/prio)be for transformed node, sp transform estimated value for orig prob
 					model->setDirection(node, rxn, true); // restrict reaction to forward direction
 					count++;
+#if 0
+					debugFlux.setBounds(model);
+					debugFlux.setLb(rxn, 0);
+					debugFlux.solve();
+					double debugVal = debugFlux.getObjVal();
+					std::cout << debugVal << std::endl;
+					good = good || debugVal > EPSILON;
+#endif
 				}
 			}
 		}
+
+#if 0
+		if(!good) {
+			std::cout << "not good!, current sol: " << SCIPgetSolOrigObj(model->getScip(), sol.get()) << std::endl;
+		}
+#endif
+
 		if(count >= 1) {
 			return SCIP_BRANCHED;
 		}
@@ -431,10 +464,10 @@ SCIP_RETCODE ThermoConstraintHandler::scip_lock(
 
 				LockingInfo li;
 
-				// if we cannot round down to zero, rounding down is safe
-				li.down_safe = rxn->getUb() < EPSILON || rxn->getLb() > EPSILON;
-				// if we cannot round up to zero, rounding up is safe
-				li.up_safe = rxn->getLb() > -EPSILON || rxn->getUb() < -EPSILON;
+				// if we cannot round down away zero, rounding down is safe
+				li.down_safe = rxn->getUb() < -EPSILON || rxn->getLb() > -EPSILON;
+				// if we cannot round up away zero, rounding up is safe
+				li.up_safe = rxn->getLb() > EPSILON || rxn->getUb() < EPSILON;
 
 				li.var = smodel->getFlux(rxn);
 

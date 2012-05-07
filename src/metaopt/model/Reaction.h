@@ -182,6 +182,9 @@ public:
 	/** returns the owning model */
 	const boost::shared_ptr<Model> getOwner() const;
 
+	/** returns a human readable description of this reaction including stoichiometries */
+	std::string toString() const;
+
 private:
 	boost::weak_ptr<Model> _model; /** reference to the Model owning this Reaction */
 

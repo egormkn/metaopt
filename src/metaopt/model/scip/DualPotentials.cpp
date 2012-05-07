@@ -246,7 +246,6 @@ shared_ptr<unordered_set<ReactionPtr> > DualPotentials::getIS() {
 			result->insert(ri.first);
 		}
 	}
-
 	return result;
 }
 

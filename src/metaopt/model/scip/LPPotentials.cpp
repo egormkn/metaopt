@@ -110,6 +110,14 @@ SCIP_RETCODE LPPotentials::init_lp() {
 }
 
 void LPPotentials::init(Basis& b) {
+#ifndef NDEBUG
+	int ncols, nrows;
+	BOOST_SCIP_CALL( SCIPlpiGetNCols(_lpi, &ncols) );
+	BOOST_SCIP_CALL( SCIPlpiGetNRows(_lpi, &nrows) );
+	assert(ncols == _num_metabolites+1);
+	assert(nrows == _num_reactions);
+#endif
+
 	b.rstat.resize(_num_reactions,0);
 	b.cstat.resize(_num_metabolites+1,0); // don't forget the extra variable for the strict feasibility test variable
 	b.initialized = false;
@@ -227,10 +235,11 @@ bool LPPotentials::testStrictFeasible(bool& result) {
 	double obj = 1;
 	BOOST_SCIP_CALL( SCIPlpiChgObj(_lpi, 1, &ind, &obj));
 
+	// ignore basis information stuff, because we will deactivate some of the constraints (by setting bounds to inf) from time to time
 	// set base
-	if(_feasTest.initialized) {
-		BOOST_SCIP_CALL( SCIPlpiSetBase(_lpi, _feasTest.cstat.data(), _feasTest.rstat.data()) );
-	}
+	//if(_feasTest.initialized) {
+		//BOOST_SCIP_CALL( SCIPlpiSetBase(_lpi, _feasTest.cstat.data(), _feasTest.rstat.data()) );
+	//}
 
 	// solve
 	BOOST_SCIP_CALL( SCIPlpiSolveDual(_lpi) );
@@ -245,17 +254,19 @@ bool LPPotentials::testStrictFeasible(bool& result) {
 	}
 #endif
 
-	// store base
-	BOOST_SCIP_CALL( SCIPlpiGetBase(_lpi, _feasTest.cstat.data(), _feasTest.rstat.data()) );
-	_feasTest.initialized = true;
-
 	// by the structure of the problem, the problem should always be primal feasible, however numerical issues may prevent the solver from seeing this
 	// in this case, we will not want to throw a runtime error
 	// hence we do not check by assert
-	if(! SCIPlpiIsOptimal(_lpi) ) {
+	if(! SCIPlpiIsPrimalFeasible(_lpi) && ! SCIPlpiIsOptimal(_lpi) ) {
 		//SCIPlpiWriteLP(_lpi, "debug.lp");
 		return false; // we somehow failed to solve the LP. Thus, we cannot determine if it is strictly feasible
 	}
+
+	// ignore basis information stuff, only causes problems
+	// store base
+	//BOOST_SCIP_CALL( SCIPlpiGetBase(_lpi, _feasTest.cstat.data(), _feasTest.rstat.data()) );
+	//_feasTest.initialized = true;
+
 	BOOST_SCIP_CALL( SCIPlpiGetSol(_lpi, NULL, _primsol.data(), NULL, NULL, NULL) );
 
 	double val; // objective value
