@@ -94,6 +94,20 @@ public:
 	 */
 	virtual void updateMetabolite(MetabolitePtr metabolite);
 
+	/**
+	 * gets a metabolite by name.
+	 * Attention: Slow implementation!
+	 * Only use this for debugging purposes!
+	 */
+	MetabolitePtr getMetabolite(std::string name);
+
+	/**
+	 * gets a reaction by name
+	 * Attention: Slow implementation!
+	 * Only use this for debugging purposes!
+	 */
+	ReactionPtr getReaction(std::string name);
+
 
 protected:
 	boost::unordered_set<ReactionPtr> _fluxforcing; /** list of all flux forcing reactions */

@@ -117,40 +117,46 @@ SCIP_RESULT ThermoConstraintHandler::enforceObjectiveCycles(SolutionPtr& sol) {
 SCIP_RESULT ThermoConstraintHandler::branchCycle(SolutionPtr& sol) {
 	int count = 0;
 	ScipModelPtr model = getScip();
+
+	//TODO: its a waste computing this twice
+	shared_ptr<unordered_set<ReactionPtr> > fixedDirs = model->getFixedDirections();
+
 	foreach(ReactionPtr rxn, model->getModel()->getReactions()) {
-		double val = _cycle_find->getFlux(rxn);
-		double lb;
-		double ub;
-		lb = model->getCurrentFluxLb(rxn);
-		ub = model->getCurrentFluxUb(rxn);
-		if(val > EPSILON) {
-			if(lb < EPSILON) { // ub must be positive, since positive flow is not allowed else, restriction to zero must also be allowed
-				//cout << "branching ub "<<iter.getId() << endl;
-				SCIP_NODE* node;
-				double prio = val/model->getFlux(sol, rxn); // idea: small reductions are better than large ones
-				//double prio = 1.0;
-#ifdef ESTIMATE_PESSIMISTIC
-				BOOST_SCIP_CALL( SCIPcreateChild(scip, &node, prio, SCIPtransformObj(scip,SCIPgetSolOrigObj(scip, NULL)-lpobjval/prio)) ); // estimate must SCIPgetSolTransObj(scip, NULL)-lpobjval/prio)be for transformed node, sp transform estimated value for orig prob
-#else
-				BOOST_SCIP_CALL( SCIPcreateChild(model->getScip(), &node, prio, SCIPtransformObj(model->getScip(),SCIPgetSolOrigObj(model->getScip(), sol.get()))) ); // estimate must SCIPgetSolTransObj(scip, NULL)-lpobjval/prio)be for transformed node, sp transform estimated value for orig prob
-#endif
-				model->setDirection(node, rxn, false); // restrict reaction to backward direction
-				count ++;
+		if(fixedDirs->find(rxn) == fixedDirs->end()) { // not fixed
+			double val = _cycle_find->getFlux(rxn);
+			double lb;
+			double ub;
+			lb = model->getCurrentFluxLb(rxn);
+			ub = model->getCurrentFluxUb(rxn);
+			if(val > EPSILON) {
+				if(lb < EPSILON) { // ub must be positive, since positive flow is not allowed else, restriction to zero must also be allowed
+					//cout << "branching ub "<<iter.getId() << endl;
+					SCIP_NODE* node;
+					double prio = val/model->getFlux(sol, rxn); // idea: small reductions are better than large ones
+					//double prio = 1.0;
+	#ifdef ESTIMATE_PESSIMISTIC
+					BOOST_SCIP_CALL( SCIPcreateChild(scip, &node, prio, SCIPtransformObj(scip,SCIPgetSolOrigObj(scip, NULL)-lpobjval/prio)) ); // estimate must SCIPgetSolTransObj(scip, NULL)-lpobjval/prio)be for transformed node, sp transform estimated value for orig prob
+	#else
+					BOOST_SCIP_CALL( SCIPcreateChild(model->getScip(), &node, prio, SCIPtransformObj(model->getScip(),SCIPgetSolOrigObj(model->getScip(), sol.get()))) ); // estimate must SCIPgetSolTransObj(scip, NULL)-lpobjval/prio)be for transformed node, sp transform estimated value for orig prob
+	#endif
+					model->setDirection(node, rxn, false); // restrict reaction to backward direction
+					count ++;
+				}
 			}
-		}
-		else if(val < -EPSILON) {
-			if(ub > -EPSILON) { // lb must be negative, since negative flow is not allowed else, restriction to zero must also be allowed
-				//cout << "branching lb "<<iter.getId() << endl;
-				SCIP_NODE* node;
-				double prio = val/model->getFlux(sol, rxn); // idea: small reductions are better than large ones
-				//double prio = 1.0;
-#ifdef ESTIMATE_PESSIMISTIC
-				BOOST_SCIP_CALL( SCIPcreateChild(scip, &node, prio, SCIPtransformObj(scip,SCIPgetSolOrigObj(scip, NULL)-lpobjval/prio)) );
-#else
-				BOOST_SCIP_CALL( SCIPcreateChild(model->getScip(), &node, prio, SCIPtransformObj(model->getScip(),SCIPgetSolOrigObj(model->getScip(), sol.get()))) ); // estimate must SCIPgetSolTransObj(scip, NULL)-lpobjval/prio)be for transformed node, sp transform estimated value for orig prob
-#endif
-				model->setDirection(node, rxn, true); // restrict reaction to forward direction
-				count ++;
+			else if(val < -EPSILON) {
+				if(ub > -EPSILON) { // lb must be negative, since negative flow is not allowed else, restriction to zero must also be allowed
+					//cout << "branching lb "<<iter.getId() << endl;
+					SCIP_NODE* node;
+					double prio = val/model->getFlux(sol, rxn); // idea: small reductions are better than large ones
+					//double prio = 1.0;
+	#ifdef ESTIMATE_PESSIMISTIC
+					BOOST_SCIP_CALL( SCIPcreateChild(scip, &node, prio, SCIPtransformObj(scip,SCIPgetSolOrigObj(scip, NULL)-lpobjval/prio)) );
+	#else
+					BOOST_SCIP_CALL( SCIPcreateChild(model->getScip(), &node, prio, SCIPtransformObj(model->getScip(),SCIPgetSolOrigObj(model->getScip(), sol.get()))) ); // estimate must SCIPgetSolTransObj(scip, NULL)-lpobjval/prio)be for transformed node, sp transform estimated value for orig prob
+	#endif
+					model->setDirection(node, rxn, true); // restrict reaction to forward direction
+					count ++;
+				}
 			}
 		}
 	}
@@ -237,47 +243,49 @@ SCIP_RESULT ThermoConstraintHandler::branchIS(SolutionPtr& sol) {
 		int count = 0;
 		foreach(ReactionPtr rxn, *is) {
 			assert(!rxn->isExchange());
-			// reaction is in the basic solution, so its value is nonzero and of the same sign as in flux_simpl
-			double val = _flux_simpl->getFlux(rxn);
-			double lb = model->getCurrentFluxLb(rxn);
-			double ub = model->getCurrentFluxUb(rxn);
-			std::cout << rxn->toString() << "; " << lb << " (" << rxn->getLb() << ") <= " << val << " <= " << ub << " (" << rxn->getUb() << ")" << std::endl;
-			if(val > 0) {
-				if(lb < EPSILON) {
-					SCIP_NODE* node;
-					double prio = val/model->getFlux(sol, rxn); // idea: small reductions are better than large ones
-					//double prio = 1.0;
-					BOOST_SCIP_CALL( SCIPcreateChild(model->getScip(), &node, prio, SCIPtransformObj(model->getScip(),SCIPgetSolOrigObj(model->getScip(), sol.get()))) ); // estimate must SCIPgetSolTransObj(scip, NULL)-lpobjval/prio)be for transformed node, sp transform estimated value for orig prob
-					model->setDirection(node, rxn, false); // restrict reaction to backward direction
-					count++;
+			if(fixedDirs->find(rxn) == fixedDirs->end()) { // not fixed
+				// reaction is in the basic solution, so its value is nonzero and of the same sign as in flux_simpl
+				double val = _flux_simpl->getFlux(rxn);
+				double lb = model->getCurrentFluxLb(rxn);
+				double ub = model->getCurrentFluxUb(rxn);
+				std::cout << rxn->toString() << "; " << lb << " (" << rxn->getLb() << ") <= " << val << " <= " << ub << " (" << rxn->getUb() << ")" << std::endl;
+				if(val > 0) {
+					if(lb < EPSILON) {
+						SCIP_NODE* node;
+						double prio = val/model->getFlux(sol, rxn); // idea: small reductions are better than large ones
+						//double prio = 1.0;
+						BOOST_SCIP_CALL( SCIPcreateChild(model->getScip(), &node, prio, SCIPtransformObj(model->getScip(),SCIPgetSolOrigObj(model->getScip(), sol.get()))) ); // estimate must SCIPgetSolTransObj(scip, NULL)-lpobjval/prio)be for transformed node, sp transform estimated value for orig prob
+						model->setDirection(node, rxn, false); // restrict reaction to backward direction
+						count++;
 
-#if 0
-					debugFlux.setBounds(model);
-					debugFlux.setUb(rxn, 0);
-					debugFlux.solve();
-					double debugVal = debugFlux.getObjVal();
-					std::cout << debugVal << std::endl;
-					good = good || debugVal > EPSILON;
-#endif
+	#if 0
+						debugFlux.setBounds(model);
+						debugFlux.setUb(rxn, 0);
+						debugFlux.solve();
+						double debugVal = debugFlux.getObjVal();
+						std::cout << debugVal << std::endl;
+						good = good || debugVal > EPSILON;
+	#endif
 
+					}
 				}
-			}
-			else {
-				if(ub > -EPSILON) {
-					SCIP_NODE* node;
-					double prio = val/model->getFlux(sol, rxn); // idea: small reductions are better than large ones
-					//double prio = 1.0;
-					BOOST_SCIP_CALL( SCIPcreateChild(model->getScip(), &node, prio, SCIPtransformObj(model->getScip(),SCIPgetSolOrigObj(model->getScip(), sol.get()))) ); // estimate must SCIPgetSolTransObj(scip, NULL)-lpobjval/prio)be for transformed node, sp transform estimated value for orig prob
-					model->setDirection(node, rxn, true); // restrict reaction to forward direction
-					count++;
-#if 0
-					debugFlux.setBounds(model);
-					debugFlux.setLb(rxn, 0);
-					debugFlux.solve();
-					double debugVal = debugFlux.getObjVal();
-					std::cout << debugVal << std::endl;
-					good = good || debugVal > EPSILON;
-#endif
+				else {
+					if(ub > -EPSILON) {
+						SCIP_NODE* node;
+						double prio = val/model->getFlux(sol, rxn); // idea: small reductions are better than large ones
+						//double prio = 1.0;
+						BOOST_SCIP_CALL( SCIPcreateChild(model->getScip(), &node, prio, SCIPtransformObj(model->getScip(),SCIPgetSolOrigObj(model->getScip(), sol.get()))) ); // estimate must SCIPgetSolTransObj(scip, NULL)-lpobjval/prio)be for transformed node, sp transform estimated value for orig prob
+						model->setDirection(node, rxn, true); // restrict reaction to forward direction
+						count++;
+	#if 0
+						debugFlux.setBounds(model);
+						debugFlux.setLb(rxn, 0);
+						debugFlux.solve();
+						double debugVal = debugFlux.getObjVal();
+						std::cout << debugVal << std::endl;
+						good = good || debugVal > EPSILON;
+	#endif
+					}
 				}
 			}
 		}

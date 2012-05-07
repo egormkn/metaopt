@@ -67,4 +67,20 @@ void Model::updateMetabolite(MetabolitePtr metabolite) {
 	// nothing to do yet
 }
 
+MetabolitePtr Model::getMetabolite(string name) {
+	foreach(MetabolitePtr met, getMetabolites()) {
+		if(met->getName() == name) return met;
+	}
+	assert(false);
+	return(MetabolitePtr());
+}
+
+ReactionPtr Model::getReaction(string name) {
+	foreach(ReactionPtr rxn, getReactions()) {
+		if(rxn->getName() == name) return rxn;
+	}
+	assert(false); // Reaction does not exist!
+	return(ReactionPtr());
+}
+
 } /* namespace metaopt */
