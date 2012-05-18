@@ -9,6 +9,7 @@
 #include <boost/throw_exception.hpp>
 #include <boost/unordered_map.hpp>
 #include <boost/foreach.hpp>
+#include <algorithm>
 
 #include "../Properties.h"
 #include "Reaction.h"
@@ -64,5 +65,44 @@ const boost::shared_ptr<Model> Metabolite::getOwner() const {
 	return _model.lock();
 }
 
+boost::shared_ptr<std::vector<ReactionPtr> > Metabolite::getProducers() const {
+	boost::shared_ptr<std::vector<ReactionPtr> > out(new vector<ReactionPtr>());
+	foreach(weak_ptr<Reaction> r, _producers) {
+		ReactionPtr sr = r.lock();
+		out->push_back(sr);
+	}
+	return out;
+}
+boost::shared_ptr<std::vector<ReactionPtr> > Metabolite::getConsumers() const {
+	boost::shared_ptr<std::vector<ReactionPtr> > out(new vector<ReactionPtr>());
+	foreach(weak_ptr<Reaction> r, _consumers) {
+		ReactionPtr sr = r.lock();
+		out->push_back(sr);
+	}
+	return out;
+}
+
+struct WeakFind {
+	const weak_ptr<Reaction> wr;
+
+	bool operator()(const weak_ptr<Reaction> o) {
+		return( !(wr < o) && !(o < wr) );
+	}
+
+	WeakFind(ReactionPtr r) : wr(r) {}
+};
+
+void Metabolite::removeProducer(ReactionPtr r) {
+	remove_if(_producers.begin(), _producers.end(), WeakFind(r));
+}
+void Metabolite::removeConsumer(ReactionPtr r) {
+	remove_if(_consumers.begin(), _consumers.end(), WeakFind(r));
+}
+void Metabolite::addProducer(ReactionPtr r) {
+	_producers.push_back(r);
+}
+void Metabolite::addConsumer(ReactionPtr r) {
+	_consumers.push_back(r);
+}
 
 } /* namespace metaopt */

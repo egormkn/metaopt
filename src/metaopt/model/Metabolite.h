@@ -14,11 +14,14 @@
 #include <string>
 #include <boost/exception/error_info.hpp>
 #include <boost/foreach.hpp>
+#include <vector>
 #include "metaopt/Uncopyable.h"
 
 namespace metaopt {
 
 class Model;
+class Reaction;
+typedef boost::shared_ptr<Reaction> ReactionPtr;
 
 class Metabolite : public boost::enable_shared_from_this<Metabolite>, Uncopyable
 {
@@ -103,6 +106,25 @@ public:
 	/** returns the owning model */
 	const boost::shared_ptr<Model> getOwner() const;
 
+	/**
+	 * lists all reactions producing this metabolite
+	 * The list is created anew from a stored list of weak pointers.
+	 */
+	boost::shared_ptr<std::vector<ReactionPtr> > getProducers() const;
+	/**
+	 * lists all reactions producing this metabolite
+	 * The list is created anew from a stored list of weak pointers.
+	 */
+	boost::shared_ptr<std::vector<ReactionPtr> > getConsumers() const;
+
+	/** do not call this directly, but use the methods provided by Reaction */
+	void removeProducer(ReactionPtr r);
+	/** do not call this directly, but use the methods provided by Reaction */
+	void removeConsumer(ReactionPtr r);
+	/** do not call this directly, but use the methods provided by Reaction */
+	void addProducer(ReactionPtr r);
+	/** do not call this directly, but use the methods provided by Reaction */
+	void addConsumer(ReactionPtr r);
 
 private:
 	boost::weak_ptr<Model> _model; /** reference to the Model owning this Metabolite */
@@ -112,6 +134,9 @@ private:
 	double _obj;
 	std::string _name;
 	bool _boundary;
+
+	std::vector<boost::weak_ptr<Reaction> > _producers;
+	std::vector<boost::weak_ptr<Reaction> > _consumers;
 
 	void notifyChange(); /** notifies the Model of changes performed on this Metabolite. */
 
