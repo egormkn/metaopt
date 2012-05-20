@@ -10,7 +10,6 @@
 #include <sstream>
 
 #include "Reaction.h"
-#include "ReversedReaction.h"
 #include "Model.h"
 #include "../Properties.h"
 
@@ -81,10 +80,6 @@ void Reaction::setStoichiometry(MetabolitePtr m, double value) {
 		_products.erase(m);
 		m->removeProducer(shared_from_this());
 		m->removeConsumer(shared_from_this());
-		if(isReversible()) {
-			m->removeProducer(getReversedReaction());
-			m->removeConsumer(getReversedReaction());
-		}
 	}
 	else {
 		_stoichiometries[m] = value;
@@ -93,20 +88,12 @@ void Reaction::setStoichiometry(MetabolitePtr m, double value) {
 			_reactants.erase(m);
 			m->addProducer(shared_from_this());
 			m->removeConsumer(shared_from_this());
-			if(isReversible()) {
-				m->removeProducer(getReversedReaction());
-				m->addConsumer(getReversedReaction());
-			}
 		}
 		else { // value < 0
 			_products.erase(m);
 			_reactants[m] = -value;
 			m->removeProducer(shared_from_this());
 			m->addConsumer(shared_from_this());
-			if(isReversible()) {
-				m->addProducer(getReversedReaction());
-				m->removeConsumer(getReversedReaction());
-			}
 		}
 	}
 	assert(getStoichiometry(m) == getProduct(m) - getReactant(m));
@@ -121,18 +108,12 @@ void Reaction::setReactant(MetabolitePtr m, double value) {
 			_stoichiometries.erase(m);
 		}
 		m->removeConsumer(shared_from_this());
-		if(isReversible()) {
-			m->removeProducer(getReversedReaction());
-		}
 	}
 	else {
 		assert(value > 0);
 		_reactants[m] = value;
 		_stoichiometries[m] = getProduct(m) - value;
 		m->addConsumer(shared_from_this());
-		if(isReversible()) {
-			m->addProducer(getReversedReaction());
-		}
 	}
 	assert(getStoichiometry(m) == getProduct(m) - getReactant(m));
 }
@@ -146,18 +127,12 @@ void Reaction::setProduct(MetabolitePtr m, double value) {
 			_stoichiometries.erase(m);
 		}
 		m->removeProducer(shared_from_this());
-		if(isReversible()) {
-			m->removeConsumer(getReversedReaction());
-		}
 	}
 	else {
 		assert(value > 0);
 		_products[m] = value;
 		_stoichiometries[m] = value - getReactant(m);
 		m->addProducer(shared_from_this());
-		if(isReversible()) {
-			m->addConsumer(getReversedReaction());
-		}
 	}
 	assert(getStoichiometry(m) == getProduct(m) - getReactant(m));
 }
@@ -176,15 +151,6 @@ string Reaction::toString() const {
 		out << string(" ") << s.second << "*" << s.first->getName();
 	}
 	return out.str();
-}
-
-ReactionPtr Reaction::getReversedReaction() const {
-	assert(isReversible());
-	return _reversed;
-}
-
-bool Reaction::isReversed() const {
-	return false;
 }
 
 } /* namespace metaopt */
