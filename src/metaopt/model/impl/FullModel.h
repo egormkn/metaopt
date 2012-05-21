@@ -92,5 +92,7 @@ private:
 	boost::unordered_set<MetabolitePtr> _metabolites; /** list of all metabolites */
 };
 
+typedef boost::shared_ptr<FullModel> FullModelPtr;
+
 } /* namespace metaopt */
 #endif /* FULLMODEL_H_ */

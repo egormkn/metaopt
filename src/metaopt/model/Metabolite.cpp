@@ -11,6 +11,8 @@
 #include <boost/foreach.hpp>
 #include <algorithm>
 
+#include <iostream>
+
 #include "../Properties.h"
 #include "Reaction.h"
 #include "Metabolite.h"
@@ -86,17 +88,22 @@ struct WeakFind {
 	const weak_ptr<Reaction> wr;
 
 	bool operator()(const weak_ptr<Reaction> o) {
-		return( !(wr < o) && !(o < wr) );
+		bool out = !(wr < o) && !(o < wr);
+		return out;
 	}
 
 	WeakFind(ReactionPtr r) : wr(r) {}
 };
 
 void Metabolite::removeProducer(ReactionPtr r) {
-	remove_if(_producers.begin(), _producers.end(), WeakFind(r));
+	//std::cout << _producers.size() << std::endl;
+	_producers.erase(remove_if(_producers.begin(), _producers.end(), WeakFind(r)), _producers.end());
+	//std::cout << _producers.size() << std::endl;
 }
 void Metabolite::removeConsumer(ReactionPtr r) {
-	remove_if(_consumers.begin(), _consumers.end(), WeakFind(r));
+	//std::cout << _consumers.size() << std::endl;
+	_consumers.erase(remove_if(_consumers.begin(), _consumers.end(), WeakFind(r)), _consumers.end());
+	//std::cout << _consumers.size() << std::endl;
 }
 void Metabolite::addProducer(ReactionPtr r) {
 	_producers.push_back(r);

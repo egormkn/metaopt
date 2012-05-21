@@ -29,6 +29,11 @@ const ReactionPtr FullModel::createReaction(string name) {
 
 void FullModel::deleteReaction(ReactionPtr reaction) {
 	assert(_reactions.find(reaction) != _reactions.end());
+	// first clear the reaction by removing all reference to metabolites
+	vector<Stoichiometry> mets(reaction->getStoichiometries().begin(), reaction->getStoichiometries().end()); // copy list to get rid of concurrency issues
+	foreach(Stoichiometry s, mets) {
+		reaction->setStoichiometry(s.first,0);
+	}
 	_reactions.erase(reaction);
 	_fluxforcing.erase(reaction);
 	_objective.erase(reaction);
@@ -38,6 +43,7 @@ void FullModel::deleteReaction(ReactionPtr reaction) {
 void FullModel::deleteMetabolite(MetabolitePtr metabolite) {
 	assert(_metabolites.find(metabolite) != _metabolites.end());
 	assert(metabolite->isIsolated());
+	_metabolites.erase(metabolite);
 }
 
 
