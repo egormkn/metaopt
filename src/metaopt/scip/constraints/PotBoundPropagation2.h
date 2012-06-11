@@ -13,6 +13,7 @@
 #include <queue>
 #include "metaopt/model/Model.h"
 #include "metaopt/model/scip/ScipModel.h"
+#include "objscip/objscip.h"
 
 namespace metaopt {
 
@@ -74,13 +75,13 @@ private:
 	struct Arc {
 		MetBoundPtr _target;
 		ReactionPtr _creator;
+		bool _fwdcreator; // is set to true, iff the arc was created by the forward part of the _creator
 
 		std::vector<std::pair<MetBoundPtr,double> > _input;
 
 		int unknown_inputs() const;
 
 		double update_value() const;
-
 	};
 
 	typedef boost::shared_ptr<Arc> ArcPtr;
@@ -130,6 +131,13 @@ private:
 
 	std::priority_queue<ArcEvent> _queue;
 
+	// for the update-lps, the variable indexing is always the same, so we store this globally
+	boost::unordered_map<MetBoundPtr, int> _vars;
+	typedef std::pair<MetBoundPtr, int> VarEntry;
+
+	// creates arc for reversed reaction
+	ArcPtr getReversed(const ArcPtr a) const;
+
 	/// initially fills queue
 	void init_Queue();
 
@@ -145,7 +153,12 @@ private:
 	 * performs one update-step w.r.t. hard constraints (like bounds or branching-decisions).
 	 * Returns true if the update step changed something
 	 */
-	bool updateStepHard(ScipModelPtr scip);
+	void updateStepHard(ScipModelPtr scip);
+
+	/**
+	 * builds constraint for fixed direction of reaction
+	 */
+	void buildHardArcConstraint(ArcPtr a, SCIP_LPI* lpi, bool fwd);
 };
 
 } /* namespace metaopt */
