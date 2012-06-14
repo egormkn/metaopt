@@ -13,6 +13,7 @@
 #include "metaopt/model/scip/DualPotentials.h"
 #include "metaopt/model/scip/LPPotentials.h"
 #include "metaopt/Uncopyable.h"
+#include "metaopt/scip/constraints/PotBoundPropagation2.h"
 
 namespace metaopt {
 
@@ -71,6 +72,11 @@ public:
 	 */
 	SCIP_RETCODE check(SCIP_CONS** cons, int nconss, SCIP_SOL* sol, SCIP_RESULT* result);
 
+	/**
+	 * uses current potential bounds to infer blocked reactions
+	 */
+	SCIP_RESULT propagate();
+
 	/// Constraint enforcing method of constraint handler for LP solutions.
 	virtual SCIP_RETCODE scip_enfolp(
 			SCIP*              scip,               /**< SCIP data structure */
@@ -105,6 +111,15 @@ public:
 			SCIP_Bool          checklprows,        /**< have current LP rows to be checked? */
 			SCIP_Bool          printreason,        /**< should the reason for the violation be printed? */
 			SCIP_RESULT*       result              /**< pointer to store the result of the feasibility checking call */
+	);
+
+	virtual SCIP_RETCODE scip_prop(
+			SCIP *  			scip,
+			SCIP_CONSHDLR *  	conshdlr,
+			SCIP_CONS **  		conss,
+			int  				nconss,
+			int  				nusefulconss,
+			SCIP_RESULT *  		result
 	);
 
 
@@ -161,6 +176,8 @@ private:
 	// for checking feasibility
 	LPPotentialsPtr _pot_test;
 
+	// propagates potential bounds that can be used to detect disabled reactions
+	PotBoundPropagation2 _pbp;
 
 	//////////////////////////////////////////////////
 	// ugly hack for locking numbers

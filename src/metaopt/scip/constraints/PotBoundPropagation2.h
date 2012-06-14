@@ -26,13 +26,20 @@ public:
 
 	/**
 	 * updates the computed bound to be a good mu-bound.
-	 * Uses the fixed directions of current setup.
+	 * Uses the fixed directions of current status of scip.
 	 * If we cannot be sure if the current bound is a proper mu-bound, computation is started from scratch
 	 */
 	void update(ScipModelPtr scip);
 
+	/**
+	 * updates the computed bound to be a good mu-bound.
+	 * Does not use the fixed directions of current status of scip.
+	 * This only runs the flow update and uses the current solution as initial solution.
+	 */
+	void update();
+
 	// from the computed potential bounds lists all blocked reactions
-	boost::shared_ptr<std::vector<ReactionPtr> > getBlockedReactions();
+	boost::shared_ptr<std::vector<std::pair<ReactionPtr,bool> > > getBlockedReactions();
 
 private:
 	struct Arc;
@@ -147,7 +154,7 @@ private:
 	 * performs one update-step w.r.t. the inflow/outflow property.
 	 * Returns true if the update step changed something
 	 */
-	bool updateStepFlow(ScipModelPtr scip);
+	bool updateStepFlow();
 
 	/**
 	 * performs one update-step w.r.t. hard constraints (like bounds or branching-decisions).

@@ -62,7 +62,8 @@ ThermoConstraintHandler::ThermoConstraintHandler(ScipModelPtr model) :
 			MAX_PRESOLVER_ROUNDS,
 			DELAY_SEPA, DELAY_PROP, DELAY_PRESOL, FALSE, PROPAGATION_TIMING),
 	_smodel(model),
-	_model(model->getModel())
+	_model(model->getModel()),
+	_pbp(model->getModel())
 {
 	// init helper variables
 	_cycle_find = LPFluxPtr( new LPFlux(model->getModel(), false));
@@ -381,6 +382,12 @@ SCIP_RETCODE ThermoConstraintHandler::check(SCIP_CONS** conss, int nconss, SCIP_
 	return SCIP_OKAY;
 }
 
+SCIP_RESULT ThermoConstraintHandler::propagate() {
+	_pbp.update(getScip());
+	shared_ptr<std::vector<std::pair<ReactionPtr,bool> > > blocked = _pbp.getBlockedReactions();
+	//TODO:continue
+}
+
 /// Constraint enforcing method of constraint handler for LP solutions.
 SCIP_RETCODE ThermoConstraintHandler::scip_enfolp(
 		SCIP*              scip,               /**< SCIP data structure */
@@ -419,6 +426,25 @@ SCIP_RETCODE ThermoConstraintHandler::scip_enfops(
 	}
 	else {
 		return( enforce(conss, nconss, NULL, result) );
+	}
+}
+
+
+SCIP_RETCODE ThermoConstraintHandler::scip_prop(
+		SCIP *  			scip,
+		SCIP_CONSHDLR *  	conshdlr,
+		SCIP_CONS **  		conss,
+		int  				nconss,
+		int  				nusefulconss,
+		SCIP_RESULT *  		result
+) {
+	assert(scip == getScip()->getScip());
+	try {
+		*result = propagate();
+		return SCIP_OKAY;
+	}
+	catch( boost::exception& ex) {
+		return SCIP_ERROR;
 	}
 }
 
