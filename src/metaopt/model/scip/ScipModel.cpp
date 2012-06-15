@@ -293,6 +293,18 @@ void ScipModel::setDirection(SCIP_NODE* node, ReactionPtr rxn, bool fwd) {
 	}
 }
 
+void ScipModel::setBlockedFlux(SCIP_NODE* node, ReactionPtr rxn, bool fwd) {
+	assert( hasFluxVar(rxn) );
+	// set direction on the flux vars
+	SCIP_VAR* var = getFlux(rxn);
+	if(fwd) {
+		BOOST_SCIP_CALL( SCIPchgVarUbNode(_scip, node, var, 0) ); // exclude positive flux
+	}
+	else {
+		BOOST_SCIP_CALL( SCIPchgVarLbNode(_scip, node, var, 0) ); // exclude negative flux
+	}
+}
+
 shared_ptr<unordered_set<ReactionPtr> > ScipModel::getFixedDirections() {
 	shared_ptr<unordered_set<ReactionPtr> > result(new unordered_set<ReactionPtr>());
 	for(vector<ModelAddOnPtr>::iterator iter = _addons.begin(); iter != _addons.end(); iter++) {

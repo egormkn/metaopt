@@ -45,6 +45,7 @@ SCIP_RETCODE DualPotentials::init_lp() {
 	// initialize beta variables
 	int metabolite_index = 0;
 	_num_beta_vars = 0;
+	_num_metabolites = _model->getMetabolites().size();
 	foreach(const MetabolitePtr m, _model->getMetabolites()) {
 		_metabolites[m] = metabolite_index;
 		vector<int> ind;
@@ -78,7 +79,7 @@ SCIP_RETCODE DualPotentials::init_lp() {
 		}
 		metabolite_index++;
 	}
-	_num_metabolites = metabolite_index;
+	assert(_num_metabolites == metabolite_index);
 
 	// create reaction -> index map
 	// initialize alpha variables

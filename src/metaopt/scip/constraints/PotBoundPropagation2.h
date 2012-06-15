@@ -39,6 +39,9 @@ public:
 	void update();
 
 	// from the computed potential bounds lists all blocked reactions
+	// the boolean in each pair is true, if the forward direction is blocked.
+	// it is false, if the backward direction is blocked.
+	// if a reaction is blocked in both directions, we have two entries.
 	boost::shared_ptr<std::vector<std::pair<ReactionPtr,bool> > > getBlockedReactions();
 
 private:
@@ -83,6 +86,9 @@ private:
 		MetBoundPtr _target;
 		ReactionPtr _creator;
 		bool _fwdcreator; // is set to true, iff the arc was created by the forward part of the _creator
+
+		//TODO:
+		//bool _active; // indicates, if this arc can be active
 
 		std::vector<std::pair<MetBoundPtr,double> > _input;
 

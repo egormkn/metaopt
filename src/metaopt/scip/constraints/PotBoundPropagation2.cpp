@@ -14,6 +14,7 @@
 #include "objscip/objscip.h"
 #include "metaopt/scip/ScipError.h"
 
+#define PRINT_UPDATE_off
 
 using namespace boost;
 using namespace std;
@@ -141,7 +142,7 @@ void PotBoundPropagation2::init_Queue() {
 				foreach(Stoichiometry s, r->getProducts()) {
 					MetBoundPtr met = _maxBounds.at(s.first);
 					met->_bound = s.first->getPotUb();
-					cout << "boundary met (ub)" << s.first->getName() << endl;
+					//cout << "boundary met (ub)" << s.first->getName() << endl;
 					foreach(ArcPtr a, _incidence[met]) {
 						_queue.push(ArcEvent(a));
 					}
@@ -149,7 +150,7 @@ void PotBoundPropagation2::init_Queue() {
 				foreach(Stoichiometry s, r->getReactants()) {
 					MetBoundPtr met = _minBounds.at(s.first);
 					met->_bound = -s.first->getPotLb(); // _bound stores transformed bound!
-					cout << "boundary met (lb)" << s.first->getName() << endl;
+					//cout << "boundary met (lb)" << s.first->getName() << endl;
 					foreach(ArcPtr a, _incidence[met]) {
 						_queue.push(ArcEvent(a));
 					}
@@ -159,7 +160,7 @@ void PotBoundPropagation2::init_Queue() {
 				foreach(Stoichiometry s, r->getReactants()) {
 					MetBoundPtr met = _maxBounds.at(s.first);
 					met->_bound = s.first->getPotUb();
-					cout << "boundary met (ub)" << s.first->getName() << endl;
+					//cout << "boundary met (ub)" << s.first->getName() << endl;
 					foreach(ArcPtr a, _incidence[met]) {
 						_queue.push(ArcEvent(a));
 					}
@@ -167,7 +168,7 @@ void PotBoundPropagation2::init_Queue() {
 				foreach(Stoichiometry s, r->getProducts()) {
 					MetBoundPtr met = _minBounds.at(s.first);
 					met->_bound = -s.first->getPotLb(); // _bound stores transformed bound!
-					cout << "boundary met (lb)" << s.first->getName() << endl;
+					//cout << "boundary met (lb)" << s.first->getName() << endl;
 					foreach(ArcPtr a, _incidence[met]) {
 						_queue.push(ArcEvent(a));
 					}
@@ -289,7 +290,7 @@ void PotBoundPropagation2::print() {
 }
 
 shared_ptr<vector<pair<ReactionPtr,bool> > > PotBoundPropagation2::getBlockedReactions() {
-	shared_ptr<vector<pair<ReactionPtr,bool> > > result(new vector<ReactionPtr>());
+	shared_ptr<vector<pair<ReactionPtr,bool> > > result(new vector<pair<ReactionPtr, bool> >());
 	foreach(ReactionPtr r, _model->getReactions()) {
 		if(!r->isExchange()) {
 			double val_fwd = 0;
@@ -302,14 +303,14 @@ shared_ptr<vector<pair<ReactionPtr,bool> > > PotBoundPropagation2::getBlockedRea
 				val_fwd -= s.second * _maxBounds.at(s.first)->orig_value(); // coefficients are all positive
 				val_bwd += s.second * _minBounds.at(s.first)->orig_value(); // coefficients are all positive
 			}
-			cout << r->getName() << ": " << val_fwd << " / " << val_bwd << endl;
+			//cout << r->getName() << ": " << val_fwd << " / " << val_bwd << endl;
 			if(val_fwd > -EPSILON) {
-				cout << "blocked reaction: " << r->getName() << " by " << val_fwd << endl;
+				cout << "blocked reaction fwd: " << r->getName() << " by " << val_fwd << endl;
 				pair<ReactionPtr, bool> p(r,true);
 				result->push_back(p);
 			}
 			if(val_bwd > -EPSILON) {
-				cout << "blocked reaction: " << r->getName() << " by " << val_bwd << endl;
+				cout << "blocked reaction bwd: " << r->getName() << " by " << val_bwd << endl;
 				pair<ReactionPtr, bool> p(r,false);
 				result->push_back(p);
 			}
@@ -345,8 +346,19 @@ void PotBoundPropagation2::updateStepHard(ScipModelPtr scip) {
 	SCIP_LPI* lpi;
 	BOOST_SCIP_CALL( SCIPlpiCreate(&lpi, "potboundprop_updateStepHard", SCIP_OBJSEN_MAXIMIZE) );
 
+	// create vars - we do this by creating empty columns, since this guarantees that the var exists
+	foreach(VarEntry e, _vars) {
+		// just set to arbitrary values
+		double lb = -INFINITY;
+		double ub = INFINITY;
+		double obj = 1;
+		BOOST_SCIP_CALL( SCIPlpiAddCols(lpi, 1, &obj, &lb, &ub, NULL,0,0,0,0) );
+	}
+
 	// create constraints of fixed reaction directions
 	shared_ptr<unordered_set<ReactionPtr> > dirs = scip->getFixedDirections();
+	// first translate reactions to arcs
+	vector<ArcPtr> fixedArcs;
 	foreach(ArcPtr a, _arcs) {
 		ReactionPtr r = a->_creator;
 		if(dirs->find(r) != dirs->end()) {
@@ -360,13 +372,16 @@ void PotBoundPropagation2::updateStepHard(ScipModelPtr scip) {
 #endif
 				// also do this on the reversed arc, because that involves other bound-variables
 				ArcPtr rev = getReversed(a);
-				buildHardArcConstraint(rev, lpi, true);
+				//buildHardArcConstraint(rev, lpi, true);
+				fixedArcs.push_back(rev);
 			}
 			else {
 				// reaction is fixed to forward
 				// for a = (v,A) build a constraint of the form
 				// \mu(v) - sum_{x \in A} S_{xa}/S_{va} \mu(x) \leq 0
-				buildHardArcConstraint(a, lpi, true);
+				//buildHardArcConstraint(a, lpi, true);
+				fixedArcs.push_back(a);
+
 				//the following lines are disabled, because if we want to add this constraints, we will have to maximize for each metabolite separately (or prove that it is not necessary)
 #if 0
 				// also do this on the reversed arc, because that involves other bound-variables
@@ -377,20 +392,66 @@ void PotBoundPropagation2::updateStepHard(ScipModelPtr scip) {
 		}
 	}
 
-	// now set bounds on var entries
-	foreach(VarEntry v, _vars) {
-		double lb = -INFINITY;
-		double ub = v.first->_bound;
-		double obj = 1;
-		int ind = v.second;
-		BOOST_SCIP_CALL( SCIPlpiChgBounds(lpi, 1, &ind, &lb, &ub) );
-		BOOST_SCIP_CALL( SCIPlpiChgObj(lpi, 1, &ind, &obj) );
+
+	// variables with bound of -inf make trouble
+	// hence we propagate those manually
+	bool propagatedInf = true;
+	while(propagatedInf) {
+		propagatedInf = false;
+		foreach(ArcPtr a, fixedArcs) {
+			if(!isinf(a->_target->_bound) || a->_target->_bound > 0) {
+				for(unsigned int i = 0; i < a->_input.size(); i++) {
+					double bound = a->_input[i].first->_bound;
+					if(isinf(bound) && bound < 0) {
+#ifdef PRINT_UPDATE
+						cout << "updating (hard)" << a->_target->_met->getName() << (a->_target->_isMinBound?" (min)":" (max)") << " to " << "-inf" << " was " << a->_target->_bound << endl;
+#endif
+						a->_target->_bound = -INFINITY;
+						propagatedInf = true;
+					}
+				}
+			}
+		}
 	}
+
+	// set var-bounds of vars that need no updates anymore
+	// these vars are not used in any constraints, the above step made sure of that
+	// also set the bounds of the other variables (so thats in correct order)
+	foreach(VarEntry e, _vars) {
+		if(isinf(e.first->_bound) && e.first->_bound < 0) {
+			double lb = 0;
+			double ub = 0;
+			double obj = 0;
+			int ind = e.second;
+			BOOST_SCIP_CALL( SCIPlpiChgBounds(lpi, 1, &ind, &lb, &ub) );
+			BOOST_SCIP_CALL( SCIPlpiChgObj(lpi, 1, &ind, &obj) );
+		}
+		else {
+			double lb = -INFINITY;
+			double ub = e.first->_bound;
+			double obj = 1;
+			int ind = e.second;
+			BOOST_SCIP_CALL( SCIPlpiChgBounds(lpi, 1, &ind, &lb, &ub) );
+			BOOST_SCIP_CALL( SCIPlpiChgObj(lpi, 1, &ind, &obj) );
+		}
+	}
+
+	// now create the constraints
+	foreach(ArcPtr a, fixedArcs) {
+		if(!isinf(a->_target->_bound) || a->_target->_bound > 0) {
+			buildHardArcConstraint(a, lpi, true);
+		}
+	}
+
+	//SCIPlpiWriteLP(lpi, "debug.lp");
 
 	// solve
 	BOOST_SCIP_CALL( SCIPlpiSolveDual(lpi) );
 	assert( SCIPlpiWasSolved(lpi) );
 	if(SCIPlpiIsPrimalFeasible(lpi)) {
+		if(SCIPlpiIsPrimalUnbounded(lpi)) {
+			cout << "WARNING: unbounded!!! probably will get wrong results!" << endl;
+		}
 		// we have a feasible solution
 		double objval;
 		double primsol[_vars.size()];
@@ -398,6 +459,9 @@ void PotBoundPropagation2::updateStepHard(ScipModelPtr scip) {
 		// perform update
 		foreach(VarEntry e, _vars) {
 			if(primsol[e.second] < e.first->_bound - EPSILON) {
+#ifdef PRINT_UPDATE
+				cout << "updating (hard) " << e.first->_met->getName() << (e.first->_isMinBound?" (min)":" (max)") << " to " << primsol[e.second] << " was " << e.first->_bound << endl;
+#endif
 				e.first->_bound = primsol[e.second];
 			}
 		}
@@ -492,7 +556,9 @@ bool PotBoundPropagation2::updateStepFlow() {
 		foreach(VarEntry e, _vars) {
 			if(ray[e.second] < - EPSILON) { // every ray will only have nonpositive entries
 				e.first->_bound = -INFINITY;
+#ifdef PRINT_UPDATE
 				cout << "updating " << e.first->_met->getName() << (e.first->_isMinBound?" (min)":" (max)") << " to " << "-inf" << " was " << e.first->_bound << endl;
+#endif
 				updated = true;
 			}
 		}
@@ -507,7 +573,9 @@ bool PotBoundPropagation2::updateStepFlow() {
 		bool updated = false;
 		foreach(VarEntry e, _vars) {
 			if(primsol[e.second] < e.first->_bound - EPSILON) {
+#ifdef PRINT_UPDATE
 				cout << "updating " << e.first->_met->getName() << (e.first->_isMinBound?" (min)":" (max)") << " to " << primsol[e.second] << " was " << e.first->_bound << endl;
+#endif
 				e.first->_bound = primsol[e.second];
 				updated = true;
 			}
@@ -521,6 +589,10 @@ void PotBoundPropagation2::update(ScipModelPtr scip) {
 	foreach(MetabolitePtr m, _model->getMetabolites()) {
 		_maxBounds[m]->_bound = scip->getCurrentPotentialUb(m);
 		_minBounds[m]->_bound = -scip->getCurrentPotentialLb(m);
+
+		//+inf makes trouble, so replace by really big bounds
+		if(_maxBounds[m]->_bound > 100000) _maxBounds[m]->_bound = 100000;
+		if(_minBounds[m]->_bound > 100000) _minBounds[m]->_bound = 100000;
 	}
 	updateStepHard(scip);
 	bool updated = true;

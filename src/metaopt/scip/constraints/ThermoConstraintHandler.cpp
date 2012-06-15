@@ -28,8 +28,8 @@
 #define CHECKPRIORITY -2000000
 // we don't have any good separation method
 #define SEPA_FREQ -1
-// we don't propagate yet
-#define PROP_FREQ -1
+// the propagation method is quite a beast... (solving several LPs)
+#define PROP_FREQ 2
 // always work on all constraints (since we usually only have one)
 #define EAGER_FREQ 1
 // no presolving implemented yet
@@ -37,13 +37,12 @@
 // actually unimportant, since separation is not implemented,
 // but if it were, we only want to run separation if all other separators didn't find anything
 #define DELAY_SEPA TRUE
-// also currently unimportant, since separation is not implemented.
-// However propagation may be more useful in the future
-#define DELAY_PROP FALSE
+// propagation method is very expensive, so only execute it, if no other propagators found anything
+#define DELAY_PROP TRUE
 // also not implemented
 #define DELAY_PRESOL FALSE
-// also currently unimportant, since no propagation is implemented
-#define PROPAGATION_TIMING SCIP_PROPTIMING_ALWAYS
+// I don't know how the LP-loop can help the propagator, so only execute it before the LP-loop
+#define PROPAGATION_TIMING SCIP_PROPTIMING_BEFORELP
 
 using namespace boost;
 
@@ -383,9 +382,37 @@ SCIP_RETCODE ThermoConstraintHandler::check(SCIP_CONS** conss, int nconss, SCIP_
 }
 
 SCIP_RESULT ThermoConstraintHandler::propagate() {
-	_pbp.update(getScip());
+	ScipModelPtr scip = getScip();
+	_pbp.update(scip);
 	shared_ptr<std::vector<std::pair<ReactionPtr,bool> > > blocked = _pbp.getBlockedReactions();
-	//TODO:continue
+
+	bool propagated = false;
+	for(unsigned int i = 0; i < blocked->size(); i++) {
+		ReactionPtr r = blocked->at(i).first;
+		bool fwd = blocked->at(i).second;
+		if(fwd && scip->getCurrentFluxUb(r) > EPSILON) {
+			if(scip->getCurrentFluxLb(r) > EPSILON) {
+				return SCIP_CUTOFF; // blocking flux forcing reactions is not allowed!
+			}
+			SCIP_Node* node = SCIPgetCurrentNode(scip->getScip());
+			scip->setBlockedFlux(node, r, true);
+			propagated = true;
+		}
+		if(!fwd && scip->getCurrentFluxLb(r) < -EPSILON) {
+			if(scip->getCurrentFluxUb(r) < -EPSILON) {
+				return SCIP_CUTOFF; // blocking flux forcing reactions is not allowed!
+			}
+			SCIP_Node* node = SCIPgetCurrentNode(scip->getScip());
+			scip->setBlockedFlux(node, r, false);
+			propagated = false;
+		}
+	}
+	if(propagated) {
+		return SCIP_REDUCEDDOM;
+	}
+	else {
+		return SCIP_DIDNOTFIND;
+	}
 }
 
 /// Constraint enforcing method of constraint handler for LP solutions.

@@ -204,6 +204,20 @@ public:
 	void setDirection(SCIP_NODE* node, ReactionPtr rxn, bool fwd);
 
 	/**
+	 * Block one flux in one direction of the specified reaction for the specified node of the search tree.
+	 *
+	 * This method is different to setDirection in the sense, that it does not say anything about the potential difference of the reaction.
+	 * If you only know that this reaction cannot carry flux (e.g. by steady-state assumption etc.), use this method to propagate the information.
+	 *
+	 * If the information comes from a branching decision you may want to use setDirection.
+	 *
+	 * This method does not notify the addons!
+	 *
+	 * @param fwd set to true, to block forward directions
+	 */
+	void setBlockedFlux(SCIP_NODE* node, ReactionPtr rxn, bool fwd);
+
+	/**
 	 * returns all reactions that have fixed directions.
 	 */
 	boost::shared_ptr<boost::unordered_set<ReactionPtr> > getFixedDirections();
