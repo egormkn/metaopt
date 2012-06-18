@@ -14,7 +14,7 @@
 #include "objscip/objscip.h"
 #include "metaopt/scip/ScipError.h"
 
-#define PRINT_UPDATE_off
+#define PRINT_UPDATE
 
 using namespace boost;
 using namespace std;
@@ -477,10 +477,11 @@ bool PotBoundPropagation2::updateStepFlow() {
 	// compute X set
 	unordered_set<MetBoundPtr> X;
 	foreach(MetabolitePtr met, _model->getMetabolites()) {
+		// add all bounds that are not already -inf
 		MetBoundPtr bound = _maxBounds[met];
-		if(isinf(bound->_bound) && bound->_bound < 0) X.insert(bound);
+		if(!isinf(bound->_bound) || bound->_bound > 0) X.insert(bound);
 		bound = _minBounds[met];
-		if(isinf(bound->_bound) && bound->_bound < 0) X.insert(bound);
+		if(!isinf(bound->_bound) || bound->_bound > 0) X.insert(bound);
 	}
 	foreach(ArcPtr a, _arcs) {
 		double res = 0;
@@ -491,6 +492,11 @@ bool PotBoundPropagation2::updateStepFlow() {
 			X.erase(a->_target);
 		}
 	}
+	cout << "X: ";
+	foreach(MetBoundPtr m, X) {
+		cout << m->_met->getName()<< (m->_isMinBound?"(min)":"(max)");
+	}
+	cout << endl;
 	// X is now computed
 	// we now have to create the LP for solving the update step
 
@@ -555,10 +561,10 @@ bool PotBoundPropagation2::updateStepFlow() {
 		bool updated = false;
 		foreach(VarEntry e, _vars) {
 			if(ray[e.second] < - EPSILON) { // every ray will only have nonpositive entries
-				e.first->_bound = -INFINITY;
 #ifdef PRINT_UPDATE
 				cout << "updating " << e.first->_met->getName() << (e.first->_isMinBound?" (min)":" (max)") << " to " << "-inf" << " was " << e.first->_bound << endl;
 #endif
+				e.first->_bound = -INFINITY;
 				updated = true;
 			}
 		}

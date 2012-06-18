@@ -298,10 +298,22 @@ void ScipModel::setBlockedFlux(SCIP_NODE* node, ReactionPtr rxn, bool fwd) {
 	// set direction on the flux vars
 	SCIP_VAR* var = getFlux(rxn);
 	if(fwd) {
-		BOOST_SCIP_CALL( SCIPchgVarUbNode(_scip, node, var, 0) ); // exclude positive flux
+		// exclude positive flux
+		if(node == NULL) {
+			SCIPchgVarUb(_scip, var, 0); // this works in every stage
+		}
+		else {
+			BOOST_SCIP_CALL( SCIPchgVarUbNode(_scip, node, var, 0) );
+		}
 	}
 	else {
-		BOOST_SCIP_CALL( SCIPchgVarLbNode(_scip, node, var, 0) ); // exclude negative flux
+		// exclude negative flux
+		if(node == NULL) {
+			SCIPchgVarLb(_scip, var, 0);
+		}
+		else {
+			BOOST_SCIP_CALL( SCIPchgVarLbNode(_scip, node, var, 0) );
+		}
 	}
 }
 

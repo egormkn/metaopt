@@ -72,7 +72,10 @@ SCIP_RETCODE LPPotentials::init_lp() {
 			}
 			int beg = 0;
 			// actually we have a nice name for the row, but it wants a char* instead of a const char*. I don't think it is worth copying names ;)
-			SCIP_CALL( SCIPlpiAddRows(_lpi, 1, &lhs, &rhs, NULL, ind.size(), &beg, ind.data(), coef.data()) );
+			char name[r->getName().length()+1];
+			char* namePtr = name;
+			strcpy(name, r->getCName());
+			SCIP_CALL( SCIPlpiAddRows(_lpi, 1, &lhs, &rhs, &namePtr, ind.size(), &beg, ind.data(), coef.data()) );
 		}
 	}
 	_num_reactions = reaction_index;
@@ -283,6 +286,18 @@ double LPPotentials::getPotential(MetabolitePtr met) {
 
 bool LPPotentials::isCurrentSolutionFeasible() {
 	return SCIPlpiIsPrimalFeasible(_lpi);
+}
+
+void LPPotentials::save() {
+	SCIPlpiWriteLP(_lpi, "debug.lp");
+}
+
+int LPPotentials::getVar(MetabolitePtr m) {
+	return _metabolites.at(m);
+}
+
+int LPPotentials::getCon(ReactionPtr r) {
+	return _reactions.at(r);
 }
 
 } /* namespace metaopt */

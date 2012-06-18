@@ -394,16 +394,14 @@ SCIP_RESULT ThermoConstraintHandler::propagate() {
 			if(scip->getCurrentFluxLb(r) > EPSILON) {
 				return SCIP_CUTOFF; // blocking flux forcing reactions is not allowed!
 			}
-			SCIP_Node* node = SCIPgetCurrentNode(scip->getScip());
-			scip->setBlockedFlux(node, r, true);
+			scip->setBlockedFlux(NULL, r, true); // change the current node
 			propagated = true;
 		}
 		if(!fwd && scip->getCurrentFluxLb(r) < -EPSILON) {
 			if(scip->getCurrentFluxUb(r) < -EPSILON) {
 				return SCIP_CUTOFF; // blocking flux forcing reactions is not allowed!
 			}
-			SCIP_Node* node = SCIPgetCurrentNode(scip->getScip());
-			scip->setBlockedFlux(node, r, false);
+			scip->setBlockedFlux(NULL, r, false); // change the current node
 			propagated = false;
 		}
 	}

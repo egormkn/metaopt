@@ -110,6 +110,21 @@ public:
 	 */
 	bool isCurrentSolutionFeasible();
 
+	/**
+	 * store the current LP in debug.lp
+	 */
+	void save();
+
+	/**
+	 * please only use for debugging
+	 */
+	int getVar(MetabolitePtr met);
+
+	/**
+	 * please only use for debugging
+	 */
+	int getCon(ReactionPtr rxn);
+
 private:
 
 	/**

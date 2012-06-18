@@ -211,6 +211,24 @@ bool CycleDeletionHeur::computePotentials(SolutionPtr sol) {
 				BOOST_SCIP_CALL( SCIPsetSolVal(scip->getScip(), sol.get(), var, val) );
 			}
 		}
+#ifndef NDEBUG
+		// check if potential differences match to flux directions
+		foreach(ReactionPtr rxn, scip->getModel()->getInternalReactions()) {
+			double potDiff = 0;
+			foreach(Stoichiometry s, rxn->getStoichiometries()) {
+				potDiff += s.second*_potentials->getPotential(s.first);
+			}
+			double flux = _tflux->getFlux(rxn);
+			if(!(flux*potDiff < 0 || (flux < EPSILON && flux > -EPSILON) || (potDiff < EPSILON && potDiff > -EPSILON))) { // also allow potDiff = 0, because of closure of the domain
+				_potentials->save();
+				foreach(Stoichiometry s, rxn->getStoichiometries()) {
+					std::cout << s.first->getName() << " ("<< _potentials->getVar(s.first) << ") : " << s.second << "*" << _potentials->getPotential(s.first) << std::endl;
+				}
+				std::cout << rxn->getName() << ": " << _potentials->getCon(rxn) << std::endl;
+				assert(false);
+			}
+		}
+#endif
 		return true;
 	}
 	else {

@@ -238,14 +238,17 @@ double Reaction::getObj() const {
 
 void Reaction::setLb(double lb) {
 	_lb = lb;
+	notifyChange();
 }
 
 void Reaction::setUb(double ub) {
 	_ub = ub;
+	notifyChange();
 }
 
 void Reaction::setObj(double obj) {
 	_obj = obj;
+	notifyChange();
 }
 
 std::string Reaction::getName() const {
@@ -262,6 +265,7 @@ bool Reaction::isExchange() const {
 
 void Reaction::setExchange(bool exchange) {
 	_exchange = exchange;
+	notifyChange();
 }
 
 } /* namespace metaopt */
