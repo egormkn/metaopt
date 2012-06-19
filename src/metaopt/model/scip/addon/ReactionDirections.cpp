@@ -207,7 +207,9 @@ shared_ptr<const unordered_set<ReactionPtr> > ReactionDirections::getFixedDirect
 		SCIP_VAR* var = dir.second.dir;
 		double lb = SCIPvarGetLbLocal(var);
 		double ub = SCIPvarGetUbLocal(var);
-		if(ub - lb < EPSILON) result->insert(dir.first);
+		if(ub - lb < EPSILON) {
+			result->insert(dir.first);
+		}
 	}
 
 	return result;

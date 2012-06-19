@@ -64,8 +64,9 @@ void PotBoundPropagation2::init_Queue() {
 		_minBounds[m] = min;
 	}
 
-	// create incidencies
-	foreach(ReactionPtr r, _model->getReactions()) {
+	// create incidencies (only meaningful for internal creations)
+	foreach(ReactionPtr r, _model->getInternalReactions()) {
+		//assert(r->getProducts().size() > 0 && r->getReactants().size() > 0);
 		if(r->getUb() > EPSILON) { // reaction can operate in forward direction.
 			foreach(Stoichiometry v, r->getStoichiometries()) {
 				ArcPtr a(new Arc());
@@ -334,11 +335,14 @@ void PotBoundPropagation2::buildHardArcConstraint(ArcPtr a, SCIP_LPI* lpi, bool 
 	vector<double> coef;
 	ind.push_back(_vars.at(a->_target));
 	coef.push_back(1);
+	cout << a->_target->_met->getName()<<(a->_target->_isMinBound?"(min)":"(max)") << (fwd?" < ":" > ");
 	for(unsigned int j = 0; j < a->_input.size(); j++) {
 		MetBoundPtr met = a->_input[j].first;
 		ind.push_back(_vars.at(met));
 		coef.push_back(-a->_input[j].second);
+		cout << a->_input[j].second << "*" << a->_input[j].first->_met->getName() << (a->_input[j].first->_isMinBound?"(min) ":"(max) ");
 	}
+	cout << endl;
 	BOOST_SCIP_CALL( SCIPlpiAddRows(lpi, 1, &lhs, &rhs, NULL, ind.size(), &beg, ind.data(), coef.data()) );
 }
 
@@ -357,6 +361,11 @@ void PotBoundPropagation2::updateStepHard(ScipModelPtr scip) {
 
 	// create constraints of fixed reaction directions
 	shared_ptr<unordered_set<ReactionPtr> > dirs = scip->getFixedDirections();
+	cout << "fixed dirs: ";
+	foreach(ReactionPtr rxn, *dirs) {
+		cout << rxn->getName() << " ";
+	}
+	cout << endl;
 	// first translate reactions to arcs
 	vector<ArcPtr> fixedArcs;
 	foreach(ArcPtr a, _arcs) {
