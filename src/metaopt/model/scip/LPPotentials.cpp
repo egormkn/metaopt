@@ -215,7 +215,14 @@ bool LPPotentials::optimize() {
 	if(!_obj_ind.empty()) { // (if we have no objective potentials, we must not do this, else we get NULL-pointer issues)
 		BOOST_SCIP_CALL( SCIPlpiChgObj(_lpi, _obj_ind.size(), _obj_ind.data(), _orig_obj.data()));
 	}
-	// we only changed objective, so use primal simplex
+	int ind = FEASTEST_VAR;
+	double obj = 0;
+	double lb = 0;
+	double ub = 1;
+	BOOST_SCIP_CALL( SCIPlpiChgObj(_lpi, 1, &ind, &obj) );
+	BOOST_SCIP_CALL( SCIPlpiChgBounds(_lpi, 1, &ind, &lb, &ub) );
+
+	// we only changed objective (except for feastest-var), so use primal simplex
 	BOOST_SCIP_CALL( SCIPlpiSolvePrimal(_lpi) );
 
 	if(! SCIPlpiIsOptimal(_lpi) ) {
@@ -236,7 +243,10 @@ bool LPPotentials::testStrictFeasible(bool& result) {
 	}
 	int ind = FEASTEST_VAR;
 	double obj = 1;
-	BOOST_SCIP_CALL( SCIPlpiChgObj(_lpi, 1, &ind, &obj));
+	double lb = -INFINITY;
+	double ub = 1;
+	BOOST_SCIP_CALL( SCIPlpiChgObj(_lpi, 1, &ind, &obj) );
+	BOOST_SCIP_CALL( SCIPlpiChgBounds(_lpi, 1, &ind, &lb, &ub) );
 
 	// ignore basis information stuff, because we will deactivate some of the constraints (by setting bounds to inf) from time to time
 	// set base

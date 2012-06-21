@@ -50,6 +50,9 @@ private:
 	struct MetBound {
 		MetabolitePtr _met;
 		bool _isMinBound;
+		// true, if this MetBound is a boundary metabolite (this has nothing to do with potential bounds!)
+		bool _isBoundary;
+
 		// value of the bound in transformed setting
 		double _bound;
 		boost::weak_ptr<Arc> _last_update; // only logging information, so the results can be verified and/or interpreted
@@ -57,6 +60,7 @@ private:
 		MetBound(MetabolitePtr ptr, bool isMinBound)
 			: _met(ptr), _isMinBound(isMinBound) {
 			_bound = -INFINITY;
+			_isBoundary = false;
 		}
 
 		// gives the value of the bound in the original setting

@@ -143,6 +143,7 @@ void PotBoundPropagation2::init_Queue() {
 				foreach(Stoichiometry s, r->getProducts()) {
 					MetBoundPtr met = _maxBounds.at(s.first);
 					met->_bound = s.first->getPotUb();
+					met->_isBoundary = true;
 					//cout << "boundary met (ub)" << s.first->getName() << endl;
 					foreach(ArcPtr a, _incidence[met]) {
 						_queue.push(ArcEvent(a));
@@ -151,6 +152,7 @@ void PotBoundPropagation2::init_Queue() {
 				foreach(Stoichiometry s, r->getReactants()) {
 					MetBoundPtr met = _minBounds.at(s.first);
 					met->_bound = -s.first->getPotLb(); // _bound stores transformed bound!
+					met->_isBoundary = true;
 					//cout << "boundary met (lb)" << s.first->getName() << endl;
 					foreach(ArcPtr a, _incidence[met]) {
 						_queue.push(ArcEvent(a));
@@ -161,6 +163,7 @@ void PotBoundPropagation2::init_Queue() {
 				foreach(Stoichiometry s, r->getReactants()) {
 					MetBoundPtr met = _maxBounds.at(s.first);
 					met->_bound = s.first->getPotUb();
+					met->_isBoundary = true;
 					//cout << "boundary met (ub)" << s.first->getName() << endl;
 					foreach(ArcPtr a, _incidence[met]) {
 						_queue.push(ArcEvent(a));
@@ -169,6 +172,7 @@ void PotBoundPropagation2::init_Queue() {
 				foreach(Stoichiometry s, r->getProducts()) {
 					MetBoundPtr met = _minBounds.at(s.first);
 					met->_bound = -s.first->getPotLb(); // _bound stores transformed bound!
+					met->_isBoundary = true;
 					//cout << "boundary met (lb)" << s.first->getName() << endl;
 					foreach(ArcPtr a, _incidence[met]) {
 						_queue.push(ArcEvent(a));
@@ -335,14 +339,15 @@ void PotBoundPropagation2::buildHardArcConstraint(ArcPtr a, SCIP_LPI* lpi, bool 
 	vector<double> coef;
 	ind.push_back(_vars.at(a->_target));
 	coef.push_back(1);
-	cout << a->_target->_met->getName()<<(a->_target->_isMinBound?"(min)":"(max)") << (fwd?" < ":" > ");
+
+//	cout << a->_target->_met->getName()<<(a->_target->_isMinBound?"(min)":"(max)") << (fwd?" < ":" > ");
 	for(unsigned int j = 0; j < a->_input.size(); j++) {
 		MetBoundPtr met = a->_input[j].first;
 		ind.push_back(_vars.at(met));
 		coef.push_back(-a->_input[j].second);
-		cout << a->_input[j].second << "*" << a->_input[j].first->_met->getName() << (a->_input[j].first->_isMinBound?"(min) ":"(max) ");
+//		cout << a->_input[j].second << "*" << a->_input[j].first->_met->getName() << (a->_input[j].first->_isMinBound?"(min) ":"(max) ");
 	}
-	cout << endl;
+//	cout << endl;
 	BOOST_SCIP_CALL( SCIPlpiAddRows(lpi, 1, &lhs, &rhs, NULL, ind.size(), &beg, ind.data(), coef.data()) );
 }
 
@@ -485,12 +490,13 @@ void PotBoundPropagation2::updateStepHard(ScipModelPtr scip) {
 bool PotBoundPropagation2::updateStepFlow() {
 	// compute X set
 	unordered_set<MetBoundPtr> X;
+#if 1
 	foreach(MetabolitePtr met, _model->getMetabolites()) {
 		// add all bounds that are not already -inf
 		MetBoundPtr bound = _maxBounds[met];
-		if(!isinf(bound->_bound) || bound->_bound > 0) X.insert(bound);
+		if(!bound->_isBoundary && (!isinf(bound->_bound) || bound->_bound > 0)) X.insert(bound);
 		bound = _minBounds[met];
-		if(!isinf(bound->_bound) || bound->_bound > 0) X.insert(bound);
+		if(!bound->_isBoundary && (!isinf(bound->_bound) || bound->_bound > 0)) X.insert(bound);
 	}
 	foreach(ArcPtr a, _arcs) {
 		double res = 0;
@@ -501,6 +507,7 @@ bool PotBoundPropagation2::updateStepFlow() {
 			X.erase(a->_target);
 		}
 	}
+#endif
 	cout << "X: ";
 	foreach(MetBoundPtr m, X) {
 		cout << m->_met->getName()<< (m->_isMinBound?"(min)":"(max)");
@@ -529,12 +536,21 @@ bool PotBoundPropagation2::updateStepFlow() {
 			BOOST_SCIP_CALL( SCIPlpiChgBounds(lpi, 1, &ind, &lb, &ub) );
 			BOOST_SCIP_CALL( SCIPlpiChgObj(lpi, 1, &ind, &obj) );
 		}
+		else if(e.first->_isBoundary) {
+			// we can't improve bounds of boundary metabolites.
+			double lb = e.first->_bound;
+			double ub = e.first->_bound;
+			double obj = 0;
+			int ind = e.second;
+			BOOST_SCIP_CALL( SCIPlpiChgBounds(lpi, 1, &ind, &lb, &ub) );
+			BOOST_SCIP_CALL( SCIPlpiChgObj(lpi, 1, &ind, &obj) );
+		}
 	}
 
 
 	// create constraints for arcs
 	foreach(ArcPtr a, _arcs) {
-		if(!isinf(a->_target->_bound) || a->_target->_bound > 0) { // else, updating is no use
+		if(!a->_target->_isBoundary && (!isinf(a->_target->_bound) || a->_target->_bound > 0)) { // else, updating is no use
 			// for a = (v,A) build a constraint of the form
 			// sum_{x \in A \setminus X} S_{xa}/S_{va} _bound(x) <= \mu(v) - sum_{x \in A \cap X} S_{xa}/S_{va} \mu(x)
 			double rhs = INFINITY;

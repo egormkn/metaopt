@@ -138,7 +138,7 @@ bool ReactionDirections::computeSolutionVals(SolutionPtr sol) const {
 		double val = SCIPgetSolVal(model->getScip(), sol.get(), _potDiff->getPotDiff(rxn));
 		double flux = SCIPgetSolVal(model->getScip(), sol.get(), model->getFlux(rxn));
 
-		if(val < 0) {
+		if(val <= -SCIPfeastol(model->getScip())) {
 			// if it is negative, set direction to 1 (fwd flux)
 			assert(flux > -EPSILON);
 			// flux should be positive or zero
@@ -148,7 +148,7 @@ bool ReactionDirections::computeSolutionVals(SolutionPtr sol) const {
 			BOOST_SCIP_CALL( SCIPsetSolVal(model->getScip(), sol.get(), v.second.slack_pot_fwd, 0) );
 			BOOST_SCIP_CALL( SCIPsetSolVal(model->getScip(), sol.get(), v.second.slack_pot_bwd, -val) );
 		}
-		else {
+		else if(val >= SCIPfeastol(model->getScip())){
 			// set to 0 (bwd flux)
 			assert(flux < EPSILON);
 			// flux should be negative or zero
@@ -157,6 +157,23 @@ bool ReactionDirections::computeSolutionVals(SolutionPtr sol) const {
 			BOOST_SCIP_CALL( SCIPsetSolVal(model->getScip(), sol.get(), v.second.slack_flux_bwd, 0) );
 			BOOST_SCIP_CALL( SCIPsetSolVal(model->getScip(), sol.get(), v.second.slack_pot_fwd, val) );
 			BOOST_SCIP_CALL( SCIPsetSolVal(model->getScip(), sol.get(), v.second.slack_pot_bwd, 0) );
+		}
+		else {
+			// boundary case
+			if(flux > 0) {
+				BOOST_SCIP_CALL( SCIPsetSolVal(model->getScip(), sol.get(), v.second.dir, 1) );
+				BOOST_SCIP_CALL( SCIPsetSolVal(model->getScip(), sol.get(), v.second.slack_flux_fwd, 0) );
+				BOOST_SCIP_CALL( SCIPsetSolVal(model->getScip(), sol.get(), v.second.slack_flux_bwd, flux) );
+				BOOST_SCIP_CALL( SCIPsetSolVal(model->getScip(), sol.get(), v.second.slack_pot_fwd, 0) );
+				BOOST_SCIP_CALL( SCIPsetSolVal(model->getScip(), sol.get(), v.second.slack_pot_bwd, -val) );
+			}
+			else {
+				BOOST_SCIP_CALL( SCIPsetSolVal(model->getScip(), sol.get(), v.second.dir, 0) );
+				BOOST_SCIP_CALL( SCIPsetSolVal(model->getScip(), sol.get(), v.second.slack_flux_fwd, -flux) );
+				BOOST_SCIP_CALL( SCIPsetSolVal(model->getScip(), sol.get(), v.second.slack_flux_bwd, 0) );
+				BOOST_SCIP_CALL( SCIPsetSolVal(model->getScip(), sol.get(), v.second.slack_pot_fwd, val) );
+				BOOST_SCIP_CALL( SCIPsetSolVal(model->getScip(), sol.get(), v.second.slack_pot_bwd, 0) );
+			}
 		}
 	}
 	return true;
