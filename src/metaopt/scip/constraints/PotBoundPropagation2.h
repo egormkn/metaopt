@@ -92,7 +92,9 @@ private:
 		bool _fwdcreator; // is set to true, iff the arc was created by the forward part of the _creator
 
 		//TODO:
-		//bool _active; // indicates, if this arc can be active
+		bool _active; // indicates, if this arc can be active
+
+		Arc();
 
 		std::vector<std::pair<MetBoundPtr,double> > _input;
 

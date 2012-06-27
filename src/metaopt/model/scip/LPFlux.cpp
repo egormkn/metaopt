@@ -90,17 +90,27 @@ SCIP_RETCODE LPFlux::free_lp() {
 }
 
 void LPFlux::setLb(ReactionPtr r, double lb) {
-	int ind = _reactions.at(r);
-	double oub;
-	BOOST_SCIP_CALL( SCIPlpiGetBounds(_lpi, ind, ind, NULL, &oub) );
-	BOOST_SCIP_CALL( SCIPlpiChgBounds(_lpi, 1, &ind, &lb, &oub) );
+	try {
+		int ind = _reactions.at(r);
+		double oub;
+		BOOST_SCIP_CALL( SCIPlpiGetBounds(_lpi, ind, ind, NULL, &oub) );
+		BOOST_SCIP_CALL( SCIPlpiChgBounds(_lpi, 1, &ind, &lb, &oub) );
+	}
+	catch(exception &ex) {
+		BOOST_SCIP_CALL( SCIP_ERROR );
+	}
 }
 
 void LPFlux::setUb(ReactionPtr r, double ub) {
-	int ind = _reactions.at(r);
-	double olb;
-	BOOST_SCIP_CALL( SCIPlpiGetBounds(_lpi, ind, ind, &olb, NULL) );
-	BOOST_SCIP_CALL( SCIPlpiChgBounds(_lpi, 1, &ind, &olb, &ub) );
+	try {
+		int ind = _reactions.at(r);
+		double olb;
+		BOOST_SCIP_CALL( SCIPlpiGetBounds(_lpi, ind, ind, &olb, NULL) );
+		BOOST_SCIP_CALL( SCIPlpiChgBounds(_lpi, 1, &ind, &olb, &ub) );
+	}
+	catch(exception &ex) {
+		BOOST_SCIP_CALL( SCIP_ERROR );
+	}
 }
 
 void LPFlux::setObj(ReactionPtr r, double obj) {

@@ -29,7 +29,8 @@
 // we don't have any good separation method
 #define SEPA_FREQ -1
 // the propagation method is quite a beast... (solving several LPs)
-#define PROP_FREQ 2
+//#define PROP_FREQ 2
+#define PROP_FREQ -1
 // always work on all constraints (since we usually only have one)
 #define EAGER_FREQ 1
 // no presolving implemented yet
@@ -191,8 +192,10 @@ SCIP_RESULT ThermoConstraintHandler::enforceNonSimple(SolutionPtr& sol) {
 		// (we also don't want to find flux through objective reactions, but that is already taken care of by step 1)
 		// TODO: Rechanging the bounds of flux forcing reactions may be quite inefficient, if we have many flux forcing reactions
 		foreach(ReactionPtr rxn, model->getModel()->getFluxForcingReactions()) {
-			_cycle_test->setLb(rxn,0);
-			_cycle_test->setUb(rxn,0);
+			if(!rxn->isExchange()) {
+				_cycle_test->setLb(rxn,0);
+				_cycle_test->setUb(rxn,0);
+			}
 		}
 		_cycle_test->solve();
 		if(!_cycle_test->isFeasible()) {
@@ -344,7 +347,8 @@ SCIP_RETCODE ThermoConstraintHandler::enforce(SCIP_CONS** conss, int nconss, SCI
 		*result = enforceLastResort(solptr);
 		assert(solptr.unique());
 	}
-	catch( boost::exception& ex) {
+	catch( std::exception& ex) {
+		std::cerr << boost::diagnostic_information(ex) << std::endl;
 		return SCIP_ERROR;
 	}
 

@@ -183,6 +183,11 @@ void PotBoundPropagation2::init_Queue() {
 	}
 }
 
+PotBoundPropagation2::Arc::Arc()
+	: _active(true) {
+	// nothing else
+}
+
 int PotBoundPropagation2::Arc::unknown_inputs() const {
 	int res = 0;
 	for(unsigned int i = 0; i < _input.size(); i++) {
@@ -352,6 +357,7 @@ void PotBoundPropagation2::buildHardArcConstraint(ArcPtr a, SCIP_LPI* lpi, bool 
 }
 
 void PotBoundPropagation2::updateStepHard(ScipModelPtr scip) {
+#if 0
 	SCIP_LPI* lpi;
 	BOOST_SCIP_CALL( SCIPlpiCreate(&lpi, "potboundprop_updateStepHard", SCIP_OBJSEN_MAXIMIZE) );
 
@@ -485,6 +491,86 @@ void PotBoundPropagation2::updateStepHard(ScipModelPtr scip) {
 		// dunno how to do it, so just ignore
 		cout << "WARNING: pot bound propagation found inconsisitency with direction fixations, which will be ignored" << endl;
 	}
+#else
+	SCIP_LPI* lpi;
+	BOOST_SCIP_CALL( SCIPlpiCreate(&lpi, "potboundprop_updateStepHard", SCIP_OBJSEN_MAXIMIZE) );
+
+	unordered_map<MetabolitePtr, int> met_idx;
+	int i = 0;
+	foreach(MetabolitePtr met, _model->getMetabolites()) {
+		double lb = -_minBounds.at(met)->_bound;
+		double ub = _maxBounds.at(met)->_bound;
+		// actually we will have to deal with cases, where lb > ub (but this doesn't happen on the current instances, so don't think about it yet)
+		double obj = 0;
+		met_idx[met] = i;
+		BOOST_SCIP_CALL( SCIPlpiAddCols(lpi, 1, &obj, &lb, &ub, NULL,0,0,0,0) );
+		i++;
+	}
+
+	// create constraints of fixed reaction directions
+	shared_ptr<unordered_set<ReactionPtr> > dirs = scip->getFixedDirections();
+	cout << "fixed dirs: ";
+	foreach(ReactionPtr rxn, *dirs) {
+		if(!rxn->isExchange()) {
+			cout << rxn->getName() << " ";
+			double lhs = -INFINITY;
+			double rhs = INFINITY;
+			if(scip->getCurrentFluxLb(rxn) < -EPSILON) {
+				// reaction is fixed to reverse
+				lhs = 0;
+			}
+			else {
+				// reaction is fixed to forward
+				rhs = 0;
+			}
+			int beg = 0;
+			vector<int> ind;
+			vector<double> coef;
+			foreach(Stoichiometry s, rxn->getStoichiometries()) {
+				ind.push_back(met_idx.at(s.first));
+				coef.push_back(s.second);
+			}
+			BOOST_SCIP_CALL( SCIPlpiAddRows(lpi, 1, &lhs, &rhs, NULL, ind.size(), &beg, ind.data(), coef.data()) );
+		}
+	}
+	cout << endl;
+
+	// now run variability analysis on metabolite potentials
+	foreach(MetabolitePtr met, _model->getMetabolites()) {
+		int ind = met_idx.at(met);
+		double obj = 1;
+		BOOST_SCIP_CALL( SCIPlpiChgObj(lpi, 1, &ind, &obj));
+		BOOST_SCIP_CALL( SCIPlpiSolvePrimal(lpi) );
+		assert( SCIPlpiWasSolved(lpi) );
+		assert( SCIPlpiIsPrimalFeasible(lpi) );
+		double objval;
+		SCIPlpiGetObjval(lpi, &objval);
+		if(_maxBounds.at(met)->_bound > objval) {
+			cout << "updating (hard) " << met->getName() << " (max) to " << objval << " was " << _maxBounds.at(met)->_bound << endl;
+		}
+		_maxBounds.at(met)->_bound = objval;
+		obj = 0;
+		BOOST_SCIP_CALL( SCIPlpiChgObj(lpi, 1, &ind, &obj));
+	}
+	// and do the same for min-bounds
+	foreach(MetabolitePtr met, _model->getMetabolites()) {
+		int ind = met_idx.at(met);
+		double obj = -1;
+		BOOST_SCIP_CALL( SCIPlpiChgObj(lpi, 1, &ind, &obj));
+		BOOST_SCIP_CALL( SCIPlpiSolvePrimal(lpi) );
+		assert( SCIPlpiWasSolved(lpi) );
+		assert( SCIPlpiIsPrimalFeasible(lpi) );
+		double objval; // we don't have to multiply objval by -1, because the objective function already does this for us
+		SCIPlpiGetObjval(lpi, &objval);
+		if(_minBounds.at(met)->_bound > objval) {
+			cout << "updating (hard) " << met->getName() << " (min) to " << objval << " was " << _minBounds.at(met)->_bound << endl;
+		}
+		_minBounds.at(met)->_bound = objval;
+		obj = 0;
+		BOOST_SCIP_CALL( SCIPlpiChgObj(lpi, 1, &ind, &obj));
+	}
+
+#endif
 }
 
 bool PotBoundPropagation2::updateStepFlow() {
@@ -499,12 +585,14 @@ bool PotBoundPropagation2::updateStepFlow() {
 		if(!bound->_isBoundary && (!isinf(bound->_bound) || bound->_bound > 0)) X.insert(bound);
 	}
 	foreach(ArcPtr a, _arcs) {
-		double res = 0;
-		for(unsigned int i = 0; i < a->_input.size(); i++) {
-			res += a->_input[i].second*a->_input[i].first->_bound;
-		}
-		if(res > a->_target->_bound) {
-			X.erase(a->_target);
+		if(a->_active) {
+			double res = 0;
+			for(unsigned int i = 0; i < a->_input.size(); i++) {
+				res += a->_input[i].second*a->_input[i].first->_bound;
+			}
+			if(res > a->_target->_bound) {
+				X.erase(a->_target);
+			}
 		}
 	}
 #endif
@@ -550,7 +638,7 @@ bool PotBoundPropagation2::updateStepFlow() {
 
 	// create constraints for arcs
 	foreach(ArcPtr a, _arcs) {
-		if(!a->_target->_isBoundary && (!isinf(a->_target->_bound) || a->_target->_bound > 0)) { // else, updating is no use
+		if(!a->_target->_isBoundary && a->_active && (!isinf(a->_target->_bound) || a->_target->_bound > 0)) { // else, updating is no use
 			// for a = (v,A) build a constraint of the form
 			// sum_{x \in A \setminus X} S_{xa}/S_{va} _bound(x) <= \mu(v) - sum_{x \in A \cap X} S_{xa}/S_{va} \mu(x)
 			double rhs = INFINITY;
@@ -590,6 +678,9 @@ bool PotBoundPropagation2::updateStepFlow() {
 				cout << "updating " << e.first->_met->getName() << (e.first->_isMinBound?" (min)":" (max)") << " to " << "-inf" << " was " << e.first->_bound << endl;
 #endif
 				e.first->_bound = -INFINITY;
+				foreach(ArcPtr inc, _incidence.at(e.first)) {
+					inc->_active = false;
+				}
 				updated = true;
 			}
 		}
@@ -608,6 +699,28 @@ bool PotBoundPropagation2::updateStepFlow() {
 				cout << "updating " << e.first->_met->getName() << (e.first->_isMinBound?" (min)":" (max)") << " to " << primsol[e.second] << " was " << e.first->_bound << endl;
 #endif
 				e.first->_bound = primsol[e.second];
+				if(e.first->_isMinBound) {
+					if(_maxBounds.at(e.first->_met)->_bound + e.first->_bound < 0) {
+						// lb > ub !
+#ifdef PRINT_UPDATE
+						cout << "update produced inconsistency  in all-flow" << endl;
+#endif
+						foreach(ArcPtr inc, _incidence.at(e.first)) {
+							inc->_active = false;
+						}
+					}
+				}
+				else {
+					if(_minBounds.at(e.first->_met)->_bound + e.first->_bound < 0) {
+						// lb > ub !
+#ifdef PRINT_UPDATE
+						cout << "update produced inconsistency  in all-flow" << endl;
+#endif
+						foreach(ArcPtr inc, _incidence.at(e.first)) {
+							inc->_active = false;
+						}
+					}
+				}
 				updated = true;
 			}
 		}

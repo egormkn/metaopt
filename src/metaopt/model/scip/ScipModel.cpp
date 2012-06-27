@@ -265,6 +265,16 @@ double ScipModel::getObjectiveValue() {
 	return SCIPgetSolOrigObj(_scip, sol);
 }
 
+bool ScipModel::isOptimal() {
+	assert( SCIPgetStage(_scip) == SCIP_STAGE_SOLVED );  // Problem has not yet been solved!";
+	return SCIPgetStatus(_scip) == SCIP_STATUS_OPTIMAL;
+}
+
+bool ScipModel::isUnbounded() {
+	assert( SCIPgetStage(_scip) == SCIP_STAGE_SOLVED );  // Problem has not yet been solved!";
+	return SCIPgetStatus(_scip) == SCIP_STATUS_UNBOUNDED;
+}
+
 void ScipModel::addAddOn(ModelAddOnPtr addon) {
 	_addons.push_back(addon);
 }

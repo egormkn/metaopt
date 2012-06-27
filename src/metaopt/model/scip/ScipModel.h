@@ -163,6 +163,16 @@ public:
 	double getObjectiveValue();
 
 	/**
+	 * If the problem has been solved, checks if the computed solution is optimal
+	 */
+	bool isOptimal();
+
+	/**
+	 * If the problem has been solved, checks if the computed solution is unbounded.
+	 */
+	bool isUnbounded();
+
+	/**
 	 * Returns the internal scip instance.
 	 * The pointer is valid as long as this ScipModel lives.
 	 */
