@@ -18,6 +18,9 @@
 
 namespace metaopt {
 
+/**
+ * The SBMLLoader can be used to load networks in form of SBML files.
+ */
 class SBMLLoader : Uncopyable {
 public:
 	SBMLLoader();

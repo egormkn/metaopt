@@ -95,16 +95,26 @@ public:
 	virtual void updateMetabolite(MetabolitePtr metabolite);
 
 	/**
+	 * Tests, if there exists a metabolite with this name in this model
+	 */
+	bool hasMetabolite(std::string name);
+
+	/**
+	 * Tests, if there exists a reaction with this name in this model
+	 */
+	bool hasReaction(std::string name);
+
+	/**
 	 * gets a metabolite by name.
 	 * Attention: Slow implementation!
-	 * Only use this for debugging purposes!
+	 * Attention: Names need not be unique!
 	 */
 	MetabolitePtr getMetabolite(std::string name);
 
 	/**
 	 * gets a reaction by name
 	 * Attention: Slow implementation!
-	 * Only use this for debugging purposes!
+	 * Attention: Names need not be unique!
 	 */
 	ReactionPtr getReaction(std::string name);
 

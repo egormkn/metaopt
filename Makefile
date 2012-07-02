@@ -1,12 +1,25 @@
 # Makefile from scratch so I understand the build process
+#
+# This make file can be controlled by the following parameters:
+#	* SBML=on/off enables/disables support for loading SBML models (on default) 
+#	* MATLAB=on/off enables/disables support for loading .mat files (on default)
+#
 
+# default path for scip
 SCIP_PATH=$(CURDIR)/../third_party/scip
 SCIP_LIB=$(SCIP_PATH)/lib
 SCIP_H=$(SCIP_PATH)/src
 
+#default path for sbml
 SBML_PATH=$(CURDIR)/../third_party/libsbml/build
 SBML_LIB=$(SBML_PATH)/lib
 SBML_H=$(SBML_PATH)/include
+
+#default path for matlab
+MATLAB_PATH=$(CURDIR)/../third_party/matlab
+MATLAB_LIB=$(MATLAB_PATH)/bin
+MATLAB_H=$(MATLAB_PATH)/include
+
 
 OBJ_DIR=obj
 BIN_DIR=bin
@@ -18,8 +31,18 @@ SRC_METAOPT_MODEL=Model.cpp Metabolite.cpp Reaction.cpp
 SRC_METAOPT_MODEL_DIR=model
 SRC_METAOPT_MODEL_IMPL=FullModel.cpp
 SRC_METAOPT_MODEL_IMPL_DIR=impl
-SRC_METAOPT_MODEL_SBML=SBMLLoader.cpp
+ifeq ($(SBML),off)
+	SRC_METAOPT_MODEL_SBML=
+else
+	SRC_METAOPT_MODEL_SBML=SBMLLoader.cpp
+endif
 SRC_METAOPT_MODEL_SBML_DIR=sbml
+ifeq ($(MATLAB),off)
+	SRC_METAOPT_MODEL_MATLAB=
+else
+	SRC_METAOPT_MODEL_MATLAB=MatlabLoader.cpp
+endif
+SRC_METAOPT_MODEL_MATLAB_DIR=matlab
 SRC_METAOPT_MODEL_SCIP=ScipModel.cpp LPFlux.cpp ModelAddOn.cpp Solution.cpp LPPotentials.cpp DualPotentials.cpp
 SRC_METAOPT_MODEL_SCIP_DIR=scip
 SRC_METAOPT_MODEL_SCIP_ADDON=PotentialDifferences.cpp ReactionDirections.cpp
@@ -32,6 +55,7 @@ SRC_METAOPT_SCIP_HEUR=CycleDeletionHeur.cpp
 SRC_METAOPT_SCIP_HEUR_DIR=heur
 
 SRC_METAOPT_MODEL+=$(patsubst %,$(SRC_METAOPT_MODEL_SBML_DIR)/%,$(SRC_METAOPT_MODEL_SBML))
+SRC_METAOPT_MODEL+=$(patsubst %,$(SRC_METAOPT_MODEL_MATLAB_DIR)/%,$(SRC_METAOPT_MODEL_MATLAB))
 SRC_METAOPT_MODEL+=$(patsubst %,$(SRC_METAOPT_MODEL_IMPL_DIR)/%,$(SRC_METAOPT_MODEL_IMPL))
 SRC_METAOPT_MODEL_SCIP+=$(patsubst %,$(SRC_METAOPT_MODEL_SCIP_ADDON_DIR)/%,$(SRC_METAOPT_MODEL_SCIP_ADDON))
 SRC_METAOPT_MODEL+=$(patsubst %,$(SRC_METAOPT_MODEL_SCIP_DIR)/%,$(SRC_METAOPT_MODEL_SCIP))
@@ -44,6 +68,32 @@ SRC+=$(patsubst %,$(SRC_METAOPT_DIR)/%,$(SRC_METAOPT))
 SOURCES=$(patsubst %,$(SRC_DIR)/%,$(SRC))
 OBJECTS=$(patsubst %.cpp,$(OBJ_DIR)/%.o,$(SRC))
 LIBRARY=libthermo.so
+
+
+#depending if SBML is turned on, we have to setup the include and linker correctily
+ifeq ($(SBML),off)
+	ISBML=
+	LSBML=
+	RSBML=
+	libSBML=
+else
+	ISBML=-I$(SBML_H)
+	LSBML=-L$(SBML_LIB)
+	RSBML=$(SBML_LIB)
+	libSBML=-lsbml
+endif
+#depending if MATLAB is turned on, we have to setup the include and linker correctily
+ifeq ($(MATLAB),off)
+	IMATLAB=
+	LMATLAB=
+	RMATLAB=
+	libMATLAB=
+else
+	IMATLAB=-I$(MATLAB_H)
+	LMATLAB=-L$(MATLAB_LIB)
+	RMATLAB=$(MATLAB_LIB)
+	libMATLAB=-lmat -lmx -lut
+endif
 
 
 CC=g++
@@ -67,7 +117,7 @@ clean :
 
 $(BIN_DIR)/$(LIBRARY) : $(OBJECTS)
 	mkdir -p $(BIN_DIR)
-	$(LD) -o $@ $(LDFLAGS) $(OBJECTS) -L$(SCIP_LIB) -L$(SBML_LIB) -Xlinker -rpath=$(SCIP_LIB):$(SBML_LIB) -lsbml -lscip -lobjscip -llpispx -lnlpi -lsoplex -lzimpl -lz -lgmp -lreadline -lncurses -lm
+	$(LD) -o $@ $(LDFLAGS) $(OBJECTS) -L$(SCIP_LIB) $(LSBML) $(LMATLAB) -Xlinker -rpath=$(SCIP_LIB):$(RSBML):$(RMATLAB) $(libSBML) $(libMATLAB) -lscip -lobjscip -llpispx -lnlpi -lsoplex -lzimpl -lz -lgmp -lreadline -lncurses -lm
 
 obj/%.o: src/%.cpp
-	$(CC) $(CFLAGS) -c $< -o $@ -I$(SRC_DIR) -I$(SCIP_H) -I$(SBML_H)
+	$(CC) $(CFLAGS) -c $< -o $@ -I$(SRC_DIR) -I$(SCIP_H) $(ISBML) $(IMATLAB)

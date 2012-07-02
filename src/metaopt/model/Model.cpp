@@ -83,4 +83,18 @@ ReactionPtr Model::getReaction(string name) {
 	return(ReactionPtr());
 }
 
+bool Model::hasMetabolite(string name) {
+	foreach(MetabolitePtr met, getMetabolites()) {
+		if(met->getName() == name) return true;
+	}
+	return false;
+}
+
+bool Model::hasReaction(string name) {
+	foreach(ReactionPtr rxn, getReactions()) {
+		if(rxn->getName() == name) return true;
+	}
+	return false;
+}
+
 } /* namespace metaopt */
