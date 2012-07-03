@@ -41,6 +41,18 @@ public:
 	/** fetch the loaded model */
 	ModelPtr getModel() const;
 
+	/**
+	 * fetches the metabolite with the specified index.
+	 * Requires that a model has been loaded.
+	 */
+	MetabolitePtr getMetabolite(int index);
+
+	/**
+	 * fetches the reaction with the specified index.
+	 * Requires that a model has been loaded.
+	 */
+	ReactionPtr getReaction(int index);
+
 	/** clear loader for loading another model */
 	void clear();
 
@@ -60,9 +72,10 @@ private:
 	mxArray* _int_rxns;  ///< list of internal reactions (that have to satisfy thermodynamics)
 	mxArray* _int_mets;	///< list of internal metabolites (that have well defined potential)
 
-	/** temporary map of metabolite indices to created objects */
+	/** map of metabolite indices to created objects */
 	std::vector<MetabolitePtr> _metabolites;
-
+	/** map of reaction indices to created objects */
+	std::vector<ReactionPtr> _reactions;
 
 	/**
 	 * test if all necessary fields are supplied.

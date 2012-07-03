@@ -38,6 +38,8 @@ SCIP_RETCODE ScipModel::init_scip() {
 	// include default plugins
 	SCIP_CALL( SCIPincludeDefaultPlugins(_scip) );
 
+	SCIP_CALL( SCIPsetIntParam(_scip, "presolving/maxrounds",0) );
+
 	return SCIP_OKAY;
 }
 
@@ -212,6 +214,9 @@ double ScipModel::getCurrentFlux(ReactionPtr rxn) {
 	assert( hasFluxVar(rxn) );
 	if( SCIPgetStage(_scip) == SCIP_STAGE_SOLVING) {
 		assert( SCIPgetLPSolstat(_scip) == SCIP_LPSOLSTAT_OPTIMAL ); // LP must be solved to optimality, else the result is rather meaningless
+		/*if(oldnode == SCIPgetCurrentNode(_scip)) {
+			// return cached value
+		}*/
 		return SCIPgetSolVal(_scip, NULL, getFlux(rxn));
 	}
 	else if(SCIPgetStage(_scip) == SCIP_STAGE_SOLVED) {

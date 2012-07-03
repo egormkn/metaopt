@@ -7,8 +7,10 @@
 
 #include "MatlabLoader.h"
 #include <boost/throw_exception.hpp>
+#include <boost/exception/error_info.hpp>
 #include <boost/exception/all.hpp>
 #include <iostream>
+#include <sstream>
 
 #include "metaopt/model/Reaction.h"
 #include "metaopt/model/Metabolite.h"
@@ -124,6 +126,7 @@ void MatlabLoader::load(const mxArray* m) {
 		reaction->setUb(ubData[i]);
 		reaction->setObj(cData[i]);
 		reaction->setExchange(true); // default is exchange, may be switched back later
+		_reactions.push_back(reaction);
 	}
 
 	// set internal reactions
@@ -267,10 +270,35 @@ ModelPtr MatlabLoader::getModel() const {
   return _model;
 }
 
+MetabolitePtr MatlabLoader::getMetabolite(int index) {
+	try {
+		return _metabolites.at(index);
+	}
+	catch(std::exception& ex) {
+		stringstream msg;
+		msg << string("Unable to get metabolite for index ") << index << " range: 0.." << (_metabolites.size()-1);
+		BOOST_THROW_EXCEPTION(MatlabLoaderError() << matlab_error_message(msg.str()));
+	}
+	return MetabolitePtr();
+}
+
+ReactionPtr MatlabLoader::getReaction(int index) {
+	try {
+		return _reactions.at(index);
+	}
+	catch(std::exception& ex) {
+		stringstream msg;
+		msg << string("Unable to get reaction for index ") << index << " range: 0.." << (_reactions.size()-1);
+		BOOST_THROW_EXCEPTION(MatlabLoaderError() << matlab_error_message(msg.str()));
+	}
+	return ReactionPtr();
+}
+
 void MatlabLoader::clear() {
 	// clear loaded model
 	_model.reset();
 	_metabolites.clear();
+	_reactions.clear();
 }
 
 ModelPtr loadMatlabModel(const mxArray* m) {
