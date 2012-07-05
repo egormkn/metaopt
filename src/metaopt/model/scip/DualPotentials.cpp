@@ -225,6 +225,65 @@ void DualPotentials::setDirections(LPFluxPtr flux, shared_ptr<unordered_set<Reac
 	}
 }
 
+void DualPotentials::setDirections(LPFluxPtr flux, boost::unordered_map<ReactionPtr, ReactionPtr>& toFluxRxn, shared_ptr<unordered_set<ReactionPtr> > fixed_rxns) {
+	/* we have to adjust
+	 * * the bounds of the \alpha variables
+	 * * the \alpha coefficients of the Z constraint
+	 * * the objective function
+	 */
+
+	typedef pair<ReactionPtr, int> RxnIndex;
+
+	foreach(RxnIndex ri, _reactions) {
+		ReactionPtr fluxRxn;
+		try {
+			fluxRxn = toFluxRxn.at(ri.first);
+		}
+		catch(std::exception& ex) {
+			BOOST_THROW_EXCEPTION(UnknownReactionError() << reaction_name(ri.first->getName()));
+		}
+		double val = flux->getFlux(fluxRxn);
+		double lb, ub, obj, coef;
+		if(val > EPSILON) {
+			lb = 0;
+			ub = INFINITY;
+			coef = 1;
+			if(fixed_rxns->find(ri.first) != fixed_rxns->end()) {
+				// reaction direction is already fixed, hence unimportant
+				obj = 0;
+			}
+			else {
+				obj = 1;
+			}
+		}
+		else if(val < -EPSILON) {
+			lb = -INFINITY;
+			ub = 0;
+			coef = -1;
+			if(fixed_rxns->find(ri.first) != fixed_rxns->end()) {
+				// reaction direction is already fixed, hence unimportant
+				obj = 0;
+			}
+			else {
+				obj = -1;
+			}
+		}
+		else {
+			// no flux -> potential is not constrained -> dual variable is zero
+			lb = 0;
+			ub = 0;
+			obj = 0;
+			coef = 0;
+		}
+
+		int ind = ALPHA_START + ri.second;
+
+		BOOST_SCIP_CALL( SCIPlpiChgBounds(_lpi, 1, &ind, &lb, &ub) );
+		BOOST_SCIP_CALL( SCIPlpiChgObj(_lpi, 1, &ind, &obj) );
+		BOOST_SCIP_CALL( SCIPlpiChgCoef(_lpi, Z_CONSTRAINT, ind, coef));
+	}
+}
+
 void DualPotentials::optimize() {
 	BOOST_SCIP_CALL( SCIPlpiSolveDual(_lpi) );
 

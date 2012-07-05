@@ -40,7 +40,7 @@ CycleDeletionHeur::~CycleDeletionHeur() {
 
 SCIP_RETCODE CycleDeletionHeur::scip_exec(SCIP* scip, SCIP_HEUR* heur, SCIP_HEURTIMING timing, SCIP_RESULT* result) {
 	if(!isDifficult()) {
-		std::cout << "running heur" << std::endl;
+		//std::cout << "running heur" << std::endl;
 		SCIP_SOL* raw_sol;
 		SCIP_CALL( SCIPcreateOrigSol(scip, &raw_sol, heur));
 		SolutionPtr sol = wrap(raw_sol, getScip());
@@ -153,6 +153,7 @@ bool CycleDeletionHeur::computeFluxSolution(SolutionPtr sol) {
 
 	// ignore flux forcing reactions for now
 	// TODO: check to save computation on further processing
+
 	return true;
 }
 

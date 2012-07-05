@@ -38,7 +38,7 @@ SCIP_RETCODE ScipModel::init_scip() {
 	// include default plugins
 	SCIP_CALL( SCIPincludeDefaultPlugins(_scip) );
 
-	SCIP_CALL( SCIPsetIntParam(_scip, "presolving/maxrounds",0) );
+	//SCIP_CALL( SCIPsetIntParam(_scip, "presolving/maxrounds",0) );
 
 	return SCIP_OKAY;
 }

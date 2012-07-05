@@ -28,6 +28,10 @@ const unordered_set<ReactionPtr>& Model::getFluxForcingReactions() const {
 	return _fluxforcing;
 }
 
+const unordered_set<ReactionPtr>& Model::getProblematicReactions() const {
+	return _problematic;
+}
+
 const unordered_set<ReactionPtr>& Model::getObjectiveReactions() const {
 	return _objective;
 }
@@ -40,6 +44,7 @@ const unordered_set<ReactionPtr>& Model::getInternalReactions() const {
 void Model::updateReaction(ReactionPtr reaction) {
 	assert(getReactions().find(reaction) != getReactions().end());
 	bool was_fluxforcing = _fluxforcing.find(reaction) != _fluxforcing.end();
+	bool was_problematic = _problematic.find(reaction) != _problematic.end();
 	bool was_objective = _objective.find(reaction) != _objective.end();
 	bool was_internal = _internal.find(reaction) != _internal.end();
 	if(was_fluxforcing) {
@@ -47,6 +52,12 @@ void Model::updateReaction(ReactionPtr reaction) {
 	}
 	else {
 		if(reaction->getLb() > EPSILON || reaction->getUb() < -EPSILON) _fluxforcing.insert(reaction);
+	}
+	if(was_problematic) {
+		if(!reaction->isProblematic()) _problematic.erase(reaction);
+	}
+	else {
+		if(reaction->isProblematic()) _problematic.insert(reaction);
 	}
 	if(was_objective) {
 		if(reaction->getObj() < EPSILON && reaction->getObj() > -EPSILON) _objective.erase(reaction);

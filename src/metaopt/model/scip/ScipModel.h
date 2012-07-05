@@ -13,6 +13,7 @@
 #include "objscip/objscip.h"
 
 #include "metaopt/model/Model.h"
+#include "metaopt/model/scip/AbstractScipFluxModel.h"
 #include "Solution.h"
 #include "metaopt/scip/ScipError.h"
 #include "metaopt/Uncopyable.h"
@@ -24,7 +25,7 @@ struct PreconditionViolatedException : virtual boost::exception, virtual std::ex
 class ModelAddOn;
 typedef boost::shared_ptr<ModelAddOn> ModelAddOnPtr;
 
-class ScipModel : Uncopyable {
+class ScipModel : public AbstractScipFluxModel, Uncopyable {
 public:
 	/** do not use, use factory method of Model instead! */
 	ScipModel(ModelPtr model);
@@ -242,7 +243,6 @@ private:
 	boost::unordered_map<MetabolitePtr, SCIP_VAR*> _metabolites; // map of initialized potential vars
 	boost::unordered_map<ReactionPtr, SCIP_VAR*> _reactions; // map of initialized reaction vars
 
-
 	/**
 	 * A topologically sorted list of addons.
 	 * For evaluation of the method computeSolutionVals, some of the addons require that
@@ -252,6 +252,7 @@ private:
 	 * Hence, all dependencies get satisfied, if the computeSolutionVals method is called from beginning (index 0) to end.
 	 */
 	std::vector<ModelAddOnPtr> _addons;
+
 };
 
 inline SCIP* ScipModel::getScip() {

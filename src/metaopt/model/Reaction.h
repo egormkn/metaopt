@@ -109,6 +109,22 @@ public:
 
 	inline void setExchange(bool exchange);
 
+	/**
+	 * checks if this reaction is problematic.
+	 *
+	 * Problematic reactions are reactions whose flux variable is also used in additional constraint (e.g. kinetics).
+	 * It is important to mark such reactions as problematic to improve the branching decisions of the constraint handler.
+	 */
+	inline bool isProblematic() const;
+
+	/**
+	 * marks this reaction as problematic.
+	 *
+	 * Problematic reactions are reactions whose flux variable is also used in additional constraint (e.g. kinetics).
+	 * It is important to mark such reactions as problematic to improve the branching decisions of the constraint handler.
+	 */
+	inline void setProblematic(bool problematic);
+
 	/** @brief returns a map of the metabolites involved in this reaction with their stoichiometric coefficients.
 	 *
 	 * Reactants have a negative coefficient. Products have a positive coefficient.
@@ -202,12 +218,16 @@ private:
 	double _ub;
 	double _obj;
 	bool _exchange;
+	bool _problematic;
 
 	void notifyChange(); /** notifies the Model of changes performed on this Reaction. */
 };
 
 /** Please use ReactionPtr to handle pointers to Reaction instances */
 typedef boost::shared_ptr<Reaction> ReactionPtr;
+
+/** Used if an reaction is not found */
+struct UnknownReactionError : virtual boost::exception, virtual std::exception {};
 
 /** If an error is thrown by a method of this Reaction, the name of this Reaction is added using this tag */
 typedef boost::error_info<struct tag_reaction_name,std::string> reaction_name;
@@ -265,6 +285,15 @@ bool Reaction::isExchange() const {
 
 void Reaction::setExchange(bool exchange) {
 	_exchange = exchange;
+	notifyChange();
+}
+
+bool Reaction::isProblematic() const {
+	return _problematic;
+}
+
+void Reaction::setProblematic(bool problematic) {
+	_problematic = problematic;
 	notifyChange();
 }
 

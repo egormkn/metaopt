@@ -49,6 +49,14 @@ public:
 	void setDirections(LPFluxPtr flux, boost::shared_ptr<boost::unordered_set<ReactionPtr> > fixed_rxns);
 
 	/**
+	 * the same as setDirections(FluxPtr, boost::shared_ptr<boost::unordered_set<ReactionPtr> >),
+	 * however, flux must not use the same reactions as does this DualPotentials.
+	 * The map toReduced translates the reactions of this DualPotentials to the corresponding reactions of flux.
+	 */
+	void setDirections(LPFluxPtr flux, boost::unordered_map<ReactionPtr, ReactionPtr>& toFluxRxn ,boost::shared_ptr<boost::unordered_set<ReactionPtr> > fixed_rxns);
+
+
+	/**
 	 * run the optuimization step
 	 */
 	void optimize();

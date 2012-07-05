@@ -25,6 +25,7 @@ Reaction::Reaction(weak_ptr<Model> model, std::string name) {
 	_ub = 0;
 	_obj = 0;
 	_exchange = false;
+	_problematic = false;
 }
 
 Reaction::~Reaction() {

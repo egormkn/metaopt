@@ -55,6 +55,17 @@ public:
 	const boost::unordered_set<ReactionPtr>& getFluxForcingReactions() const;
 
 	/**
+	 * Returns the list of problematic reactions in this model.
+	 * A reaction is problematic, if it is involved in additional constraints to steady-state and thermodynamics.
+	 * Problematic reactions have similar effects on the constraint handler and heuristic as flux forcing reactions.
+	 * However, we distinguish them explicitly from flux forcing reactions, because flux forcing is an implicit property,
+	 * where as problematic reactions have to be marked as such explicitly by the user.
+	 *
+	 * Important: This returns a reference to the internally stored list. Do not modify it.
+	 */
+	const boost::unordered_set<ReactionPtr>& getProblematicReactions() const;
+
+	/**
 	 * Returns the list of objective reactions in this model.
 	 *
 	 * Important: This returns a reference to the internally stored list. Do not modify it.
@@ -120,6 +131,7 @@ public:
 
 
 protected:
+	boost::unordered_set<ReactionPtr> _problematic; /** list of all reactions that are marked as problematic */
 	boost::unordered_set<ReactionPtr> _fluxforcing; /** list of all flux forcing reactions */
 	boost::unordered_set<ReactionPtr> _objective; /** list of all objective reactions */
 	boost::unordered_set<ReactionPtr> _internal; /** list of all internal reactions */

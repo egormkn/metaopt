@@ -149,7 +149,7 @@ void LPFlux::setBounds(LPFluxPtr other) {
 	BOOST_SCIP_CALL( SCIPlpiChgBounds(_lpi, _num_reactions, ind, lb, ub) );
 }
 
-void LPFlux::setBounds(ScipModelPtr other) {
+void LPFlux::setBounds(AbstractScipFluxModelPtr other) {
 	// Here, we have no other option than to iterate through all reactions and do a seperate function call to get the bounds
 	double lb[_num_reactions];
 	double ub[_num_reactions];
@@ -183,7 +183,7 @@ void LPFlux::setDirectionBounds(LPFluxPtr flux) {
 	BOOST_SCIP_CALL( SCIPlpiChgBounds(_lpi, _num_reactions, ind, lb, ub) );
 }
 
-void LPFlux::setDirectionBounds(ScipModelPtr flux) {
+void LPFlux::setDirectionBounds(AbstractScipFluxModelPtr flux) {
 	// Here, we have no other option than to iterate through all reactions and do a seperate function call to get the bounds
 	double lb[_num_reactions];
 	double ub[_num_reactions];
@@ -198,7 +198,7 @@ void LPFlux::setDirectionBounds(ScipModelPtr flux) {
 	BOOST_SCIP_CALL( SCIPlpiChgBounds(_lpi, _num_reactions, ind, lb, ub) );
 }
 
-void LPFlux::setDirectionBounds(SolutionPtr sol, ScipModelPtr flux) {
+void LPFlux::setDirectionBounds(SolutionPtr sol, AbstractScipFluxModelPtr flux) {
 	// Here, we have no other option than to iterate through all reactions and do a seperate function call to get the bounds
 	double lb[_num_reactions];
 	double ub[_num_reactions];
@@ -232,7 +232,7 @@ void LPFlux::setDirectionBoundsInfty(LPFluxPtr flux) {
 	BOOST_SCIP_CALL( SCIPlpiChgBounds(_lpi, _num_reactions, ind, lb, ub) );
 }
 
-void LPFlux::setDirectionBoundsInfty(ScipModelPtr flux) {
+void LPFlux::setDirectionBoundsInfty(AbstractScipFluxModelPtr flux) {
 	// Here, we have no other option than to iterate through all reactions and do a seperate function call to get the bounds
 	double lb[_num_reactions];
 	double ub[_num_reactions];
@@ -247,7 +247,7 @@ void LPFlux::setDirectionBoundsInfty(ScipModelPtr flux) {
 	BOOST_SCIP_CALL( SCIPlpiChgBounds(_lpi, _num_reactions, ind, lb, ub) );
 }
 
-void LPFlux::setDirectionBoundsInfty(SolutionPtr sol, ScipModelPtr flux) {
+void LPFlux::setDirectionBoundsInfty(SolutionPtr sol, AbstractScipFluxModelPtr flux) {
 	// Here, we have no other option than to iterate through all reactions and do a seperate function call to get the bounds
 	double lb[_num_reactions];
 	double ub[_num_reactions];
@@ -255,6 +255,7 @@ void LPFlux::setDirectionBoundsInfty(SolutionPtr sol, ScipModelPtr flux) {
 	int i = 0;
 	foreach(VarAssign v, _reactions) {
 		ind[i] = v.second;
+		assert(flux->getCurrentFluxLb(v.first)-EPSILON < flux->getFlux(sol, v.first) && flux->getCurrentFluxUb(v.first)+EPSILON > flux->getFlux(sol, v.first));
 		lb[i] = flux->getFlux(sol, v.first) < -EPSILON ? -INFINITY : 0;
 		ub[i] = flux->getFlux(sol, v.first) >  EPSILON ?  INFINITY : 0;
 		i++;
@@ -282,7 +283,7 @@ void LPFlux::setDirectionObj(LPFluxPtr flux) {
 	BOOST_SCIP_CALL( SCIPlpiChgObj(_lpi, _num_reactions, ind, obj) );
 }
 
-void LPFlux::setDirectionObj(ScipModelPtr flux) {
+void LPFlux::setDirectionObj(AbstractScipFluxModelPtr flux) {
 	// Here, we have no other option than to iterate through all reactions and do a seperate function call to get the bounds
 	double obj[_num_reactions];
 	int ind[_num_reactions];
@@ -298,7 +299,7 @@ void LPFlux::setDirectionObj(ScipModelPtr flux) {
 	BOOST_SCIP_CALL( SCIPlpiChgObj(_lpi, _num_reactions, ind, obj) );
 }
 
-void LPFlux::setDirectionObj(SolutionPtr sol, ScipModelPtr flux) {
+void LPFlux::setDirectionObj(SolutionPtr sol, AbstractScipFluxModelPtr flux) {
 	// Here, we have no other option than to iterate through all reactions and do a seperate function call to get the bounds
 	double obj[_num_reactions];
 	int ind[_num_reactions];
@@ -363,13 +364,13 @@ double LPFlux::getDual(MetabolitePtr met) {
 	}
 }
 
-void LPFlux::set(ScipModelPtr smodel) {
+void LPFlux::set(AbstractScipFluxModelPtr smodel) {
 	foreach(VarAssign v, _reactions) {
 		_primsol[v.second] = smodel->getCurrentFlux(v.first);
 	}
 }
 
-void LPFlux::set(SolutionPtr sol, ScipModelPtr smodel) {
+void LPFlux::set(SolutionPtr sol, AbstractScipFluxModelPtr smodel) {
 	foreach(VarAssign v, _reactions) {
 		_primsol[v.second] = smodel->getFlux(sol, v.first);
 	}

@@ -9,6 +9,8 @@
 #define THERMOCONSTRAINTHANDLER_H_
 
 #include "objscip/objconshdlr.h"
+#include "metaopt/model/impl/FullModel.h"
+#include "metaopt/model/scip/ReducedScipFluxModel.h"
 #include "metaopt/model/scip/ScipModel.h"
 #include "metaopt/model/scip/DualPotentials.h"
 #include "metaopt/model/scip/LPPotentials.h"
@@ -133,7 +135,15 @@ public:
 			int                nlocksneg           /**< no. of times, the roundings should be locked for the constraint's negation */
 	);
 
-
+	/// Initializes helper variables necessary for solve. Uses presolving improvements.
+	virtual SCIP_RETCODE scip_exitpre(
+			SCIP* 			scip,
+			SCIP_CONSHDLR*  conshdlr,
+			SCIP_CONS**		conss,
+			int				ncons,
+			SCIP_Bool		isunbounded,
+			SCIP_Bool		isinfeasible,
+			SCIP_RESULT*	result);
 
 	/// Constraint display method of constraint handler.
 	virtual SCIP_RETCODE scip_print(
@@ -178,6 +188,17 @@ private:
 
 	// propagates potential bounds that can be used to detect disabled reactions
 	PotBoundPropagation2 _pbp;
+
+	// reduced model after presolve
+	FullModelPtr _reduced;
+
+	// reduced scip model after presolve
+	ReducedScipFluxModelPtr _reducedScip;
+
+	boost::unordered_map<ReactionPtr, ReactionPtr> _toReducedRxn; // map translating original reactions to reduced reactions
+	boost::unordered_map<ReactionPtr, ReactionPtr> _toOriginalRxn; // map translating reduced reactions to the generating original reactions
+	boost::unordered_map<MetabolitePtr, MetabolitePtr> _toReducedMet; // map translating original metabolites to reduced metabolites
+
 
 	//////////////////////////////////////////////////
 	// ugly hack for locking numbers
