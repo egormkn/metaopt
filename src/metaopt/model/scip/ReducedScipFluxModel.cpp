@@ -21,8 +21,8 @@ ReducedScipFluxModel::~ReducedScipFluxModel() {
 }
 
 bool ReducedScipFluxModel::isMaximize() const {
-	ScipModelPtr scip = getScip();
-	return scip->isMaximize();
+	//ScipModelPtr scip = getScip();
+	return false; // the transformed problem is always a minimization problem.
 }
 
 SCIP_VAR* ReducedScipFluxModel::getFlux(ReactionPtr rxn) {

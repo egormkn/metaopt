@@ -88,7 +88,7 @@ MetabolitePtr Model::getMetabolite(string name) {
 
 ReactionPtr Model::getReaction(string name) {
 	foreach(ReactionPtr rxn, getReactions()) {
-		if(rxn->getName() == name) return rxn;
+		if(rxn->getName().compare(name) == 0) return rxn;
 	}
 	assert(false); // Reaction does not exist!
 	return(ReactionPtr());

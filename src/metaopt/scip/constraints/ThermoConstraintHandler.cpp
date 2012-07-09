@@ -12,6 +12,7 @@
 #include "metaopt/model/scip/ReducedScipFluxModel.h"
 #include "metaopt/model/impl/FullModel.h"
 #include "boost/shared_ptr.hpp"
+#include "metaopt/model/Metabolite.h"
 
 #define CONSTRAINT_NAME "ThermoConstraint"
 #define CONSTRAINT_DESCRIPTION "This Constraint enforces thermodynamic feasible from the perspective of the flux variables. It is most efficient, if we do not optimize on the potentials"
@@ -644,14 +645,41 @@ SCIP_RETCODE ThermoConstraintHandler::scip_exitpre(
 			else {
 				aggrrxn = aggrReactions[var];
 			}
+#ifndef NDEBUG
+			if(aggrrxn->getName().compare("t_IMPDH") == 0) {
+				std::cout << aggrrxn->getName() << " <- " << rxn->getName() << std::endl;
+			}
+#endif
+
 			if(!aggrrxn->isExchange()) aggrrxn->setExchange(rxn->isExchange()); // if one of the aggregated reactions is an exchange reaction, the aggregated reaction is an exchange reaction
 			if(!aggrrxn->isProblematic()) aggrrxn->setProblematic(rxn->isProblematic());// if one of the aggregated reactions is problematic, the aggregated reaction is problematic
 			_toReducedRxn[rxn] = aggrrxn;
 			foreach(Stoichiometry s, rxn->getStoichiometries()) {
-				aggrrxn->setStoichiometry(_toReducedMet[s.first], scalar*s.second);
+				MetabolitePtr met = _toReducedMet[s.first];
+				double stoich = aggrrxn->getStoichiometry(met);
+				stoich += scalar*s.second;
+				aggrrxn->setStoichiometry(met, stoich);
 			}
 		}
 	}
+
+#ifndef NDEBUG
+	//foreach(ReactionPtr aggrrxn, _reduced->getReactions()) {
+	{
+		ReactionPtr aggrrxn = _reduced->getReaction("t_IMPDH");
+		std::cout << aggrrxn->getName() << "("<< aggrrxn->getLb() << "," << aggrrxn->getUb() << "," << aggrrxn->getObj() << (aggrrxn->isExchange()?",ex":"")<< "): ";
+		foreach(ReactionPtr rxn, _model->getReactions()) {
+			if(_toReducedRxn[rxn] == aggrrxn) {
+				std::cout << rxn->getName() << "("<<rxn->getLb() << "," << rxn->getUb() << "," << rxn->getObj() << (rxn->isExchange()?",ex":"")<< ") ";
+			}
+		}
+		std::cout << std::endl;
+		foreach(Stoichiometry s, aggrrxn->getStoichiometries()) {
+			std::cout << s.second << "*" << s.first->getName() << " ";
+		}
+		std::cout << std::endl;
+	}
+#endif
 
 	// init helper variables
 	_cycle_find = LPFluxPtr( new LPFlux(_reduced, false));
