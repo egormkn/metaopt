@@ -78,20 +78,39 @@ ThermoConstraintHandler::~ThermoConstraintHandler() {
 
 SCIP_RESULT ThermoConstraintHandler::enforceObjectiveCycles(SolutionPtr& sol) {
 	ScipModelPtr model = getScip();
+#if THERMOCONS_USE_AGGR_RXN
 	_cycle_find->setDirectionBoundsInfty(sol, _reducedScip);
-
+#else
+	_cycle_find->setDirectionBoundsInfty(sol, model);
+#endif
 	// _cycle_find is initialized to minimize
+#if THERMOCONS_USE_AGGR_RXN
 	_cycle_find->setDirectionObj(sol, _reducedScip);
+#else
+	_cycle_find->setDirectionObj(sol, model);
+#endif
 	// only include preference on variables that are not yet fixed to one sign
 	shared_ptr<unordered_set<ReactionPtr> > fixedDirs = model->getFixedDirections();
 	foreach(ReactionPtr rxn, *fixedDirs) {
 		if(!rxn->isExchange())
+#if THERMOCONS_USE_AGGR_RXN
 			_cycle_find->setObj(_toReducedRxn[rxn], 0);
+#else
+			_cycle_find->setObj(rxn, 0);
+#endif
 	}
 
+#if THERMOCONS_USE_AGGR_RXN
 	foreach(ReactionPtr rxn, _reduced->getObjectiveReactions()) {
+#else
+	foreach(ReactionPtr rxn, _model->getObjectiveReactions()) {
+#endif
 		if(!rxn->isExchange()) {
+#if THERMOCONS_USE_AGGR_RXN
 			double val = _reducedScip->getFlux(sol, rxn);
+#else
+			double val = model->getFlux(sol, rxn);
+#endif
 			// force a tiny flow through the reaction in the current direction
 			if(val > EPSILON) {
 				_cycle_find->setLb(rxn, 1);
@@ -121,6 +140,7 @@ SCIP_RESULT ThermoConstraintHandler::branchCycle(SolutionPtr& sol) {
 	//TODO: its a waste computing this twice
 	shared_ptr<unordered_set<ReactionPtr> > fixedDirs = model->getFixedDirections();
 
+#if THERMOCONS_USE_AGGR_RXN
 	foreach(ReactionPtr rxn, _reduced->getReactions()) {
 		if(fixedDirs->find(_toOriginalRxn[rxn]) == fixedDirs->end()) { // not fixed
 			double val = _cycle_find->getFlux(rxn);
@@ -128,18 +148,35 @@ SCIP_RESULT ThermoConstraintHandler::branchCycle(SolutionPtr& sol) {
 			double ub;
 			lb = _reducedScip->getCurrentFluxLb(rxn);
 			ub = _reducedScip->getCurrentFluxUb(rxn);
+#else
+	foreach(ReactionPtr rxn, _model->getReactions()) {
+		if(fixedDirs->find(rxn) == fixedDirs->end()) { // not fixed
+			double val = _cycle_find->getFlux(rxn);
+			double lb;
+			double ub;
+			lb = model->getCurrentFluxLb(rxn);
+			ub = model->getCurrentFluxUb(rxn);
+#endif
 			if(val > EPSILON) {
 				if(lb < EPSILON) { // ub must be positive, since positive flow is not allowed else, restriction to zero must also be allowed
 					//cout << "branching ub "<<iter.getId() << endl;
 					SCIP_NODE* node;
+#if THERMOCONS_USE_AGGR_RXN
 					double prio = val/_reducedScip->getFlux(sol, rxn); // idea: small reductions are better than large ones
+#else
+					double prio = val/model->getFlux(sol, rxn); // idea: small reductions are better than large ones
+#endif
 					//double prio = 1.0;
 	#ifdef ESTIMATE_PESSIMISTIC
 					BOOST_SCIP_CALL( SCIPcreateChild(scip, &node, prio, SCIPtransformObj(scip,SCIPgetSolOrigObj(scip, NULL)-lpobjval/prio)) ); // estimate must SCIPgetSolTransObj(scip, NULL)-lpobjval/prio)be for transformed node, sp transform estimated value for orig prob
 	#else
 					BOOST_SCIP_CALL( SCIPcreateChild(model->getScip(), &node, prio, SCIPtransformObj(model->getScip(),SCIPgetSolOrigObj(model->getScip(), sol.get()))) ); // estimate must SCIPgetSolTransObj(scip, NULL)-lpobjval/prio)be for transformed node, sp transform estimated value for orig prob
 	#endif
+#if THERMOCONS_USE_AGGR_RXN
 					model->setDirection(node, _toOriginalRxn[rxn], false); // restrict reaction to backward direction
+#else
+					model->setDirection(node, rxn, false); // restrict reaction to backward direction
+#endif
 					count ++;
 				}
 			}
@@ -147,14 +184,22 @@ SCIP_RESULT ThermoConstraintHandler::branchCycle(SolutionPtr& sol) {
 				if(ub > -EPSILON) { // lb must be negative, since negative flow is not allowed else, restriction to zero must also be allowed
 					//cout << "branching lb "<<iter.getId() << endl;
 					SCIP_NODE* node;
+#if THERMOCONS_USE_AGGR_RXN
 					double prio = val/_reducedScip->getFlux(sol, rxn); // idea: small reductions are better than large ones
+#else
+					double prio = val/model->getFlux(sol, rxn); // idea: small reductions are better than large ones
+#endif
 					//double prio = 1.0;
 	#ifdef ESTIMATE_PESSIMISTIC
 					BOOST_SCIP_CALL( SCIPcreateChild(scip, &node, prio, SCIPtransformObj(scip,SCIPgetSolOrigObj(scip, NULL)-lpobjval/prio)) );
 	#else
 					BOOST_SCIP_CALL( SCIPcreateChild(model->getScip(), &node, prio, SCIPtransformObj(model->getScip(),SCIPgetSolOrigObj(model->getScip(), sol.get()))) ); // estimate must SCIPgetSolTransObj(scip, NULL)-lpobjval/prio)be for transformed node, sp transform estimated value for orig prob
 	#endif
+#if THERMOCONS_USE_AGGR_RXN
 					model->setDirection(node, _toOriginalRxn[rxn], true); // restrict reaction to forward direction
+#else
+					model->setDirection(node, rxn, true); // restrict reaction to forward direction
+#endif
 					count ++;
 				}
 			}
@@ -175,7 +220,12 @@ SCIP_RESULT ThermoConstraintHandler::enforceNonSimple(SolutionPtr& sol) {
 	// so lets first preprocess and get rid of the easy cycles
 	// to do so, we will simply remove all the easy cycles (this is actually what CycleDeletionHeur does )
 	// so, we will modify the current solution, hence, we have to copy it
+#if THERMOCONS_USE_AGGR_RXN
 	_flux_simpl->set(sol, _reducedScip);
+#else
+	ScipModelPtr scip = getScip();
+	_flux_simpl->set(sol, scip);
+#endif
 	// use cycle_test to find internal cycles, first set the objective, because it will stay the same
 	// _cycle_test is initialized to maximize
 	// in the loop, we will adopt the bounds
@@ -189,14 +239,22 @@ SCIP_RESULT ThermoConstraintHandler::enforceNonSimple(SolutionPtr& sol) {
 		// so set bounds there already to zero
 		// (we also don't want to find flux through objective reactions, but that is already taken care of by step 1)
 		// TODO: Rechanging the bounds of flux forcing reactions may be quite inefficient, if we have many flux forcing reactions
+#if THERMOCONS_USE_AGGR_RXN
 		foreach(ReactionPtr rxn, _reduced->getFluxForcingReactions()) {
-		//foreach(ReactionPtr rxn, _reduced->getProblematicReactions()) {
+#else
+			foreach(ReactionPtr rxn, _model->getFluxForcingReactions()) {
+#endif
+			//foreach(ReactionPtr rxn, _reduced->getProblematicReactions()) {
 			if(!rxn->isExchange()) {
 				_cycle_test->setLb(rxn,0);
 				_cycle_test->setUb(rxn,0);
 			}
 		}
+#if THERMOCONS_USE_AGGR_RXN
 		foreach(ReactionPtr rxn, _reduced->getProblematicReactions()) {
+#else
+			foreach(ReactionPtr rxn, _model->getProblematicReactions()) {
+#endif
 			if(!rxn->isExchange()) {
 				_cycle_test->setLb(rxn,0);
 				_cycle_test->setUb(rxn,0);
@@ -233,7 +291,11 @@ SCIP_RESULT ThermoConstraintHandler::branchIS(SolutionPtr& sol) {
 	shared_ptr<unordered_set<ReactionPtr> > fixedDirs = model->getFixedDirections();
 	// _flux_simpl is in the reduced space, but _is_find is not.
 	// _is_find is not in the reduced space, because else we might loose metabolites and thus may loose infeasible sets.
+#if THERMOCONS_USE_AGGR_RXN
 	_is_find->setDirections(_flux_simpl, _toReducedRxn, fixedDirs);
+#else
+	_is_find->setDirections(_flux_simpl, fixedDirs);
+#endif
 
 	_is_find->optimize();
 
@@ -255,15 +317,25 @@ SCIP_RESULT ThermoConstraintHandler::branchIS(SolutionPtr& sol) {
 			assert(!rxn->isExchange());
 			if(fixedDirs->find(rxn) == fixedDirs->end()) { // not fixed
 				// reaction is in the basic solution, so its value is nonzero and of the same sign as in flux_simpl
+#if THERMOCONS_USE_AGGR_RXN
 				ReactionPtr aggrrxn = _toReducedRxn[rxn];
 				double val = _flux_simpl->getFlux(aggrrxn);
 				double lb = _reducedScip->getCurrentFluxLb(aggrrxn);
 				double ub = _reducedScip->getCurrentFluxUb(aggrrxn);
+#else
+				double val = _flux_simpl->getFlux(rxn);
+				double lb = model->getCurrentFluxLb(rxn);
+				double ub = model->getCurrentFluxUb(rxn);
+#endif
 				//std::cout << rxn->toString() << "; " << lb << " (" << rxn->getLb() << ") <= " << val << " <= " << ub << " (" << rxn->getUb() << ")" << std::endl;
 				if(val > 0) {
 					if(lb < EPSILON) {
 						SCIP_NODE* node;
+#if THERMOCONS_USE_AGGR_RXN
 						double prio = val/_reducedScip->getFlux(sol, aggrrxn); // idea: small reductions are better than large ones
+#else
+						double prio = val/model->getFlux(sol, rxn); // idea: small reductions are better than large ones
+#endif
 						//double prio = 1.0;
 						BOOST_SCIP_CALL( SCIPcreateChild(model->getScip(), &node, prio, SCIPtransformObj(model->getScip(),SCIPgetSolOrigObj(model->getScip(), sol.get()))) ); // estimate must SCIPgetSolTransObj(scip, NULL)-lpobjval/prio)be for transformed node, sp transform estimated value for orig prob
 						model->setDirection(node, rxn, false); // restrict reaction to backward direction
@@ -283,7 +355,11 @@ SCIP_RESULT ThermoConstraintHandler::branchIS(SolutionPtr& sol) {
 				else {
 					if(ub > -EPSILON) {
 						SCIP_NODE* node;
+#if THERMOCONS_USE_AGGR_RXN
 						double prio = val/_reducedScip->getFlux(sol, aggrrxn); // idea: small reductions are better than large ones
+#else
+						double prio = val/model->getFlux(sol, rxn); // idea: small reductions are better than large ones
+#endif
 						//double prio = 1.0;
 						BOOST_SCIP_CALL( SCIPcreateChild(model->getScip(), &node, prio, SCIPtransformObj(model->getScip(),SCIPgetSolOrigObj(model->getScip(), sol.get()))) ); // estimate must SCIPgetSolTransObj(scip, NULL)-lpobjval/prio)be for transformed node, sp transform estimated value for orig prob
 						model->setDirection(node, rxn, true); // restrict reaction to forward direction
@@ -320,7 +396,12 @@ SCIP_RESULT ThermoConstraintHandler::enforceLastResort(SolutionPtr& sol) {
 
 	std::cout << "Warning: ThermoConstraintHandler is now checking for infeasible simple cycles (CycleDeletionHeur can deal with them!)." << std::endl;
 
+#if THERMOCONS_USE_AGGR_RXN
 	_flux_simpl->set(sol, _reducedScip);
+#else
+	ScipModelPtr scip = getScip();
+	_flux_simpl->set(sol, scip);
+#endif
 	// don't subtract easy cycles, find infeasible set directly
 
 	SCIP_RESULT res = branchIS(sol);
@@ -602,6 +683,7 @@ SCIP_RETCODE ThermoConstraintHandler::scip_exitpre(
 	ScipModelPtr scip = getScip();
 	assert(scipscip == scip->getScip());
 
+#if THERMOCONS_USE_AGGR_RXN
 	_reducedScip = ReducedScipFluxModelPtr( new ReducedScipFluxModel(scip) );
 	_reduced = FullModelPtr(new FullModel());
 	// first create list of metabolites in the reduced model
@@ -689,6 +771,17 @@ SCIP_RETCODE ThermoConstraintHandler::scip_exitpre(
 	_flux_simpl = LPFluxPtr( new LPFlux(_reduced, true));
 	_is_find = DualPotentialsPtr( new DualPotentials(_model)); //I cannot use the reduced model here, because I would lose infeasible sets
 	_pot_test = LPPotentialsPtr( new LPPotentials(_model)); // it doesn't make sense to use the reduced model, since this is only used for testing
+#else
+	// init helper variables
+	_cycle_find = LPFluxPtr( new LPFlux(_model, false));
+	_cycle_find->setObjSense(false); // minimize
+	_cycle_test = LPFluxPtr( new LPFlux(_model, false));
+	_cycle_test->setObjSense(true); // maximize
+	_flux_simpl = LPFluxPtr( new LPFlux(_model, true));
+	_is_find = DualPotentialsPtr( new DualPotentials(_model)); //I cannot use the reduced model here, because I would lose infeasible sets
+	_pot_test = LPPotentialsPtr( new LPPotentials(_model)); // it doesn't make sense to use the reduced model, since this is only used for testing
+
+#endif
 
 	*result = SCIP_FEASIBLE;
 	return SCIP_OKAY;

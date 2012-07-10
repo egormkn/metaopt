@@ -17,6 +17,9 @@
 #include "metaopt/Uncopyable.h"
 #include "metaopt/scip/constraints/PotBoundPropagation2.h"
 
+// set to 1 to use aggregated reactions instead of the original reactions (not correctly implemented yet)
+#define THERMOCONS_USE_AGGR_RXN 0
+
 namespace metaopt {
 
 class ThermoConstraintHandler: public scip::ObjConshdlr, Uncopyable {
@@ -189,6 +192,7 @@ private:
 	// propagates potential bounds that can be used to detect disabled reactions
 	PotBoundPropagation2 _pbp;
 
+#if THERMOCONS_USE_AGGR_RXN
 	// reduced model after presolve
 	FullModelPtr _reduced;
 
@@ -198,7 +202,9 @@ private:
 	boost::unordered_map<ReactionPtr, ReactionPtr> _toReducedRxn; // map translating original reactions to reduced reactions
 	boost::unordered_map<ReactionPtr, ReactionPtr> _toOriginalRxn; // map translating reduced reactions to the generating original reactions
 	boost::unordered_map<MetabolitePtr, MetabolitePtr> _toReducedMet; // map translating original metabolites to reduced metabolites
+#endif
 
+	//CouplingPtr _coupling; // stores coupling information
 
 	//////////////////////////////////////////////////
 	// ugly hack for locking numbers
