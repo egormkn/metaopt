@@ -12,6 +12,7 @@
 #include "metaopt/model/scip/ReducedScipFluxModel.h"
 #include "metaopt/model/impl/FullModel.h"
 #include "boost/shared_ptr.hpp"
+#include <vector>
 #include "metaopt/model/Metabolite.h"
 
 #define CONSTRAINT_NAME "ThermoConstraint"
@@ -50,6 +51,7 @@
 #define PROPAGATION_TIMING SCIP_PROPTIMING_BEFORELP
 
 using namespace boost;
+using namespace std;
 
 namespace metaopt {
 
@@ -140,6 +142,8 @@ SCIP_RESULT ThermoConstraintHandler::branchCycle(SolutionPtr& sol) {
 	//TODO: its a waste computing this twice
 	shared_ptr<unordered_set<ReactionPtr> > fixedDirs = model->getFixedDirections();
 
+	unordered_set<DirectedReaction> branchingCandidates;
+
 #if THERMOCONS_USE_AGGR_RXN
 	foreach(ReactionPtr rxn, _reduced->getReactions()) {
 		if(fixedDirs->find(_toOriginalRxn[rxn]) == fixedDirs->end()) { // not fixed
@@ -160,60 +164,19 @@ SCIP_RESULT ThermoConstraintHandler::branchCycle(SolutionPtr& sol) {
 			if(val > EPSILON) {
 				if(lb < EPSILON) { // ub must be positive, since positive flow is not allowed else, restriction to zero must also be allowed
 					//cout << "branching ub "<<iter.getId() << endl;
-					SCIP_NODE* node;
-#if THERMOCONS_USE_AGGR_RXN
-					double prio = val/_reducedScip->getFlux(sol, rxn); // idea: small reductions are better than large ones
-#else
-					double prio = val/model->getFlux(sol, rxn); // idea: small reductions are better than large ones
-#endif
-					//double prio = 1.0;
-	#ifdef ESTIMATE_PESSIMISTIC
-					BOOST_SCIP_CALL( SCIPcreateChild(scip, &node, prio, SCIPtransformObj(scip,SCIPgetSolOrigObj(scip, NULL)-lpobjval/prio)) ); // estimate must SCIPgetSolTransObj(scip, NULL)-lpobjval/prio)be for transformed node, sp transform estimated value for orig prob
-	#else
-					BOOST_SCIP_CALL( SCIPcreateChild(model->getScip(), &node, prio, SCIPtransformObj(model->getScip(),SCIPgetSolOrigObj(model->getScip(), sol.get()))) ); // estimate must SCIPgetSolTransObj(scip, NULL)-lpobjval/prio)be for transformed node, sp transform estimated value for orig prob
-	#endif
-#if THERMOCONS_USE_AGGR_RXN
-					model->setDirection(node, _toOriginalRxn[rxn], false); // restrict reaction to backward direction
-#else
-					model->setDirection(node, rxn, false); // restrict reaction to backward direction
-#endif
-					count ++;
+					branchingCandidates.insert(DirectedReaction(rxn, true));
 				}
 			}
 			else if(val < -EPSILON) {
 				if(ub > -EPSILON) { // lb must be negative, since negative flow is not allowed else, restriction to zero must also be allowed
 					//cout << "branching lb "<<iter.getId() << endl;
-					SCIP_NODE* node;
-#if THERMOCONS_USE_AGGR_RXN
-					double prio = val/_reducedScip->getFlux(sol, rxn); // idea: small reductions are better than large ones
-#else
-					double prio = val/model->getFlux(sol, rxn); // idea: small reductions are better than large ones
-#endif
-					//double prio = 1.0;
-	#ifdef ESTIMATE_PESSIMISTIC
-					BOOST_SCIP_CALL( SCIPcreateChild(scip, &node, prio, SCIPtransformObj(scip,SCIPgetSolOrigObj(scip, NULL)-lpobjval/prio)) );
-	#else
-					BOOST_SCIP_CALL( SCIPcreateChild(model->getScip(), &node, prio, SCIPtransformObj(model->getScip(),SCIPgetSolOrigObj(model->getScip(), sol.get()))) ); // estimate must SCIPgetSolTransObj(scip, NULL)-lpobjval/prio)be for transformed node, sp transform estimated value for orig prob
-	#endif
-#if THERMOCONS_USE_AGGR_RXN
-					model->setDirection(node, _toOriginalRxn[rxn], true); // restrict reaction to forward direction
-#else
-					model->setDirection(node, rxn, true); // restrict reaction to forward direction
-#endif
-					count ++;
+					branchingCandidates.insert(DirectedReaction(rxn, false));
 				}
 			}
 		}
 	}
 
-	if(count == 0) {
-		//cout << "cut off" << endl;
-		return SCIP_CUTOFF;
-	}
-	else {
-		//cout << "branched " << count  << endl;
-		return SCIP_BRANCHED;
-	}
+	return branch(branchingCandidates, _cycle_find, sol);
 }
 
 SCIP_RESULT ThermoConstraintHandler::enforceNonSimple(SolutionPtr& sol) {
@@ -312,6 +275,8 @@ SCIP_RESULT ThermoConstraintHandler::branchIS(SolutionPtr& sol) {
 		bool good = false;
 #endif
 
+		unordered_set<DirectedReaction> branchingCandidates;
+
 		int count = 0;
 		foreach(ReactionPtr rxn, *is) {
 			assert(!rxn->isExchange());
@@ -330,48 +295,29 @@ SCIP_RESULT ThermoConstraintHandler::branchIS(SolutionPtr& sol) {
 				//std::cout << rxn->toString() << "; " << lb << " (" << rxn->getLb() << ") <= " << val << " <= " << ub << " (" << rxn->getUb() << ")" << std::endl;
 				if(val > 0) {
 					if(lb < EPSILON) {
-						SCIP_NODE* node;
-#if THERMOCONS_USE_AGGR_RXN
-						double prio = val/_reducedScip->getFlux(sol, aggrrxn); // idea: small reductions are better than large ones
-#else
-						double prio = val/model->getFlux(sol, rxn); // idea: small reductions are better than large ones
-#endif
-						//double prio = 1.0;
-						BOOST_SCIP_CALL( SCIPcreateChild(model->getScip(), &node, prio, SCIPtransformObj(model->getScip(),SCIPgetSolOrigObj(model->getScip(), sol.get()))) ); // estimate must SCIPgetSolTransObj(scip, NULL)-lpobjval/prio)be for transformed node, sp transform estimated value for orig prob
-						model->setDirection(node, rxn, false); // restrict reaction to backward direction
-						count++;
-
-	#if 0
+						branchingCandidates.insert(DirectedReaction(rxn, true));
+#if 0
 						debugFlux.setBounds(model);
 						debugFlux.setUb(rxn, 0);
 						debugFlux.solve();
 						double debugVal = debugFlux.getObjVal();
 						std::cout << debugVal << std::endl;
 						good = good || debugVal > EPSILON;
-	#endif
+#endif
 
 					}
 				}
 				else {
 					if(ub > -EPSILON) {
-						SCIP_NODE* node;
-#if THERMOCONS_USE_AGGR_RXN
-						double prio = val/_reducedScip->getFlux(sol, aggrrxn); // idea: small reductions are better than large ones
-#else
-						double prio = val/model->getFlux(sol, rxn); // idea: small reductions are better than large ones
-#endif
-						//double prio = 1.0;
-						BOOST_SCIP_CALL( SCIPcreateChild(model->getScip(), &node, prio, SCIPtransformObj(model->getScip(),SCIPgetSolOrigObj(model->getScip(), sol.get()))) ); // estimate must SCIPgetSolTransObj(scip, NULL)-lpobjval/prio)be for transformed node, sp transform estimated value for orig prob
-						model->setDirection(node, rxn, true); // restrict reaction to forward direction
-						count++;
-	#if 0
+						branchingCandidates.insert(DirectedReaction(rxn, true));
+#if 0
 						debugFlux.setBounds(model);
 						debugFlux.setLb(rxn, 0);
 						debugFlux.solve();
 						double debugVal = debugFlux.getObjVal();
 						std::cout << debugVal << std::endl;
 						good = good || debugVal > EPSILON;
-	#endif
+#endif
 					}
 				}
 			}
@@ -383,12 +329,77 @@ SCIP_RESULT ThermoConstraintHandler::branchIS(SolutionPtr& sol) {
 		}
 #endif
 
-		if(count >= 1) {
-			return SCIP_BRANCHED;
+		return branch(branchingCandidates, _flux_simpl, sol);
+	}
+}
+
+inline void setDirection(ScipModelPtr& model, SCIP_NODE* node, CoverReaction& c, bool fwd) {
+	if(c.covered->empty()) {
+		model->setDirection(node, c.reaction._rxn, fwd);
+	}
+	else {
+		TODO
+	}
+}
+
+SCIP_RESULT ThermoConstraintHandler::branch(unordered_set<DirectedReaction>& branchingCandidates, LPFluxPtr flux, SolutionPtr sol) {
+	ScipModelPtr model = getScip();
+
+	// compute a cover
+	shared_ptr<vector<CoverReaction> > cover = _coupling->computeCover(branchingCandidates);
+
+	if(cover->size() == 0) {
+		return SCIP_CUTOFF;
+	}
+	else if(cover->size() == 1) {
+		CoverReaction c = *(cover->begin());
+		ReactionPtr& rxn = c.reaction._rxn;
+		double val = flux->getFlux(rxn);
+		SCIP_NODE* node = SCIPgetCurrentNode(model->getScip());
+		if(c.reaction._fwd) {
+			setDirection(model, node, c, false); // restrict reaction to backward direction
 		}
 		else {
-			return SCIP_CUTOFF;
+			setDirection(model, node, c, true); // restrict reaction to forward direction
 		}
+		return SCIP_REDUCEDDOM;
+	}
+	else {
+		// we have to branch
+		foreach(CoverReaction c, cover) {
+			ReactionPtr& rxn = c.reaction._rxn;
+			double val = flux->getFlux(rxn);
+			if(c.reaction._fwd) {
+				// we have to block forward flux
+				SCIP_NODE* node;
+#if THERMOCONS_USE_AGGR_RXN
+				double prio = val/_reducedScip->getFlux(sol, aggrrxn); // idea: small reductions are better than large ones
+#else
+				double prio = val/model->getFlux(sol, rxn); // idea: small reductions are better than large ones
+#endif
+				//double prio = 1.0;
+				BOOST_SCIP_CALL( SCIPcreateChild(model->getScip(), &node, prio, SCIPtransformObj(model->getScip(),SCIPgetSolOrigObj(model->getScip(), sol.get()))) ); // estimate must SCIPgetSolTransObj(scip, NULL)-lpobjval/prio)be for transformed node, sp transform estimated value for orig prob
+				if(c.covered->empty()) {
+					setDirection(model, node, c, false); // restrict reaction to backward direction
+				}
+				else {
+
+				}
+			}
+			else {
+				// we have to block backward flux
+				SCIP_NODE* node;
+#if THERMOCONS_USE_AGGR_RXN
+				double prio = val/_reducedScip->getFlux(sol, aggrrxn); // idea: small reductions are better than large ones
+#else
+				double prio = val/model->getFlux(sol, rxn); // idea: small reductions are better than large ones
+#endif
+				//double prio = 1.0;
+				BOOST_SCIP_CALL( SCIPcreateChild(model->getScip(), &node, prio, SCIPtransformObj(model->getScip(),SCIPgetSolOrigObj(model->getScip(), sol.get()))) ); // estimate must SCIPgetSolTransObj(scip, NULL)-lpobjval/prio)be for transformed node, sp transform estimated value for orig prob
+				setDirection(model, node, c, true); // restrict reaction to forward direction
+			}
+		}
+		return SCIP_BRANCHED;
 	}
 }
 

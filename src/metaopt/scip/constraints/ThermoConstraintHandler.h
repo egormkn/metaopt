@@ -16,6 +16,7 @@
 #include "metaopt/model/scip/LPPotentials.h"
 #include "metaopt/Uncopyable.h"
 #include "metaopt/scip/constraints/PotBoundPropagation2.h"
+#include "metaopt/model/Coupling.h"
 
 // set to 1 to use aggregated reactions instead of the original reactions (not correctly implemented yet)
 #define THERMOCONS_USE_AGGR_RXN 0
@@ -204,7 +205,7 @@ private:
 	boost::unordered_map<MetabolitePtr, MetabolitePtr> _toReducedMet; // map translating original metabolites to reduced metabolites
 #endif
 
-	//CouplingPtr _coupling; // stores coupling information
+	CouplingPtr _coupling; // stores coupling information
 
 	//////////////////////////////////////////////////
 	// ugly hack for locking numbers
@@ -217,6 +218,12 @@ private:
 	};
 
 	std::vector<LockingInfo> _lockingInfos;
+
+	/**
+	 * Given a list of candidates to branch on, performs some simplifications
+	 * and then performs the branching.
+	 */
+	SCIP_RESULT branch(boost::unordered_set<DirectedReaction>& candidates, LPFluxPtr flux, SolutionPtr sol);
 
 };
 
