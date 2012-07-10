@@ -33,7 +33,7 @@ namespace metaopt {
  *
  *
  */
-class DualPotentials : Uncopyable {
+class DualPotentials : Uncopyable, public ISSupply {
 public:
 	DualPotentials(ModelPtr model);
 	virtual ~DualPotentials();
@@ -70,6 +70,12 @@ public:
 	 * compute a small infeasible set
 	 */
 	boost::shared_ptr<boost::unordered_set<ReactionPtr> > getIS();
+
+	/**
+	 * For reactions in the infeasible set, this can be used to get the coefficient in the infeasible set.
+	 * Here, the coefficient exactly the value of the corresponding alpha variable.
+	 */
+	double getAlpha(ReactionPtr rxn);
 
 private:
 	std::vector<double> _primsol; // use vector to store primal solution to circumvent deallocation hassle

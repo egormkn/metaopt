@@ -309,5 +309,15 @@ shared_ptr<unordered_set<ReactionPtr> > DualPotentials::getIS() {
 	return result;
 }
 
+double DualPotentials::getAlpha(ReactionPtr rxn) {
+	unordered_map<ReactionPtr, int>::iterator iter = _reactions.find(rxn);
+	if(iter == _reactions.end()) {
+		return 0;
+	}
+	else {
+		return _primsol.at(ALPHA_START + iter->second);
+	}
+}
+
 
 } /* namespace metaopt */

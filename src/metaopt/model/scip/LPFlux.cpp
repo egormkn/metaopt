@@ -352,6 +352,10 @@ double LPFlux::getFlux(ReactionPtr rxn) {
 	}
 }
 
+double LPFlux::getAlpha(ReactionPtr rxn) {
+	return getFlux(rxn);
+}
+
 double LPFlux::getDual(MetabolitePtr met) {
 	boost::unordered_map<MetabolitePtr, int>::iterator iter = _metabolites.find(met);
 	if(iter == _metabolites.end()) {

@@ -17,6 +17,7 @@
 #include "metaopt/Uncopyable.h"
 #include "metaopt/scip/constraints/PotBoundPropagation2.h"
 #include "metaopt/model/Coupling.h"
+#include "metaopt/model/scip/ISSupply.h"
 
 // set to 1 to use aggregated reactions instead of the original reactions (not correctly implemented yet)
 #define THERMOCONS_USE_AGGR_RXN 0
@@ -223,7 +224,7 @@ private:
 	 * Given a list of candidates to branch on, performs some simplifications
 	 * and then performs the branching.
 	 */
-	SCIP_RESULT branch(boost::unordered_set<DirectedReaction>& candidates, LPFluxPtr flux, SolutionPtr sol);
+	SCIP_RESULT branch(boost::unordered_set<DirectedReaction>& candidates, ISSupplyPtr iss, SolutionPtr sol);
 
 };
 

@@ -24,6 +24,8 @@ Coupling::~Coupling() {
 typedef unordered_multimap<DirectedReaction,DirectedReaction>::iterator citerator;
 
 void Coupling::setCoupled(DirectedReaction a, DirectedReaction b) {
+	// TODO: theoretically we could implement additional means to cleanup the data structure to improve the running time of the retrieval methods.
+
 	// first check, if the element has already been inserted
 	pair<citerator, citerator> res = couplings.equal_range(b);
 	for(citerator i = res.first; i != res.second; i++) {

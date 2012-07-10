@@ -14,13 +14,14 @@
 #include "metaopt/model/scip/ScipModel.h"
 #include <boost/unordered_map.hpp>
 #include "metaopt/Uncopyable.h"
+#include "metaopt/model/scip/ISSupply.h"
 
 namespace metaopt {
 
 class LPFlux;
 typedef boost::shared_ptr<LPFlux> LPFluxPtr;
 
-class LPFlux : Uncopyable {
+class LPFlux : Uncopyable, public ISSupply {
 public:
 	/**
 	 * creates a new LPFlux.
@@ -138,6 +139,12 @@ public:
 	void solve();
 
 	double getFlux(ReactionPtr rxn);
+
+	/**
+	 * If LPFlux is used to compute infeasible sets, the flux on the reactions gives the corresponding coefficients.
+	 * This means, this method gives the same results as getFlux.
+	 */
+	double getAlpha(ReactionPtr rxn);
 
 	double getDual(MetabolitePtr met);
 

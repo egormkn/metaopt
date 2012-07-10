@@ -6,13 +6,15 @@
  */
 
 #include <iostream>
+#include <vector>
+#include "scip/scipdefplugins.h"
+#include "scip/scip.h"
 
 #include "metaopt/scip/ScipError.h"
 #include "ThermoConstraintHandler.h"
 #include "metaopt/model/scip/ReducedScipFluxModel.h"
 #include "metaopt/model/impl/FullModel.h"
 #include "boost/shared_ptr.hpp"
-#include <vector>
 #include "metaopt/model/Metabolite.h"
 
 #define CONSTRAINT_NAME "ThermoConstraint"
@@ -136,7 +138,6 @@ SCIP_RESULT ThermoConstraintHandler::enforceObjectiveCycles(SolutionPtr& sol) {
 }
 
 SCIP_RESULT ThermoConstraintHandler::branchCycle(SolutionPtr& sol) {
-	int count = 0;
 	ScipModelPtr model = getScip();
 
 	//TODO: its a waste computing this twice
@@ -277,7 +278,6 @@ SCIP_RESULT ThermoConstraintHandler::branchIS(SolutionPtr& sol) {
 
 		unordered_set<DirectedReaction> branchingCandidates;
 
-		int count = 0;
 		foreach(ReactionPtr rxn, *is) {
 			assert(!rxn->isExchange());
 			if(fixedDirs->find(rxn) == fixedDirs->end()) { // not fixed
@@ -309,7 +309,7 @@ SCIP_RESULT ThermoConstraintHandler::branchIS(SolutionPtr& sol) {
 				}
 				else {
 					if(ub > -EPSILON) {
-						branchingCandidates.insert(DirectedReaction(rxn, true));
+						branchingCandidates.insert(DirectedReaction(rxn, false));
 #if 0
 						debugFlux.setBounds(model);
 						debugFlux.setLb(rxn, 0);
@@ -329,20 +329,58 @@ SCIP_RESULT ThermoConstraintHandler::branchIS(SolutionPtr& sol) {
 		}
 #endif
 
-		return branch(branchingCandidates, _flux_simpl, sol);
+		return branch(branchingCandidates, _is_find, sol);
 	}
 }
 
-inline void setDirection(ScipModelPtr& model, SCIP_NODE* node, CoverReaction& c, bool fwd) {
+inline void setDirection(ScipModelPtr& model, ISSupplyPtr& iss, SCIP_NODE*& node, CoverReaction& c) {
 	if(c.covered->empty()) {
-		model->setDirection(node, c.reaction._rxn, fwd);
+		model->setDirection(node, c.reaction._rxn, !c.reaction._fwd);
 	}
 	else {
-		TODO
+		// we definitely can block the flux through the covering reaction
+		model->setBlockedFlux(node, c.reaction._rxn, c.reaction._fwd);
+		// if we have potential variables, we can also reduce the potential space
+		if(model->hasPotentials()) {
+			// on the branching step, we will not set the direction of a reaction,
+			// but only disable flux through the covering reaction.
+			// However, we can also constrain the flux space (and should do so),
+			// by enforcing that the potential difference of the sum of the covering and the covered reactions to have a specific sign (depending on fwd).
+			unordered_map<MetabolitePtr, double> stoich(c.reaction._rxn->getStoichiometries());
+			double a = iss->getAlpha(c.reaction._rxn);
+			foreach(DirectedReaction d, *(c.covered)) {
+				double da = iss->getAlpha(d._rxn);
+				foreach(Stoichiometry s, d._rxn->getStoichiometries()) {
+					double sval = 0;
+					unordered_map<MetabolitePtr, double>::iterator iter = stoich.find(s.first);
+					if(iter != stoich.end()) sval = iter->second;
+					sval += (da / a) * s.second;
+					stoich[s.first] = sval;
+				}
+			}
+
+			// if we block forward flux, this means that the potential difference must be nonnegative
+			double lhs = c.reaction._fwd?0:-INFINITY;
+			double rhs = c.reaction._fwd?INFINITY:0;
+
+			// transform data into usable format
+			vector<SCIP_VAR*> vars;
+			vector<double> coef;
+			foreach(Stoichiometry s, stoich) {
+				assert(model->hasPotentialVar(s.first)); // if we have some potential variables, we assume, that we have all potential variables
+				vars.push_back(model->getPotential(s.first));
+				coef.push_back(s.second);
+			}
+
+			SCIP_CONS* cons;
+			BOOST_SCIP_CALL( SCIPcreateConsLinear(model->getScip(), &cons, "branchCover", vars.size(), vars.data(), coef.data(), lhs, rhs, false, true, true, true, true, true, false, false, true, false) );
+			BOOST_SCIP_CALL( SCIPaddConsNode(model->getScip(), node, cons, NULL) );
+			BOOST_SCIP_CALL( SCIPreleaseCons(model->getScip(), &cons) );
+		}
 	}
 }
 
-SCIP_RESULT ThermoConstraintHandler::branch(unordered_set<DirectedReaction>& branchingCandidates, LPFluxPtr flux, SolutionPtr sol) {
+SCIP_RESULT ThermoConstraintHandler::branch(unordered_set<DirectedReaction>& branchingCandidates, ISSupplyPtr iss, SolutionPtr sol) {
 	ScipModelPtr model = getScip();
 
 	// compute a cover
@@ -353,51 +391,24 @@ SCIP_RESULT ThermoConstraintHandler::branch(unordered_set<DirectedReaction>& bra
 	}
 	else if(cover->size() == 1) {
 		CoverReaction c = *(cover->begin());
-		ReactionPtr& rxn = c.reaction._rxn;
-		double val = flux->getFlux(rxn);
 		SCIP_NODE* node = SCIPgetCurrentNode(model->getScip());
-		if(c.reaction._fwd) {
-			setDirection(model, node, c, false); // restrict reaction to backward direction
-		}
-		else {
-			setDirection(model, node, c, true); // restrict reaction to forward direction
-		}
+		setDirection(model, iss, node, c); // restrict reaction to backward direction
 		return SCIP_REDUCEDDOM;
 	}
 	else {
 		// we have to branch
-		foreach(CoverReaction c, cover) {
+		foreach(CoverReaction c, *cover) {
 			ReactionPtr& rxn = c.reaction._rxn;
-			double val = flux->getFlux(rxn);
-			if(c.reaction._fwd) {
-				// we have to block forward flux
-				SCIP_NODE* node;
+			double val = iss->getAlpha(rxn);
+			SCIP_NODE* node;
 #if THERMOCONS_USE_AGGR_RXN
-				double prio = val/_reducedScip->getFlux(sol, aggrrxn); // idea: small reductions are better than large ones
+			double prio = val/_reducedScip->getFlux(sol, aggrrxn); // idea: small reductions are better than large ones
 #else
-				double prio = val/model->getFlux(sol, rxn); // idea: small reductions are better than large ones
+			double prio = val/model->getFlux(sol, rxn); // idea: small reductions are better than large ones
 #endif
-				//double prio = 1.0;
-				BOOST_SCIP_CALL( SCIPcreateChild(model->getScip(), &node, prio, SCIPtransformObj(model->getScip(),SCIPgetSolOrigObj(model->getScip(), sol.get()))) ); // estimate must SCIPgetSolTransObj(scip, NULL)-lpobjval/prio)be for transformed node, sp transform estimated value for orig prob
-				if(c.covered->empty()) {
-					setDirection(model, node, c, false); // restrict reaction to backward direction
-				}
-				else {
-
-				}
-			}
-			else {
-				// we have to block backward flux
-				SCIP_NODE* node;
-#if THERMOCONS_USE_AGGR_RXN
-				double prio = val/_reducedScip->getFlux(sol, aggrrxn); // idea: small reductions are better than large ones
-#else
-				double prio = val/model->getFlux(sol, rxn); // idea: small reductions are better than large ones
-#endif
-				//double prio = 1.0;
-				BOOST_SCIP_CALL( SCIPcreateChild(model->getScip(), &node, prio, SCIPtransformObj(model->getScip(),SCIPgetSolOrigObj(model->getScip(), sol.get()))) ); // estimate must SCIPgetSolTransObj(scip, NULL)-lpobjval/prio)be for transformed node, sp transform estimated value for orig prob
-				setDirection(model, node, c, true); // restrict reaction to forward direction
-			}
+			//double prio = 1.0;
+			BOOST_SCIP_CALL( SCIPcreateChild(model->getScip(), &node, prio, SCIPtransformObj(model->getScip(),SCIPgetSolOrigObj(model->getScip(), sol.get()))) ); // estimate must SCIPgetSolTransObj(scip, NULL)-lpobjval/prio)be for transformed node, sp transform estimated value for orig prob
+			setDirection(model, iss, node, c); // restrict reaction to backward direction
 		}
 		return SCIP_BRANCHED;
 	}
@@ -783,14 +794,91 @@ SCIP_RETCODE ThermoConstraintHandler::scip_exitpre(
 	_is_find = DualPotentialsPtr( new DualPotentials(_model)); //I cannot use the reduced model here, because I would lose infeasible sets
 	_pot_test = LPPotentialsPtr( new LPPotentials(_model)); // it doesn't make sense to use the reduced model, since this is only used for testing
 #else
+
+	// even if we do not use the results of the presolver to directly simplify the model, we can use that to infer coupling relations
+	_coupling = CouplingPtr(new Coupling()); //TODO: for now, start with a new instance, but in future, we can use precomputed coupling information (i.e. from FCA)
+
+	// this map maps the transformed variables to their original reaction
+	unordered_map<SCIP_VAR*, ReactionPtr> toOriginal;
+	foreach(ReactionPtr rxn, _model->getReactions()) {
+		if(scip->hasFluxVar(rxn)) {
+			SCIP_VAR* var = scip->getFlux(rxn);
+			if(SCIPvarGetStatus(var) == SCIP_VARSTATUS_ORIGINAL) {
+				// look at transformed var
+				var = SCIPvarGetTransVar(var);
+				toOriginal[var] = rxn;
+			}
+		}
+	}
+	foreach(ReactionPtr rxn, _model->getReactions()) {
+		if(scip->hasFluxVar(rxn)) {
+			SCIP_VAR* var = scip->getFlux(rxn);
+			if(SCIPvarGetStatus(var) == SCIP_VARSTATUS_ORIGINAL) {
+				// look at transformed var
+				var = SCIPvarGetTransVar(var);
+			}
+			double scalar = 1;
+			double constant = 0;
+			while(SCIPvarGetStatus(var) == SCIP_VARSTATUS_AGGREGATED) {
+				// var is aggregated, so the reaction is coupled to another reaction.
+				// it may not be fully coupled, because existing flows must not be neglected
+				// but even in those cases, we can infer directional couplings
+
+				// if y is the aggregation variable, we have
+				// var = a*y + c
+				// if x is the aggregation variable of y, we get
+				// var = a_1*(a_2*x + c_2) + c_1 = a_1*a_2*x + a_1*c_2 + c_1
+				constant += scalar * SCIPvarGetAggrConstant(var);
+				scalar *= SCIPvarGetAggrScalar(var);
+				var = SCIPvarGetAggrVar(var);
+
+				// if the transformed variable can be associated to a reaction, we can infer coupling information
+				unordered_map<SCIP_VAR*, ReactionPtr>::iterator iter = toOriginal.find(var);
+				if(iter != toOriginal.end()) {
+					ReactionPtr other = iter->second;
+					if(constant > -EPSILON) { // also include the case where constant == 0
+						if(scalar > 0) { // TODO: numerical troubles?
+							// positive flux on other implies positive flux on rxn
+							_coupling->setCoupled(DirectedReaction(other, true), DirectedReaction(rxn, true));
+							// negative flux un rxn implies negative flux on other
+							_coupling->setCoupled(DirectedReaction(rxn, false), DirectedReaction(other, false));
+						}
+						else {
+							// negative flux on other implies positive flux on rxn
+							_coupling->setCoupled(DirectedReaction(other, false), DirectedReaction(rxn, true));
+							// negative flux on rxn imples positive flux on other
+							_coupling->setCoupled(DirectedReaction(rxn, false), DirectedReaction(other, true));
+
+						}
+					}
+					if(constant < EPSILON) { // also include the case where constant == 0
+						if(scalar > 0) { // TODO: numerical troubles?
+							// negative flux on other implies negative flux on rxn
+							_coupling->setCoupled(DirectedReaction(other, false), DirectedReaction(rxn, false));
+							// positive flux un rxn implies positive flux on other
+							_coupling->setCoupled(DirectedReaction(rxn, true), DirectedReaction(other, true));
+						}
+						else {
+							// positive flux on other implies negative flux on rxn
+							_coupling->setCoupled(DirectedReaction(other, true), DirectedReaction(rxn, false));
+							// positive flux on rxn imples negative flux on other
+							_coupling->setCoupled(DirectedReaction(rxn, true), DirectedReaction(other, false));
+
+						}
+					}
+				}
+			}
+		}
+	}
+
 	// init helper variables
 	_cycle_find = LPFluxPtr( new LPFlux(_model, false));
 	_cycle_find->setObjSense(false); // minimize
 	_cycle_test = LPFluxPtr( new LPFlux(_model, false));
 	_cycle_test->setObjSense(true); // maximize
 	_flux_simpl = LPFluxPtr( new LPFlux(_model, true));
-	_is_find = DualPotentialsPtr( new DualPotentials(_model)); //I cannot use the reduced model here, because I would lose infeasible sets
-	_pot_test = LPPotentialsPtr( new LPPotentials(_model)); // it doesn't make sense to use the reduced model, since this is only used for testing
+	_is_find = DualPotentialsPtr( new DualPotentials(_model));
+	_pot_test = LPPotentialsPtr( new LPPotentials(_model));
 
 #endif
 
