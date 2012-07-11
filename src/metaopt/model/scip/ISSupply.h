@@ -20,7 +20,7 @@ public:
 	/**
 	 * For rxn in the computed infeasible set, gives the coefficient.
 	 */
-	virtual double getAlpha(ReactionPtr rxn) const;
+	virtual double getAlpha(ReactionPtr rxn) = 0;
 };
 
 typedef boost::shared_ptr<ISSupply> ISSupplyPtr;

@@ -39,6 +39,13 @@ public:
 	virtual ~ThermoConstraintHandler();
 
 	/**
+	 * Add precomputed coupling information to the constraint handler.
+	 * The coupling information may be modified by the constraint handler using further information form the problem.
+	 * If this is not desired, please make sure to copy the coupling information before passing it to this method.
+	 */
+	void setCouplingHint(CouplingPtr coupling);
+
+	/**
 	 * branch on the cycle of the current solution of _cycle_find
 	 */
 	SCIP_RESULT branchCycle(SolutionPtr& sol);
@@ -233,8 +240,20 @@ inline ScipModelPtr ThermoConstraintHandler::getScip() {
 	return _smodel.lock();
 }
 
+/**
+ * creates default Thermo Constraint
+ */
 inline void createThermoConstraint(ScipModelPtr model) {
 	ThermoConstraintHandler* handler = new ThermoConstraintHandler(model);
+	BOOST_SCIP_CALL( SCIPincludeObjConshdlr( model->getScip(), handler, TRUE ) );
+}
+
+/**
+ * Creates Thermo constraint with hint on flux coupled reactions
+ */
+inline void createThermoConstraint(ScipModelPtr model, CouplingPtr c) {
+	ThermoConstraintHandler* handler = new ThermoConstraintHandler(model);
+	handler->setCouplingHint(c);
 	BOOST_SCIP_CALL( SCIPincludeObjConshdlr( model->getScip(), handler, TRUE ) );
 }
 

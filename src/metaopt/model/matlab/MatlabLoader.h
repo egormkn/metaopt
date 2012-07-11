@@ -53,6 +53,11 @@ public:
 	 */
 	ReactionPtr getReaction(int index);
 
+	/**
+	 * loads coupling information for the model
+	 */
+	//CouplingPtr loadCoupling(mxArray* fctable, mxArray* blocked);
+
 	/** clear loader for loading another model */
 	void clear();
 

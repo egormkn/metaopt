@@ -8,6 +8,7 @@
 #ifndef COUPLING_H_
 #define COUPLING_H_
 
+#include <string>
 #include <boost/unordered_set.hpp>
 #include <boost/unordered_map.hpp>
 
@@ -43,6 +44,8 @@ struct DirectedReaction {
 struct CoverReaction {
 	DirectedReaction reaction;
 	boost::shared_ptr<std::vector<DirectedReaction> > covered;
+
+	CoverReaction(DirectedReaction& r) : reaction(r), covered(new std::vector<DirectedReaction>()) {}
 };
 
 /**
@@ -55,6 +58,11 @@ class Coupling {
 public:
 	Coupling();
 	virtual ~Coupling();
+
+	/**
+	 * copies the coupling table
+	 */
+	Coupling(const Coupling& c);
 
 	/**
 	 * Stores that a is directionally coupled to b.
@@ -78,6 +86,16 @@ public:
 	 * The result is the list of reactions B. For each b in B a list of covered reactions is stored, such that each reaction in A is either in B or covered.
 	 */
 	boost::shared_ptr<std::vector<CoverReaction> > computeCover(boost::unordered_set<DirectedReaction>& reactions);
+
+	/**
+	 * return some status information on the couplings
+	 */
+	std::string getStat();
+
+	/**
+	 * copy this Coupling information
+	 */
+	boost::shared_ptr<Coupling> copy() const;
 
 private:
 	/**

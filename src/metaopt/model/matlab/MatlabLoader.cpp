@@ -294,6 +294,40 @@ ReactionPtr MatlabLoader::getReaction(int index) {
 	return ReactionPtr();
 }
 
+#if 0
+CouplingPtr MatlabLoader::loadCoupling(mxArray* fctable, mxArray* blocked) {
+	if(mxIsChar(fctable) || mxIsComplex(fctable) || !mxIsNumeric(fctable) || mxIsSparse(fctable)) ERROR_MSG("fctable", "The flux coupling table must be a full matrix and contain reals");
+	if(mxIsChar(blocked) || mxIsComplex(blocked) || !mxIsNumeric(blocked) || mxIsSparse(blocked)) ERROR_MSG("blocked", "The list of blocked reactions must be a full vector and contain reals");
+	if(mxGetNumberOfElements(blocked) != _reactions.size()) ERROR_MSG("blocked", "We need to know for each reaction if it is blocked or not.");
+	unsigned int m = mxGetM(fctable);
+	if(m != mxGetN(fctable)) ERROR_MSG("fctable", "flux coupling table must be a square matrix");
+
+	CouplingPtr result(new Coupling());
+
+	double* blockedData = mxGetPr(blocked);
+	double* data = mxGetPr(fctable);
+	int index = 0;
+	for(int i = 0; i < _reactions.size(); i++) {
+		if(blockedData[i] < 0.5) {
+			// flux coupling table has only entries for nonblocked reactions.
+			for(int j = 0; j < _reactions.size(); j++) {
+				if(blockedData[j] < 0.5) {
+					if(data[index] < 0.5) {
+						// uncoupled
+					}
+					else if(data[index] < 2.5) {
+						// fully or partially coupled
+
+						result->setCoupled()
+					}
+					index++;
+				}
+			}
+		}
+	}
+}
+#endif
+
 void MatlabLoader::clear() {
 	// clear loaded model
 	_model.reset();

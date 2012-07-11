@@ -80,6 +80,10 @@ ThermoConstraintHandler::~ThermoConstraintHandler() {
 	// nothing to do
 }
 
+void ThermoConstraintHandler::setCouplingHint(CouplingPtr coupling) {
+	_coupling = coupling;
+}
+
 SCIP_RESULT ThermoConstraintHandler::enforceObjectiveCycles(SolutionPtr& sol) {
 	ScipModelPtr model = getScip();
 #if THERMOCONS_USE_AGGR_RXN
@@ -261,6 +265,8 @@ SCIP_RESULT ThermoConstraintHandler::branchIS(SolutionPtr& sol) {
 	_is_find->setDirections(_flux_simpl, fixedDirs);
 #endif
 
+	cout << "general is" << endl;
+
 	_is_find->optimize();
 
 	if(!_is_find->isFeasible()) {
@@ -404,7 +410,8 @@ SCIP_RESULT ThermoConstraintHandler::branch(unordered_set<DirectedReaction>& bra
 #if THERMOCONS_USE_AGGR_RXN
 			double prio = val/_reducedScip->getFlux(sol, aggrrxn); // idea: small reductions are better than large ones
 #else
-			double prio = val/model->getFlux(sol, rxn); // idea: small reductions are better than large ones
+			//double prio = val/model->getFlux(sol, rxn); // idea: small reductions are better than large ones
+			double prio = model->getFlux(sol, rxn); // idea: small reductions are better than large ones
 #endif
 			//double prio = 1.0;
 			BOOST_SCIP_CALL( SCIPcreateChild(model->getScip(), &node, prio, SCIPtransformObj(model->getScip(),SCIPgetSolOrigObj(model->getScip(), sol.get()))) ); // estimate must SCIPgetSolTransObj(scip, NULL)-lpobjval/prio)be for transformed node, sp transform estimated value for orig prob
@@ -796,7 +803,9 @@ SCIP_RETCODE ThermoConstraintHandler::scip_exitpre(
 #else
 
 	// even if we do not use the results of the presolver to directly simplify the model, we can use that to infer coupling relations
-	_coupling = CouplingPtr(new Coupling()); //TODO: for now, start with a new instance, but in future, we can use precomputed coupling information (i.e. from FCA)
+	if(_coupling.use_count() == 0) {
+		_coupling = CouplingPtr(new Coupling()); // if not supplied with external coupling information, start from scratch
+	}
 
 	// this map maps the transformed variables to their original reaction
 	unordered_map<SCIP_VAR*, ReactionPtr> toOriginal;
