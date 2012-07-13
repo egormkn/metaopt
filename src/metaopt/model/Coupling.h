@@ -12,7 +12,14 @@
 #include <boost/unordered_set.hpp>
 #include <boost/unordered_map.hpp>
 
+#include <boost/graph/graph_traits.hpp>
+#include <boost/graph/adjacency_list.hpp>
+
 #include "metaopt/model/Reaction.h"
+
+#ifdef BOOST_NO_TEMPLATE_PARTIAL_SPECIALIZATION
+#error The transitive closure algorithm uses partial specialization.
+#endif
 
 namespace metaopt {
 
@@ -68,7 +75,7 @@ public:
 	 * This means that if a carries (positive) flux, also b carries (positive) flux.
 	 * This is the fast implementation that does not maintain transitive closure.
 	 */
-	void setCoupledFast(DirectedReaction a, DirectedReaction b);
+	void addCoupled(DirectedReaction a, DirectedReaction b);
 
 	/**
 	 * Computes the transitive closure.
@@ -104,14 +111,21 @@ public:
 
 private:
 
-	/**
-	 * This map stores for every directed reaction a the list of directed reactions b with a -> b.
-	 */
-	boost::unordered_map<DirectedReaction, boost::unordered_set<DirectedReaction> > _fwd_couplings;
-	/**
-	 * This map stores for every directed reaction b the list of directed reactions a with a -> b.
-	 */
-	boost::unordered_map<DirectedReaction, boost::unordered_set<DirectedReaction> > _bwd_couplings;
+	// type for input graph
+	typedef boost::adjacency_list < boost::vecS, boost::vecS, boost::directedS > graph_t;
+	typedef boost::graph_traits < graph_t >::vertex_descriptor vertex_t;
+	graph_t _G;
+
+	// type for transitive closure graph
+	typedef boost::adjacency_list <boost::vecS, boost::vecS, boost::directedS> tc_graph_t;
+	typedef boost::graph_traits < tc_graph_t >::vertex_descriptor tc_vertex_t;
+	tc_graph_t _TC;
+
+	boost::unordered_map<DirectedReaction, vertex_t> _vertices;
+
+	boost::unordered_map<vertex_t, tc_vertex_t> _g_to_tc;
+
+	bool israw;
 };
 
 typedef boost::shared_ptr<Coupling> CouplingPtr;
