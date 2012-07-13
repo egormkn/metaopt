@@ -28,187 +28,154 @@ Coupling::~Coupling() {
 
 typedef unordered_multimap<DirectedReaction,DirectedReaction>::iterator citerator;
 
-void Coupling::setCoupled(DirectedReaction a, DirectedReaction b) {
-	unordered_set<DirectedReaction>& fwd = fwd_couplings[a];
-	unordered_set<DirectedReaction>& bwd = bwd_couplings[b];
+void Coupling::setCoupledFast(DirectedReaction a, DirectedReaction b) {
+	// we already perform the transitive closure at insertion.
+	// this makes setCoupled slow, but this is acceptable, because we will call isCoupled much more often than setCoupled.
+
+	// create: a -> b
+	unordered_set<DirectedReaction>& fwd = _fwd_couplings[a];
+	unordered_set<DirectedReaction>& bwd = _bwd_couplings[b];
 	fwd.insert(b);
 	bwd.insert(a);
-	foreach(DirectedReaction c, bwd) {
-		foreach(DirectedReaction d, fwd) {
-			// given:
-			// c -> b -> a -> d
-			// create:
-			// c -> d
-			fwd_couplings[c].insert(d);
-			bwd_couplings[d].insert(c);
+	/*foreach(DirectedReaction c, _bwd_couplings[a]) {
+		// given: c -> a -> b
+		// create: c -> b
+		bwd.insert(c);
+		_fwd_couplings[c].insert(b);
+	}
+	foreach(DirectedReaction d, _fwd_couplings[b]) {
+		// givem: a -> b -> d
+		// create: a -> d
+		fwd.insert(d);
+		_bwd_couplings[d].insert(a);
+		foreach(DirectedReaction c, _bwd_couplings[a]) {
+			// given: c -> a -> b -> d
+			// create: c -> d
+			_fwd_couplings[c].insert(d);
+			_bwd_couplings[d].insert(c);
 		}
-	}
+	}*/
 }
-
-bool Coupling::isCoupled(DirectedReaction a, DirectedReaction b)  {
-	// starting from b we do a graph search.
-	// since the poset is not necessarily a tree, we will remember the elements we visited
-	unordered_set<DirectedReaction> visited;
-	visited.insert(b);
-	queue<DirectedReaction> q;
-	q.push(b);
-	while(!q.empty()) {
-		DirectedReaction d = q.front();
-		q.pop();
-		pair<citerator, citerator> res = couplings.equal_range(d);
-		for(citerator i = res.first; i != res.second; i++) {
-			DirectedReaction& toAdd = i->second;
-			if(visited.find(toAdd) == visited.end()){
-				if(toAdd == a) {
-					return true; // we have found a transitive chain to a
-				}
-				// we have not yet added i->second to the queue
-				q.push(toAdd);
-				visited.insert(toAdd);
-			}
-		}
-	}
-	// we have not found a, so a is not directionally coupled to b
-	return false;
-}
-
-inline void insertUnique(unordered_multimap<DirectedReaction, DirectedReaction>& map, DirectedReaction& key, DirectedReaction& val) {
-	pair<citerator, citerator> res = map.equal_range(key);
-	bool found = false;
-	for(citerator i = res.first; !found && i != res.second; i++) {
-		found = i->second == val;
-	}
-	if(!found) {
-		map.insert(pair<DirectedReaction, DirectedReaction>(key, val));
-	}
-}
-
-
-shared_ptr<vector<CoverReaction> > Coupling::computeCover(boost::unordered_set<DirectedReaction>& reactions) {
-	// for each directed reaction a in the target set we do a graph search.
-	// If we find another directed reaction b of the set during this search, a is only maximal if a <-> b.
-
-	// first we aggregate the coupling information on only the reactions that we are interested in.
-	// in particular, we resolve all transitivities.
-	boost::unordered_multimap<DirectedReaction, DirectedReaction> targetCoupled;
-	boost::unordered_set<DirectedReaction> analyzed;
 #if 0
-	boost::unordered_set<DirectedReaction> notMaximal;
-
-
-	foreach(DirectedReaction rxn, reactions) {
-		analyzed.insert(rxn);
-
-		bool canMaximal = true; // indicates that we have not found evidence yet proofing that rxn is not maximal
-
-		// since the poset is not necessarily a tree, we will remember the elements we visited
-		unordered_set<DirectedReaction> visited;
-		visited.insert(rxn);
-		queue<DirectedReaction> q;
-		q.push(rxn);
-		while(canMaximal && !q.empty()) {
-			DirectedReaction d = q.front();
-			q.pop();
-			pair<citerator, citerator> res = couplings.equal_range(d);
-			for(citerator i = res.first; canMaximal && i != res.second; i++) {
-				DirectedReaction& toAdd = i->second;
-				if(visited.find(toAdd) == visited.end()){
-					if(reactions.find(toAdd) != reactions.end()) {
-						// we have found a transitive chain to an element of the set
-						if(notMaximal.find(toAdd) != notMaximal.end()) {
-							notMaximal.insert(rxn);
-							canMaximal = false; // rxn cannot be maximal anymore
-							pair<citerator, citerator> toAddCoupled = targetCoupled.equal_range(toAdd);
-							for(citerator j = toAddCoupled.first; j != toAddCoupled.second; j++) {
-								insertUnique(targetCoupled, rxn, j->second); // insert to know from which maximal reaction rxn is covered.
-							}
-						}
-						else if(analyzed.find(toAdd) != analyzed.end()){
-							pair<citerator, citerator> back = targetCoupled.equal_range(toAdd);
-							bool found = false; // found back coupling
-							for(citerator j = back.first; j != back.second; j++) {
-								if(j->second == rxn) found = true;
-								else {
-									// because of transitivity we can reuse the result and don't have to investigate the subtree.
-									if(visited.find(j->second) == visited.end()) {
-										insertUnique(targetCoupled, rxn, j->second);
-										visited.insert(j->second);
-									}
-								}
-							}
-							if(!found) {
-								notMaximal.insert(rxn);
-								canMaximal = false;
-							}
-						}
-						else {
-							// we will have to analyze the tree further along this node
-							q.push(toAdd);
-							visited.insert(toAdd);
-						}
-						if(canMaximal) {
-							insertUnique(targetCoupled, rxn, toAdd);
-							// and continue searching
-						}
-					} // end test if contained in reactions
-					else {
-						// we will have to analyze the tree further along this node
-						q.push(toAdd);
-						visited.insert(toAdd);
-					}
-				} // end test if visited
+void Coupling::computeClosure() {
+	//TODO: this can be improved!
+	cout << "starting compute closure... ";
+	cout.flush();
+	typedef pair<const DirectedReaction, unordered_set<DirectedReaction> > Entry;
+	boost::unordered_set<DirectedReaction> keys;
+	foreach(Entry & e, _fwd_couplings) {
+		keys.insert(e.first);
+	}
+	foreach(Entry & e, _bwd_couplings) {
+		keys.insert(e.first);
+	}
+	bool changeDetected = true;
+	int iteration = 0;
+	while(changeDetected) {
+		iteration++;
+		cout << "iteration "<< iteration << endl;
+		changeDetected = false;
+		foreach(DirectedReaction a, keys) {
+			cout << a._rxn->getName() << endl;
+			unordered_set<DirectedReaction>& fwdold = _fwd_couplings[a];
+			unordered_set<DirectedReaction> fwdneu = fwdold; // copy set
+			foreach(DirectedReaction d, fwdold) {
+				unordered_set<DirectedReaction>& dfwd = _fwd_couplings[d];
+				// given: a -> d -> _fwd_couplings[d]
+				// create: a -> _fwd_couplings[d]
+				fwdneu.insert(dfwd.begin(), dfwd.end());
+			}
+			if(fwdneu.size() != fwdold.size()) {
+				fwdold = fwdneu;
+				changeDetected = true;
+			}
+		}
+		foreach(DirectedReaction a, keys) {
+			cout << a._rxn->getName() << endl;
+			unordered_set<DirectedReaction>& bwdold = _bwd_couplings[a];
+			unordered_set<DirectedReaction> bwdneu = bwdold; // copy set
+			foreach(DirectedReaction d, bwdold) {
+				unordered_set<DirectedReaction>& dbwd = _bwd_couplings[d];
+				bwdneu.insert(dbwd.begin(), dbwd.end());
+			}
+			if(bwdneu.size() != bwdold.size()) {
+				bwdold = bwdneu;
+				changeDetected = true;
 			}
 		}
 	}
+	cout << "finished" << endl;
+}
+#else
+void Coupling::computeClosure() {
+	cout << "starting compute closure";
+	cout.flush();
+	typedef pair<const DirectedReaction, unordered_set<DirectedReaction> > Entry;
+	boost::unordered_set<DirectedReaction> keys;
+	foreach(Entry & e, _fwd_couplings) {
+		keys.insert(e.first);
+	}
+	int count = 0;
+	foreach(DirectedReaction d, keys) {
+		queue<DirectedReaction> q;
+		unordered_set<DirectedReaction> visited;
+		q.push(d);
+		visited.insert(d);
+		while(!q.empty()) {
+			DirectedReaction a = q.front();
+			q.pop();
+			foreach(DirectedReaction b, _fwd_couplings[a]) {
+				if(visited.find(b) == visited.end()) {
+					q.push(b);
+					visited.insert(b);
+					// mark found couplings in _bwd_couplings to avoid concurrent modification issues
+					_bwd_couplings[b].insert(d);
+				}
+			}
+		}
+		cout << ".";
+		cout.flush();
+		count++;
+		if(count % 50 == 0) cout << endl;
+	}
+	// translate results from _bwd_couplings to _fwd_couplings
+	foreach(Entry & e, _bwd_couplings) {
+		foreach(DirectedReaction d, e.second) {
+			_fwd_couplings[d].insert(e.first);
+		}
+	}
+	cout << "finished" << endl;
+}
 #endif
 
-	foreach(DirectedReaction a, reactions) {
-		analyzed.insert(a);
-		foreach(DirectedReaction b, reactions) {
-			if(isCoupled(a,b)) {
-				targetCoupled.insert(pair<DirectedReaction, DirectedReaction>(b,a));
-			}
-		}
-	}
+bool Coupling::isCoupled(DirectedReaction a, DirectedReaction b)  {
+	// since we already store the closure of the relation, a single test suffices.
+	unordered_set<DirectedReaction>& fwd = _fwd_couplings[a];
+	return(fwd.find(b) != fwd.end());
+}
+
+shared_ptr<vector<CoverReaction> > Coupling::computeCover(boost::unordered_set<DirectedReaction>& reactions) {
+	boost::unordered_set<DirectedReaction> unanalyzed(reactions);
 
 	// now we have to analyze the aggregated coupling information
 	unordered_set<DirectedReaction> maxima;
 	foreach(DirectedReaction rxn, reactions) {
 		// canMax indicates if it can be the selected maximum
-#if 0
-		bool canMax = notMaximal.find(rxn) == notMaximal.end();
-#else
 		bool canMax = true;
-#endif
-		if(!canMax) continue;
 
-		pair<citerator, citerator> res = targetCoupled.equal_range(rxn);
-		for(citerator i = res.first; canMax && i != res.second; i++) {
-			DirectedReaction d = i->second;
-#if 0
-			canMax = notMaximal.find(d) == notMaximal.end();
-			if(!canMax) {
-				notMaximal.insert(rxn);
-				continue;
-			}
-#endif
-			// Question the alg will answer: is d -> rxn strict?
-			// Answer: this is the case if we do not find rxn -> d in the aggregated coupling information
-			bool found = false;
-			pair<citerator, citerator> back = targetCoupled.equal_range(d);
-			for(citerator j = back.first; !found && j != back.second; j++) {
-				if(j->second == rxn) found = true;
-			}
-			if(!found) {
-				canMax = false;
-#if 0
-				notMaximal.insert(rxn);
-#endif
-				continue;
-			}
-			else {
-				if(maxima.find(d) != maxima.end()) {
-					canMax = false; // it may be a max, but we already found an equivalent one
+		boost::unordered_set<DirectedReaction>& bwd = _bwd_couplings[rxn];
+		boost::unordered_set<DirectedReaction>& fwd = _fwd_couplings[rxn];
+		foreach(DirectedReaction f, bwd) {
+			if(canMax && reactions.find(f) != reactions.end()) {
+				// f is interesting
+				if(fwd.find(f) == reactions.end()) {
+					// rxn does not cover f, hence rxn is not a maximal element
+					canMax = false;
+				}
+				else {
+					if(maxima.find(f) != maxima.end()) {
+						canMax = false; // rxn may be a max, but we already found an equivalent one
+					}
 				}
 			}
 		}
@@ -219,7 +186,7 @@ shared_ptr<vector<CoverReaction> > Coupling::computeCover(boost::unordered_set<D
 
 
 	// we will misuse the list analyzed now to mark which reactions are still uncovered.
-	assert(analyzed.size() == reactions.size()); // analyzed must contain every element of reactions
+	assert(unanalyzed.size() == reactions.size()); // analyzed must contain every element of reactions
 
 #if 0
 	cout << "maxima: ";
@@ -248,31 +215,24 @@ shared_ptr<vector<CoverReaction> > Coupling::computeCover(boost::unordered_set<D
 	shared_ptr<vector<CoverReaction> > cover(new vector<CoverReaction>());
 	foreach(DirectedReaction d, maxima) {
 		CoverReaction c(d);
-		analyzed.erase(d);
-		for(unordered_set<DirectedReaction>::iterator i = analyzed.begin(); i != analyzed.end();) {
-			// check if d >= *i
-			bool found = false;
-			pair<citerator, citerator> res = targetCoupled.equal_range(*i);
-			for(citerator j = res.first; !found && j != res.second; j++) {
-				found = d == j->second;
-			}
-			if(found) {
-				c.covered->push_back(*i);
-				i = analyzed.erase(i);
-			}
-			else {
-				i++;
+		boost::unordered_set<DirectedReaction>& fwd = _fwd_couplings[d];
+		unanalyzed.erase(d);
+		foreach(DirectedReaction f, fwd) {
+			if(unanalyzed.find(f) != unanalyzed.end()) {
+				c.covered->push_back(f);
+				unanalyzed.erase(f);
 			}
 		}
+
 		cover->push_back(c);
 	}
-	assert(analyzed.empty());
+	assert(unanalyzed.empty());
 	return cover;
 }
 
 string Coupling::getStat() {
 	stringstream ss;
-	ss << string("number of Couplings: ") << couplings.size();
+	ss << string("number of Couplings: ") << _fwd_couplings.size();
 	return ss.str();
 }
 

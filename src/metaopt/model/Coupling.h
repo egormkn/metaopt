@@ -14,7 +14,6 @@
 
 #include "metaopt/model/Reaction.h"
 
-
 namespace metaopt {
 
 /**
@@ -67,8 +66,14 @@ public:
 	/**
 	 * Stores that a is directionally coupled to b.
 	 * This means that if a carries (positive) flux, also b carries (positive) flux.
+	 * This is the fast implementation that does not maintain transitive closure.
 	 */
-	void setCoupled(DirectedReaction a, DirectedReaction b);
+	void setCoupledFast(DirectedReaction a, DirectedReaction b);
+
+	/**
+	 * Computes the transitive closure.
+	 */
+	void computeClosure();
 
 	/**
 	 * Checks, if a is directionally coupled to b.
@@ -98,15 +103,15 @@ public:
 	boost::shared_ptr<Coupling> copy() const;
 
 private:
-	/**
-	 * This map stores for every directed reaction b the list of directed reactions a with a -> b.
-	 */
-	boost::unordered_map<DirectedReaction, boost::unordered_set<DirectedReaction> > _bwd_couplings;
+
 	/**
 	 * This map stores for every directed reaction a the list of directed reactions b with a -> b.
 	 */
 	boost::unordered_map<DirectedReaction, boost::unordered_set<DirectedReaction> > _fwd_couplings;
-
+	/**
+	 * This map stores for every directed reaction b the list of directed reactions a with a -> b.
+	 */
+	boost::unordered_map<DirectedReaction, boost::unordered_set<DirectedReaction> > _bwd_couplings;
 };
 
 typedef boost::shared_ptr<Coupling> CouplingPtr;

@@ -848,30 +848,30 @@ SCIP_RETCODE ThermoConstraintHandler::scip_exitpre(
 					if(constant > -EPSILON) { // also include the case where constant == 0
 						if(scalar > 0) { // TODO: numerical troubles?
 							// positive flux on other implies positive flux on rxn
-							_coupling->setCoupled(DirectedReaction(other, true), DirectedReaction(rxn, true));
+							_coupling->setCoupledFast(DirectedReaction(other, true), DirectedReaction(rxn, true));
 							// negative flux un rxn implies negative flux on other
-							_coupling->setCoupled(DirectedReaction(rxn, false), DirectedReaction(other, false));
+							_coupling->setCoupledFast(DirectedReaction(rxn, false), DirectedReaction(other, false));
 						}
 						else {
 							// negative flux on other implies positive flux on rxn
-							_coupling->setCoupled(DirectedReaction(other, false), DirectedReaction(rxn, true));
+							_coupling->setCoupledFast(DirectedReaction(other, false), DirectedReaction(rxn, true));
 							// negative flux on rxn imples positive flux on other
-							_coupling->setCoupled(DirectedReaction(rxn, false), DirectedReaction(other, true));
+							_coupling->setCoupledFast(DirectedReaction(rxn, false), DirectedReaction(other, true));
 
 						}
 					}
 					if(constant < EPSILON) { // also include the case where constant == 0
 						if(scalar > 0) { // TODO: numerical troubles?
 							// negative flux on other implies negative flux on rxn
-							_coupling->setCoupled(DirectedReaction(other, false), DirectedReaction(rxn, false));
+							_coupling->setCoupledFast(DirectedReaction(other, false), DirectedReaction(rxn, false));
 							// positive flux un rxn implies positive flux on other
-							_coupling->setCoupled(DirectedReaction(rxn, true), DirectedReaction(other, true));
+							_coupling->setCoupledFast(DirectedReaction(rxn, true), DirectedReaction(other, true));
 						}
 						else {
 							// positive flux on other implies negative flux on rxn
-							_coupling->setCoupled(DirectedReaction(other, true), DirectedReaction(rxn, false));
+							_coupling->setCoupledFast(DirectedReaction(other, true), DirectedReaction(rxn, false));
 							// positive flux on rxn imples negative flux on other
-							_coupling->setCoupled(DirectedReaction(rxn, true), DirectedReaction(other, false));
+							_coupling->setCoupledFast(DirectedReaction(rxn, true), DirectedReaction(other, false));
 
 						}
 					}
@@ -879,6 +879,7 @@ SCIP_RETCODE ThermoConstraintHandler::scip_exitpre(
 			}
 		}
 	}
+	_coupling->computeClosure();
 
 	// init helper variables
 	_cycle_find = LPFluxPtr( new LPFlux(_model, false));
