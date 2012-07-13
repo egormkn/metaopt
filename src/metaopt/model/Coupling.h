@@ -101,7 +101,11 @@ private:
 	/**
 	 * This map stores for every directed reaction b the list of directed reactions a with a -> b.
 	 */
-	boost::unordered_multimap<DirectedReaction, DirectedReaction> couplings;
+	boost::unordered_map<DirectedReaction, boost::unordered_set<DirectedReaction> > _bwd_couplings;
+	/**
+	 * This map stores for every directed reaction a the list of directed reactions b with a -> b.
+	 */
+	boost::unordered_map<DirectedReaction, boost::unordered_set<DirectedReaction> > _fwd_couplings;
 
 };
 

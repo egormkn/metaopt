@@ -18,7 +18,7 @@ Coupling::Coupling() {
 	// nothing to do
 }
 
-Coupling::Coupling(const Coupling &c) : couplings(c.couplings) {
+Coupling::Coupling(const Coupling &c) : _fwd_couplings(c._fwd_couplings), _bwd_couplings(c._bwd_couplings) {
 	// nothing else to do
 }
 
@@ -29,17 +29,20 @@ Coupling::~Coupling() {
 typedef unordered_multimap<DirectedReaction,DirectedReaction>::iterator citerator;
 
 void Coupling::setCoupled(DirectedReaction a, DirectedReaction b) {
-	// TODO: theoretically we could implement additional means to cleanup the data structure to improve the running time of the retrieval methods.
-
-	// first check, if the element has already been inserted
-	pair<citerator, citerator> res = couplings.equal_range(b);
-	for(citerator i = res.first; i != res.second; i++) {
-		if(i->second == a) {
-			return; // we don't have to add it
+	unordered_set<DirectedReaction>& fwd = fwd_couplings[a];
+	unordered_set<DirectedReaction>& bwd = bwd_couplings[b];
+	fwd.insert(b);
+	bwd.insert(a);
+	foreach(DirectedReaction c, bwd) {
+		foreach(DirectedReaction d, fwd) {
+			// given:
+			// c -> b -> a -> d
+			// create:
+			// c -> d
+			fwd_couplings[c].insert(d);
+			bwd_couplings[d].insert(c);
 		}
 	}
-	// the element was not found, so add it.
-	couplings.insert(pair<DirectedReaction, DirectedReaction>(b,a));
 }
 
 bool Coupling::isCoupled(DirectedReaction a, DirectedReaction b)  {
