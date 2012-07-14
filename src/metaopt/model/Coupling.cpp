@@ -57,8 +57,10 @@ void Coupling::addCoupled(DirectedReaction a, DirectedReaction b) {
 }
 
 void Coupling::computeClosure() {
+#ifndef SILENT
 	cout << "starting compute closure... ";
 	cout.flush();
+#endif
 	_TC.clear();
 	_to_tc_vec = std::vector<tc_vertex_t>(num_vertices(_G));;
 	/*_g_to_tc.clear();
@@ -83,7 +85,9 @@ void Coupling::computeClosure() {
 
 	transitive_closure(_G, _TC, g_to_tc, get(vertex_index, _G));
 	//transitive_closure(_G, _TC);
+#ifndef SILENT
 	cout << "finished" << endl;
+#endif
 	israw = false;
 }
 

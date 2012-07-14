@@ -195,6 +195,11 @@ public:
 	 */
 	double getSubScale(LPFluxPtr source);
 
+	/**
+	 * fetches the model that generated this LPFlux
+	 */
+	inline ModelPtr getModel();
+
 private:
 	ModelPtr _model;
 	boost::unordered_map<ReactionPtr, int> _reactions; // in the internal LP problem, columns are only identified by indices, so we have to map reactions to indices
@@ -208,6 +213,10 @@ private:
 	SCIP_RETCODE init_lp(bool exchange);
 	SCIP_RETCODE free_lp();
 };
+
+inline ModelPtr LPFlux::getModel() {
+	return _model;
+}
 
 typedef boost::shared_ptr<LPFlux> LPFluxPtr;
 
