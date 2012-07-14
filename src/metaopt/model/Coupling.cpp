@@ -57,12 +57,31 @@ void Coupling::addCoupled(DirectedReaction a, DirectedReaction b) {
 }
 
 void Coupling::computeClosure() {
-	cout << "starting compute closure";
+	cout << "starting compute closure... ";
 	cout.flush();
 	_TC.clear();
-	_g_to_tc.clear();
+	_to_tc_vec = std::vector<tc_vertex_t>(num_vertices(_G));;
+	/*_g_to_tc.clear();
 
-	transitive_closure(_G, _TC, _g_to_tc, get(vertex_index, _G));
+	struct map {
+		unordered_map<vertex_t, tc_vertex_t>& _tomap;
+
+		map(unordered_map<vertex_t, tc_vertex_t>& tomap) : _tomap(tomap) {}
+
+		tc_vertex_t& operator[](vertex_t v) {
+			return _tomap[v];
+		}
+	};
+
+	map m(_g_to_tc);*/
+
+	typedef boost::property_map<graph_t, boost::vertex_index_t>::const_type VertexIndexMap;
+	VertexIndexMap index_map = get(vertex_index, _G);
+
+	iterator_property_map < tc_vertex_t *, VertexIndexMap, tc_vertex_t, tc_vertex_t&> g_to_tc(&_to_tc_vec[0], index_map);
+
+
+	transitive_closure(_G, _TC, g_to_tc, get(vertex_index, _G));
 	//transitive_closure(_G, _TC);
 	cout << "finished" << endl;
 	israw = false;
@@ -73,18 +92,24 @@ bool Coupling::isCoupled(DirectedReaction a, DirectedReaction b) {
 	assert(!israw);
 	if(_vertices.find(a) == _vertices.end()) return false;
 	if(_vertices.find(b) == _vertices.end()) return false;
+
+	typedef boost::property_map<graph_t, boost::vertex_index_t>::const_type VertexIndexMap;
+	VertexIndexMap index_map = get(vertex_index, _G);
+
+	iterator_property_map < tc_vertex_t *, VertexIndexMap, tc_vertex_t, tc_vertex_t&> g_to_tc(&_to_tc_vec[0], index_map);
+
 	try {
-		tc_vertex_t va = _g_to_tc.at(_vertices.at(a));
-		tc_vertex_t vb = _g_to_tc.at(_vertices.at(b));
+		tc_vertex_t va = g_to_tc[_vertices.at(a)];
+		tc_vertex_t vb = g_to_tc[_vertices.at(b)];
 		bool res = is_adjacent(_TC, va, vb);
 		return res;
 	}
 	catch(std::exception& ex) {
 		cout << diagnostic_information(ex) << endl;
-		typedef pair<DirectedReaction, vertex_t> elem;
+		/*typedef pair<DirectedReaction, vertex_t> elem;
 		foreach(elem d, _vertices) {
-			assert(_g_to_tc.find(d.second) != _g_to_tc.end());
-		}
+			assert(g_to_tc.find(d.second) != g_to_tc.end());
+		}*/
 		assert(false);
 	}
 	return false;
@@ -168,8 +193,10 @@ shared_ptr<vector<CoverReaction> > Coupling::computeCover(boost::unordered_set<D
 	shared_ptr<vector<CoverReaction> > cover(new vector<CoverReaction>());
 	foreach(DirectedReaction d, maxima) {
 		CoverReaction c(d);
+		unanalyzed.erase(d);
 		for(unordered_set<DirectedReaction>::iterator i = unanalyzed.begin(); i != unanalyzed.end();) {
 			if(isCoupled(d,*i)) {
+				c.covered->push_back(*i);
 				i = unanalyzed.erase(i);
 			}
 			else {
@@ -194,7 +221,7 @@ shared_ptr<vector<CoverReaction> > Coupling::computeCover(boost::unordered_set<D
 
 string Coupling::getStat() {
 	stringstream ss;
-	ss << string("number of raw couplings: ") << num_edges(_G) << "number of aggregated couplings: " << num_edges(_TC);
+	ss << string("number of raw couplings: ") << num_edges(_G) << " number of aggregated couplings: " << num_edges(_TC);
 	return ss.str();
 }
 

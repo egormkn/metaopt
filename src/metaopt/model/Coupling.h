@@ -54,6 +54,7 @@ struct CoverReaction {
 	CoverReaction(DirectedReaction& r) : reaction(r), covered(new std::vector<DirectedReaction>()) {}
 };
 
+
 /**
  * This class manages directed flux coupling information on reactions.
  *
@@ -121,9 +122,12 @@ private:
 	typedef boost::graph_traits < tc_graph_t >::vertex_descriptor tc_vertex_t;
 	tc_graph_t _TC;
 
+	std::vector<tc_vertex_t> _to_tc_vec;
+
+
 	boost::unordered_map<DirectedReaction, vertex_t> _vertices;
 
-	boost::unordered_map<vertex_t, tc_vertex_t> _g_to_tc;
+	//boost::unordered_map<vertex_t, tc_vertex_t> _g_to_tc;
 
 	bool israw;
 };
