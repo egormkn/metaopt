@@ -11,6 +11,7 @@
 #include "ScipModel.h"
 #include "LPFlux.h"
 #include "metaopt/Uncopyable.h"
+#include "metaopt/model/scip/PotSpaceConstraint.h"
 
 namespace metaopt {
 
@@ -77,6 +78,12 @@ public:
 	 */
 	double getAlpha(ReactionPtr rxn);
 
+	/**
+	 * updates list of extra constraints
+	 */
+	void setExtraPotConstraints(boost::unordered_set<PotSpaceConstraintPtr>& psc);
+
+
 private:
 	std::vector<double> _primsol; // use vector to store primal solution to circumvent deallocation hassle
 
@@ -91,6 +98,9 @@ private:
 
 	SCIP_RETCODE init_lp();
 	SCIP_RETCODE free_lp();
+
+	boost::unordered_map<PotSpaceConstraintPtr, int> _extraConstraints;
+
 };
 
 typedef boost::shared_ptr<DualPotentials> DualPotentialsPtr;

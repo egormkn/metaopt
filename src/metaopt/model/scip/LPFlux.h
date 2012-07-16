@@ -15,6 +15,7 @@
 #include <boost/unordered_map.hpp>
 #include "metaopt/Uncopyable.h"
 #include "metaopt/model/scip/ISSupply.h"
+#include "metaopt/model/scip/PotSpaceConstraint.h"
 
 namespace metaopt {
 
@@ -200,6 +201,11 @@ public:
 	 */
 	inline ModelPtr getModel();
 
+	/**
+	 * updates list of extra constraints
+	 */
+	void setExtraPotConstraints(boost::unordered_set<PotSpaceConstraintPtr>& psc);
+
 private:
 	ModelPtr _model;
 	boost::unordered_map<ReactionPtr, int> _reactions; // in the internal LP problem, columns are only identified by indices, so we have to map reactions to indices
@@ -212,6 +218,9 @@ private:
 
 	SCIP_RETCODE init_lp(bool exchange);
 	SCIP_RETCODE free_lp();
+
+	boost::unordered_map<PotSpaceConstraintPtr, int> _extraConstraints;
+
 };
 
 inline ModelPtr LPFlux::getModel() {

@@ -233,7 +233,7 @@ struct UnknownReactionError : virtual boost::exception, virtual std::exception {
 typedef boost::error_info<struct tag_reaction_name,std::string> reaction_name;
 
 /** Typedef for easy use of foreach iteration through stoichiometry data */
-typedef std::pair<MetabolitePtr, double> Stoichiometry ;
+typedef std::pair<const MetabolitePtr, double> Stoichiometry ;
 
 
 /////////////////////////////////////

@@ -14,6 +14,7 @@
 #include "metaopt/scip/ScipError.h"
 
 using namespace std;
+using namespace boost;
 
 namespace metaopt {
 
@@ -96,7 +97,7 @@ void LPFlux::setLb(ReactionPtr r, double lb) {
 		BOOST_SCIP_CALL( SCIPlpiGetBounds(_lpi, ind, ind, NULL, &oub) );
 		BOOST_SCIP_CALL( SCIPlpiChgBounds(_lpi, 1, &ind, &lb, &oub) );
 	}
-	catch(exception &ex) {
+	catch(std::exception &ex) {
 		BOOST_SCIP_CALL( SCIP_ERROR );
 	}
 }
@@ -108,7 +109,7 @@ void LPFlux::setUb(ReactionPtr r, double ub) {
 		BOOST_SCIP_CALL( SCIPlpiGetBounds(_lpi, ind, ind, &olb, NULL) );
 		BOOST_SCIP_CALL( SCIPlpiChgBounds(_lpi, 1, &ind, &olb, &ub) );
 	}
-	catch(exception &ex) {
+	catch(std::exception &ex) {
 		BOOST_SCIP_CALL( SCIP_ERROR );
 	}
 }
@@ -449,6 +450,55 @@ void LPFlux::print() {
 		foreach(ReactionPtr r, _model->getReactions()) {
 			double f = getFlux(r);
 			if(f > EPSILON || f < -EPSILON) cout << r->getName() << ": " << f << endl;
+		}
+	}
+}
+
+void LPFlux::setExtraPotConstraints(unordered_set<PotSpaceConstraintPtr>& psc) {
+	// pot constraints are variables (we are working in the dual!)
+	int columns = _reactions.size() + _extraConstraints.size();
+	int dstat[columns];
+	//first _reactions.size() columns are variables of proper reactions and must be maintained
+	// mark all variables as to be retained and then mark variables that are to be deleted
+	for(int i = 0; i < columns; i++) dstat[i] = 0;
+	for(unordered_map<PotSpaceConstraintPtr, int>::iterator iter = _extraConstraints.begin(); iter != _extraConstraints.end(); ) {
+		if(psc.find(iter->first) == psc.end()) {
+			// constraint not included anymore -> delete it
+			dstat[iter->second] = 1;
+			iter = _extraConstraints.erase(iter); // increases to next entry
+		}
+		else {
+			// keep it
+			iter++;
+		}
+	}
+	BOOST_SCIP_CALL( SCIPlpiDelColset(_lpi, dstat) );
+#ifndef NDEBUG
+	for(unsigned int i = 0; i < _reactions.size(); i++) {
+		assert(dstat[i] == i); // reactions should keep indices
+	}
+#endif
+	int end = _reactions.size() + _extraConstraints.size();
+	foreach(PotSpaceConstraintPtr p, psc) {
+		unordered_map<PotSpaceConstraintPtr, int>::iterator iter = _extraConstraints.find(p);
+		if(iter != _extraConstraints.end()) {
+			iter->second = dstat[iter->second]; // update to new index
+		}
+		else {
+			_extraConstraints[p] = end++;
+			// constraint on mu is p->_coef * mu >= 0
+			// dual changes sign
+			double lb = -INFINITY;
+			double ub = 0;
+			double obj = 0;
+			vector<int> ind(p->_coef.size());
+			vector<double> coef(p->_coef.size());
+			foreach(Stoichiometry s, p->_coef) {
+				ind.push_back(_metabolites.at(s.first));
+				coef.push_back(s.second);
+			}
+			int beg = 0;
+			BOOST_SCIP_CALL( SCIPlpiAddCols(_lpi, 1, &obj, &lb, &ub, NULL, coef.size(), &beg, ind.data(), coef.data()) );
 		}
 	}
 }

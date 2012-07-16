@@ -16,6 +16,7 @@
 #include "metaopt/model/impl/FullModel.h"
 #include "boost/shared_ptr.hpp"
 #include "metaopt/model/Metabolite.h"
+#include "metaopt/model/scip/PotSpaceConstraint.h"
 
 #define CONSTRAINT_NAME "ThermoConstraint"
 #define CONSTRAINT_DESCRIPTION "This Constraint enforces thermodynamic feasible from the perspective of the flux variables. It is most efficient, if we do not optimize on the potentials"
@@ -54,6 +55,14 @@
 
 using namespace boost;
 using namespace std;
+
+struct SCIP_ConsData {
+	metaopt::PotSpaceConstraintPtr val;
+	metaopt::PotSpaceConstraint& operator*() {
+		return *val;
+	}
+	SCIP_ConsData(metaopt::PotSpaceConstraintPtr& v) : val(v) {}
+};
 
 namespace metaopt {
 
@@ -339,40 +348,52 @@ SCIP_RESULT ThermoConstraintHandler::branchIS(SolutionPtr& sol) {
 	}
 }
 
-inline void setDirection(ScipModelPtr& model, ISSupplyPtr& iss, SCIP_NODE*& node, CoverReaction& c) {
+void ThermoConstraintHandler::setDirection(ISSupplyPtr& iss, SCIP_NODE*& node, CoverReaction& c) {
+	ScipModelPtr model = getScip();
 	if(c.covered->empty()) {
 		model->setDirection(node, c.reaction._rxn, !c.reaction._fwd);
 	}
 	else {
 		// we definitely can block the flux through the covering reaction
 		model->setBlockedFlux(node, c.reaction._rxn, c.reaction._fwd);
-		// if we have potential variables, we can also reduce the potential space
-		if(model->hasPotentials()) {
-			// on the branching step, we will not set the direction of a reaction,
-			// but only disable flux through the covering reaction.
-			// However, we can also constrain the flux space (and should do so),
-			// by enforcing that the potential difference of the sum of the covering and the covered reactions to have a specific sign (depending on fwd).
-			unordered_map<MetabolitePtr, double> stoich(c.reaction._rxn->getStoichiometries());
-			double a = iss->getAlpha(c.reaction._rxn);
-			foreach(DirectedReaction d, *(c.covered)) {
-				double da = iss->getAlpha(d._rxn);
-				foreach(Stoichiometry s, d._rxn->getStoichiometries()) {
-					double sval = 0;
-					unordered_map<MetabolitePtr, double>::iterator iter = stoich.find(s.first);
-					if(iter != stoich.end()) sval = iter->second;
-					sval += (da / a) * s.second;
-					stoich[s.first] = sval;
-				}
-			}
 
+		// on the branching step, we will not set the direction of a reaction,
+		// but only disable flux through the covering reaction.
+		// However, we can also constrain the flux space (and should do so),
+		// by enforcing that the potential difference of the sum of the covering and the covered reactions to have a specific sign (depending on fwd).
+		PotSpaceConstraintPtr psc(new PotSpaceConstraint());
+		psc->_coef = unordered_map<MetabolitePtr, double>(c.reaction._rxn->getStoichiometries());
+		double a = iss->getAlpha(c.reaction._rxn);
+		foreach(DirectedReaction d, *(c.covered)) {
+			double da = iss->getAlpha(d._rxn);
+			foreach(Stoichiometry s, d._rxn->getStoichiometries()) {
+				double sval = 0;
+				unordered_map<MetabolitePtr, double>::iterator iter = psc->_coef.find(s.first);
+				if(iter != psc->_coef.end()) sval = iter->second;
+				sval += (da / a) * s.second;
+				psc->_coef[s.first] = sval;
+			}
+		}
+		// the pot space constraint will always be formulated as _coef * mu >= 0
+		if(!c.reaction._fwd) {
+			// if we block backward flux, the potential difference should be negative, hence we have to switch the signs
+			foreach(Stoichiometry& s, psc->_coef) {
+				s.second *= -1;
+			}
+		}
+		// reduce the indirect potential space
+		addPotSpaceConstraint(psc, node);
+
+		// if we have potential variables, we can also reduce the potential space directly
+		if(model->hasPotentials()) {
 			// if we block forward flux, this means that the potential difference must be nonnegative
-			double lhs = c.reaction._fwd?0:-INFINITY;
-			double rhs = c.reaction._fwd?INFINITY:0;
+			double lhs = 0;
+			double rhs = INFINITY;
 
 			// transform data into usable format
 			vector<SCIP_VAR*> vars;
 			vector<double> coef;
-			foreach(Stoichiometry s, stoich) {
+			foreach(Stoichiometry s, psc->_coef) {
 				assert(model->hasPotentialVar(s.first)); // if we have some potential variables, we assume, that we have all potential variables
 				vars.push_back(model->getPotential(s.first));
 				coef.push_back(s.second);
@@ -398,14 +419,14 @@ SCIP_RESULT ThermoConstraintHandler::branch(unordered_set<DirectedReaction>& bra
 	else if(cover->size() == 1) {
 		CoverReaction c = *(cover->begin());
 		SCIP_NODE* node = SCIPgetCurrentNode(model->getScip());
-		setDirection(model, iss, node, c); // restrict reaction to backward direction
+		setDirection(iss, node, c); // restrict reaction to backward direction
 		return SCIP_REDUCEDDOM;
 	}
 	else {
 		// we have to branch
 		foreach(CoverReaction c, *cover) {
 			ReactionPtr& rxn = c.reaction._rxn;
-			double val = iss->getAlpha(rxn);
+			//double val = iss->getAlpha(rxn);
 			SCIP_NODE* node;
 #if THERMOCONS_USE_AGGR_RXN
 			double prio = val/_reducedScip->getFlux(sol, aggrrxn); // idea: small reductions are better than large ones
@@ -415,7 +436,7 @@ SCIP_RESULT ThermoConstraintHandler::branch(unordered_set<DirectedReaction>& bra
 #endif
 			//double prio = 1.0;
 			BOOST_SCIP_CALL( SCIPcreateChild(model->getScip(), &node, prio, SCIPtransformObj(model->getScip(),SCIPgetSolOrigObj(model->getScip(), sol.get()))) ); // estimate must SCIPgetSolTransObj(scip, NULL)-lpobjval/prio)be for transformed node, sp transform estimated value for orig prob
-			setDirection(model, iss, node, c); // restrict reaction to backward direction
+			setDirection(iss, node, c); // restrict reaction to backward direction
 		}
 		return SCIP_BRANCHED;
 	}
@@ -451,6 +472,18 @@ SCIP_RETCODE ThermoConstraintHandler::enforce(SCIP_CONS** conss, int nconss, SCI
 	// default is feasible, unless we find something that contradicts this
 	*result = SCIP_FEASIBLE;
 	try {
+
+		//configure additional cons to helper variables
+		unordered_set<PotSpaceConstraintPtr> extra;
+		for(int i = 0; i < nconss; i++) {
+			SCIP_ConsData* data = SCIPconsGetData(conss[i]);
+			extra.insert(data->val);
+		}
+		_cycle_find->setExtraPotConstraints(extra); // used to find objecitve cycles
+		_is_find->setExtraPotConstraints(extra); // used to find general infeasible sets
+		// the other LPFluxS are not used as ISSuply
+
+
 		// 1st step: try finding objective cycles
 		SolutionPtr solptr = wrap_weak(sol);
 		*result = enforceObjectiveCycles(solptr);
@@ -597,6 +630,7 @@ SCIP_RETCODE ThermoConstraintHandler::scip_prop(
 	catch( boost::exception& ex) {
 		return SCIP_ERROR;
 	}
+	return SCIP_ERROR;
 }
 
 /// Feasibility check method of constraint handler for primal solutions.
@@ -918,5 +952,31 @@ SCIP_RETCODE ThermoConstraintHandler::scip_print(
 	fprintf(file,CONSTRAINT_NAME);
 	return SCIP_OKAY;
 }
+
+void ThermoConstraintHandler::addPotSpaceConstraint(PotSpaceConstraintPtr psc, SCIP_NODE* node) {
+	SCIP_CONS* cons;
+	SCIP* scip = getScip()->getScip();
+	SCIP_CONSHDLR* hdlr = SCIPfindConshdlr(scip, CONSTRAINT_NAME);
+
+	SCIP_ConsData* data = new SCIP_ConsData(psc); // will be freed by ThermoConstraintHandler::scip_delete
+
+	SCIPcreateCons(scip, &cons, "potSpaceCon", hdlr, data, true, true, true, false, true, true, false, false, false, true);
+	SCIPaddConsNode(scip, node, cons, NULL);
+	SCIPreleaseCons(scip, &cons);
+}
+
+SCIP_RETCODE ThermoConstraintHandler::scip_delete(
+		SCIP* 				scip,               /**< SCIP data structure */
+		SCIP_CONSHDLR*		conshdlr,           /**< the constraint handler itself */
+		SCIP_CONS*			cons,				/**< constraint that will be deleted */
+		SCIP_CONSDATA**		data				/**< constraint data to free */
+) {
+	if(data != NULL) {
+		free(*data);
+		data = NULL;
+	}
+	return SCIP_OKAY;
+}
+
 
 } /* namespace metaopt */
