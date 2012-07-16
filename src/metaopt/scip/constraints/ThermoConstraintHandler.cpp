@@ -18,7 +18,7 @@
 #include "metaopt/model/Metabolite.h"
 #include "metaopt/model/scip/PotSpaceConstraint.h"
 
-#define CONSTRAINT_NAME "ThermoConstraint"
+#define CONSTRAINT_NAME THERMO_CONSTRAINT_NAME
 #define CONSTRAINT_DESCRIPTION "This Constraint enforces thermodynamic feasible from the perspective of the flux variables. It is most efficient, if we do not optimize on the potentials"
 
 // A note on priorities:
@@ -77,7 +77,7 @@ ThermoConstraintHandler::ThermoConstraintHandler(ScipModelPtr model) :
 			PROP_FREQ,
 			EAGER_FREQ,
 			MAX_PRESOLVER_ROUNDS,
-			DELAY_SEPA, DELAY_PROP, DELAY_PRESOL, FALSE, PROPAGATION_TIMING),
+			DELAY_SEPA, DELAY_PROP, DELAY_PRESOL, TRUE, PROPAGATION_TIMING), // set it needs cons (although it actually doesn't), since we want to add constraints on the virtual potential space to this handler
 	_smodel(model),
 	_model(model->getModel()),
 	_pbp(model->getModel())
@@ -477,7 +477,9 @@ SCIP_RETCODE ThermoConstraintHandler::enforce(SCIP_CONS** conss, int nconss, SCI
 		unordered_set<PotSpaceConstraintPtr> extra;
 		for(int i = 0; i < nconss; i++) {
 			SCIP_ConsData* data = SCIPconsGetData(conss[i]);
-			extra.insert(data->val);
+			if(data != NULL) { // there is exactly one constraint with ConsData == NULL, which is the initial constraint
+				extra.insert(data->val);
+			}
 		}
 		_cycle_find->setExtraPotConstraints(extra); // used to find objecitve cycles
 		_is_find->setExtraPotConstraints(extra); // used to find general infeasible sets

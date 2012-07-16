@@ -25,6 +25,7 @@
 
 namespace metaopt {
 
+#define THERMO_CONSTRAINT_NAME "ThermoConstraint"
 
 class ThermoConstraintHandler: public scip::ObjConshdlr, Uncopyable {
 public:
@@ -266,7 +267,14 @@ inline ScipModelPtr ThermoConstraintHandler::getScip() {
  */
 inline void createThermoConstraint(ScipModelPtr model) {
 	ThermoConstraintHandler* handler = new ThermoConstraintHandler(model);
-	BOOST_SCIP_CALL( SCIPincludeObjConshdlr( model->getScip(), handler, TRUE ) );
+	SCIP* scip = model->getScip();
+	BOOST_SCIP_CALL( SCIPincludeObjConshdlr( scip, handler, TRUE ) );
+	// we now have to add the default constraint
+	SCIP_CONSHDLR* hdlr = SCIPfindConshdlr( scip, THERMO_CONSTRAINT_NAME);
+	SCIP_CONS* cons;
+	BOOST_SCIP_CALL( SCIPcreateCons(scip, &cons, "default thermo constraint", hdlr, NULL, true, true, true, true, true, false, false, false, false, false) );
+	BOOST_SCIP_CALL( SCIPaddCons(scip, cons) );
+	BOOST_SCIP_CALL( SCIPreleaseCons(scip, &cons) );
 }
 
 /**
@@ -275,7 +283,14 @@ inline void createThermoConstraint(ScipModelPtr model) {
 inline void createThermoConstraint(ScipModelPtr model, CouplingPtr c) {
 	ThermoConstraintHandler* handler = new ThermoConstraintHandler(model);
 	handler->setCouplingHint(c);
-	BOOST_SCIP_CALL( SCIPincludeObjConshdlr( model->getScip(), handler, TRUE ) );
+	SCIP* scip = model->getScip();
+	BOOST_SCIP_CALL( SCIPincludeObjConshdlr( scip, handler, TRUE ) );
+	// we now have to add the default constraint
+	SCIP_CONSHDLR* hdlr = SCIPfindConshdlr( scip, THERMO_CONSTRAINT_NAME);
+	SCIP_CONS* cons;
+	BOOST_SCIP_CALL( SCIPcreateCons(scip, &cons, "default thermo constraint", hdlr, NULL, true, true, true, true, true, false, false, false, false, false) );
+	BOOST_SCIP_CALL( SCIPaddCons(scip, cons) );
+	BOOST_SCIP_CALL( SCIPreleaseCons(scip, &cons) );
 }
 
 
