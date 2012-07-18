@@ -104,7 +104,7 @@ CC=g++
 # This has the additional consequence that the -rpath option has to be preceded by -Xlinker, since it is not a direct g++ command
 LD=g++
 
-DEBUGFLAGS=-g3 -fno-inline -O0
+DEBUGFLAGS=-g3 -fno-inline -O0 -D_GLIBCXX_DEBUG
 
 CFLAGS=-Wall -fPIC $(DEBUGFLAGS)
 LDFLAGS=-shared

@@ -5,12 +5,13 @@
  *      Author: arnem
  */
 
+#include "metaopt/Properties.h"
+
 #include <map>
 #include <vector>
 #include <iostream>
 #include "LPFlux.h"
 #include "objscip/objscip.h"
-#include "metaopt/Properties.h"
 #include "metaopt/scip/ScipError.h"
 
 using namespace std;
@@ -501,6 +502,10 @@ void LPFlux::setExtraPotConstraints(unordered_set<PotSpaceConstraintPtr>& psc) {
 			BOOST_SCIP_CALL( SCIPlpiAddCols(_lpi, 1, &obj, &lb, &ub, NULL, coef.size(), &beg, ind.data(), coef.data()) );
 		}
 	}
+	assert(end == _reactions.size() + _extraConstraints.size());
+	SCIPlpiClearState(_lpi); // hmm... very ugly
+	// we also have to adjust the size of the primsol vector
+	_primsol.resize(end, 0);
 }
 
 

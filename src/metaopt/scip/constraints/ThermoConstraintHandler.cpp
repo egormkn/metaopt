@@ -4,6 +4,7 @@
  *  Created on: Apr 27, 2012
  *      Author: arne
  */
+#include "metaopt/Properties.h"
 
 #include <iostream>
 #include <vector>
@@ -58,10 +59,7 @@ using namespace std;
 
 struct SCIP_ConsData {
 	metaopt::PotSpaceConstraintPtr val;
-	metaopt::PotSpaceConstraint& operator*() {
-		return *val;
-	}
-	SCIP_ConsData(metaopt::PotSpaceConstraintPtr& v) : val(v) {}
+	SCIP_ConsData(metaopt::PotSpaceConstraintPtr v) : val(v) {}
 };
 
 namespace metaopt {
@@ -79,8 +77,10 @@ ThermoConstraintHandler::ThermoConstraintHandler(ScipModelPtr model) :
 			MAX_PRESOLVER_ROUNDS,
 			DELAY_SEPA, DELAY_PROP, DELAY_PRESOL, TRUE, PROPAGATION_TIMING), // set it needs cons (although it actually doesn't), since we want to add constraints on the virtual potential space to this handler
 	_smodel(model),
-	_model(model->getModel()),
+	_model(model->getModel()) //,
+#if 0
 	_pbp(model->getModel())
+#endif
 {
 	// initialization of helper variables is done after presolving to account for improvements of the presolver.
 }
@@ -352,6 +352,22 @@ void ThermoConstraintHandler::setDirection(ISSupplyPtr& iss, SCIP_NODE*& node, C
 	ScipModelPtr model = getScip();
 	if(c.covered->empty()) {
 		model->setDirection(node, c.reaction._rxn, !c.reaction._fwd);
+		// actually, we should test, if the model has some method to store fixed directions
+		// if it does, we do not need to add the extra PotSpaceConstraint
+		// since we don't check, we'll always add the constraint
+		PotSpaceConstraintPtr psc(new PotSpaceConstraint());
+		if(c.reaction._fwd) {
+			foreach(Stoichiometry s, c.reaction._rxn->getStoichiometries()) {
+				psc->_coef[s.first] = s.second;
+			}
+		}
+		else {
+			foreach(Stoichiometry s, c.reaction._rxn->getStoichiometries()) {
+				psc->_coef[s.first] = -s.second;
+			}
+		}
+		// reduce the indirect potential space
+		addPotSpaceConstraint(psc, node);
 	}
 	else {
 		// we definitely can block the flux through the covering reaction
@@ -477,7 +493,7 @@ SCIP_RETCODE ThermoConstraintHandler::enforce(SCIP_CONS** conss, int nconss, SCI
 		unordered_set<PotSpaceConstraintPtr> extra;
 		for(int i = 0; i < nconss; i++) {
 			SCIP_ConsData* data = SCIPconsGetData(conss[i]);
-			if(data != NULL) { // there is exactly one constraint with ConsData == NULL, which is the initial constraint
+			if(data != NULL && data->val != NULL) { // there is exactly one constraint with ConsData == NULL, which is the initial constraint
 				extra.insert(data->val);
 			}
 		}
@@ -543,6 +559,7 @@ SCIP_RETCODE ThermoConstraintHandler::check(SCIP_CONS** conss, int nconss, SCIP_
 }
 
 SCIP_RESULT ThermoConstraintHandler::propagate() {
+#if 0
 	ScipModelPtr scip = getScip();
 	_pbp.update(scip);
 	shared_ptr<std::vector<std::pair<ReactionPtr,bool> > > blocked = _pbp.getBlockedReactions();
@@ -572,6 +589,9 @@ SCIP_RESULT ThermoConstraintHandler::propagate() {
 	else {
 		return SCIP_DIDNOTFIND;
 	}
+#else
+	return SCIP_DIDNOTRUN;
+#endif
 }
 
 /// Constraint enforcing method of constraint handler for LP solutions.
@@ -939,7 +959,19 @@ SCIP_RETCODE ThermoConstraintHandler::scip_trans(
 		SCIP_CONS**        targetcons          /**< pointer to store created target constraint */
 		)
 {
-	// we don't have any constraints that need transforming
+	// constraint data does not need to be transformed, we can use the original
+    // create new constraint with a value copy of the constraint data
+	// we have to do a value copy, else we get problems at deletion
+	SCIP_ConsData* data = SCIPconsGetData(sourcecons);
+	SCIP_ConsData* copy = NULL;
+	if(data != NULL) {
+		copy = new SCIP_ConsData(PotSpaceConstraintPtr(data->val));
+	}
+	SCIP_CALL(  SCIPcreateCons(scip, targetcons, SCIPconsGetName(sourcecons), conshdlr, copy,
+            SCIPconsIsInitial(sourcecons), SCIPconsIsSeparated(sourcecons), SCIPconsIsEnforced(sourcecons),
+            SCIPconsIsChecked(sourcecons), SCIPconsIsPropagated(sourcecons),
+            SCIPconsIsLocal(sourcecons), SCIPconsIsModifiable(sourcecons),
+            SCIPconsIsDynamic(sourcecons), SCIPconsIsRemovable(sourcecons), SCIPconsIsStickingAtNode(sourcecons))  );
 	return SCIP_OKAY;
 }
 
@@ -960,7 +992,8 @@ void ThermoConstraintHandler::addPotSpaceConstraint(PotSpaceConstraintPtr psc, S
 	SCIP* scip = getScip()->getScip();
 	SCIP_CONSHDLR* hdlr = SCIPfindConshdlr(scip, CONSTRAINT_NAME);
 
-	SCIP_ConsData* data = new SCIP_ConsData(psc); // will be freed by ThermoConstraintHandler::scip_delete
+	//SCIP_ConsData* data = new SCIP_ConsData(psc); // will be freed by ThermoConstraintHandler::scip_delete
+	SCIP_ConsData* data = new SCIP_ConsData(PotSpaceConstraintPtr(psc));
 
 	SCIPcreateCons(scip, &cons, "potSpaceCon", hdlr, data, true, true, true, false, true, true, false, false, false, true);
 	SCIPaddConsNode(scip, node, cons, NULL);
@@ -973,9 +1006,10 @@ SCIP_RETCODE ThermoConstraintHandler::scip_delete(
 		SCIP_CONS*			cons,				/**< constraint that will be deleted */
 		SCIP_CONSDATA**		data				/**< constraint data to free */
 ) {
-	if(data != NULL) {
-		free(*data);
-		data = NULL;
+	if(*data != NULL) {
+		// delete the pointer to the shared pointer
+		delete *data;
+		*data = NULL;
 	}
 	return SCIP_OKAY;
 }

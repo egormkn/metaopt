@@ -5,6 +5,8 @@
  *      Author: arnem
  */
 
+#include "metaopt/Properties.h"
+
 #include "Coupling.h"
 #include <iostream>
 #include <utility>                   // for std::pair

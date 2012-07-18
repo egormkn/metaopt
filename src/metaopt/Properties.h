@@ -16,4 +16,6 @@
     #define foreach BOOST_FOREACH
 #endif
 
+//#define _GLIBCXX_DEBUG
+
 #endif

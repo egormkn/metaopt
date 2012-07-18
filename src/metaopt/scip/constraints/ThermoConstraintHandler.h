@@ -209,7 +209,9 @@ private:
 	LPPotentialsPtr _pot_test;
 
 	// propagates potential bounds that can be used to detect disabled reactions
+#if 0
 	PotBoundPropagation2 _pbp;
+#endif
 
 #if THERMOCONS_USE_AGGR_RXN
 	// reduced model after presolve

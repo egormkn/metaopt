@@ -367,6 +367,9 @@ void DualPotentials::setExtraPotConstraints(unordered_set<PotSpaceConstraintPtr>
 			BOOST_SCIP_CALL( SCIPlpiAddCols(_lpi, 1, &obj, &lb, &ub, NULL, coef.size(), &beg, ind.data(), coef.data()) );
 		}
 	}
+	assert(end == EXTRA + _extraConstraints.size());
+	SCIPlpiClearState(_lpi); // hmm... very ugly
+	_primsol.resize(end, 0);
 }
 
 } /* namespace metaopt */
