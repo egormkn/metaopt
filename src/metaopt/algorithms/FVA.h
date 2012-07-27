@@ -14,6 +14,8 @@
 #include "metaopt/model/Model.h"
 #include "metaopt/model/scip/LPFlux.h"
 
+#include "metaopt/algorithms/ModelFactory.h"
+
 namespace metaopt {
 
 /**
@@ -31,6 +33,8 @@ void fva(ModelPtr model, boost::unordered_map<ReactionPtr,double >& min , boost:
  * If min,max are not empty, existing values may be overridden.
  */
 void fva(LPFluxPtr model, boost::unordered_map<ReactionPtr,double >& min , boost::unordered_map<ReactionPtr,double >& max );
+
+void fva(ModelPtr model, ModelFactory& factory, boost::unordered_map<ReactionPtr,double >& min , boost::unordered_map<ReactionPtr,double >& max );
 
 } /* namespace metaopt */
 #endif /* FVA_H_ */

@@ -451,7 +451,9 @@ SCIP_RESULT ThermoConstraintHandler::branch(unordered_set<DirectedReaction>& bra
 			double prio = model->getFlux(sol, rxn); // idea: small reductions are better than large ones
 #endif
 			//double prio = 1.0;
-			BOOST_SCIP_CALL( SCIPcreateChild(model->getScip(), &node, prio, SCIPtransformObj(model->getScip(),SCIPgetSolOrigObj(model->getScip(), sol.get()))) ); // estimate must SCIPgetSolTransObj(scip, NULL)-lpobjval/prio)be for transformed node, sp transform estimated value for orig prob
+			double estimate = SCIPgetLocalTransEstimate(model->getScip()); // it may not give any improvement
+			//double estimate = SCIPtransformObj(model->getScip(),SCIPgetSolOrigObj(model->getScip(), sol.get())); // estimate must SCIPgetSolTransObj(scip, NULL)-lpobjval/prio)be for transformed node, sp transform estimated value for orig prob
+			BOOST_SCIP_CALL( SCIPcreateChild(model->getScip(), &node, prio, estimate) );
 			setDirection(iss, node, c); // restrict reaction to backward direction
 		}
 		return SCIP_BRANCHED;
@@ -863,6 +865,7 @@ SCIP_RETCODE ThermoConstraintHandler::scip_exitpre(
 		_coupling = CouplingPtr(new Coupling()); // if not supplied with external coupling information, start from scratch
 	}
 
+#if 1
 	// this map maps the transformed variables to their original reaction
 	unordered_map<SCIP_VAR*, ReactionPtr> toOriginal;
 	foreach(ReactionPtr rxn, _model->getReactions()) {
@@ -936,6 +939,7 @@ SCIP_RETCODE ThermoConstraintHandler::scip_exitpre(
 		}
 	}
 	_coupling->computeClosure();
+#endif
 
 	// init helper variables
 	_cycle_find = LPFluxPtr( new LPFlux(_model, false));

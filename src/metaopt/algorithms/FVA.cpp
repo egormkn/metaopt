@@ -36,4 +36,25 @@ void fva(LPFluxPtr flux, boost::unordered_map<ReactionPtr,double >& min , boost:
 	}
 }
 
+void fva(ModelPtr model, ModelFactory& factory, boost::unordered_map<ReactionPtr,double >& min , boost::unordered_map<ReactionPtr,double >& max ) {
+	foreach(ReactionPtr a, model->getReactions()) {
+		a->setObj(0);
+	}
+	foreach(MetabolitePtr a, model->getMetabolites()) {
+		a->setPotObj(0);
+	}
+	foreach(ReactionPtr a, model->getReactions()) {
+		a->setObj(1);
+		ScipModelPtr scip = factory.build(model);
+		scip->setObjectiveSense(true);
+		scip->solve();
+		max[a] = scip->getObjectiveValue();
+		scip = factory.build(model);
+		scip->setObjectiveSense(false);
+		scip->solve();
+		min[a] = scip->getObjectiveValue();
+		a->setObj(0);
+	}
+}
+
 } /* namespace metaopt */
