@@ -55,6 +55,12 @@ SRC_METAOPT_SCIP_HEUR=CycleDeletionHeur.cpp
 SRC_METAOPT_SCIP_HEUR_DIR=heur
 SRC_METAOPT_ALGORITHMS=FCA.cpp FVA.cpp ModelFactory.cpp FluxForcing.cpp
 SRC_METAOPT_ALGORITHMS_DIR=algorithms
+ifeq ($(MATLAB),off)
+	SRC_METAOPT_MATLAB=
+else
+	SRC_METAOPT_MATLAB=ExitEventHandler.cpp metaopt_mex.cpp
+endif
+SRC_METAOPT_MATLAB_DIR=matlab
 
 SRC_METAOPT_MODEL+=$(patsubst %,$(SRC_METAOPT_MODEL_SBML_DIR)/%,$(SRC_METAOPT_MODEL_SBML))
 SRC_METAOPT_MODEL+=$(patsubst %,$(SRC_METAOPT_MODEL_MATLAB_DIR)/%,$(SRC_METAOPT_MODEL_MATLAB))
@@ -66,12 +72,14 @@ SRC_METAOPT_SCIP+=$(patsubst %,$(SRC_METAOPT_SCIP_CONSTRAINTS_DIR)/%,$(SRC_METAO
 SRC_METAOPT_SCIP+=$(patsubst %,$(SRC_METAOPT_SCIP_HEUR_DIR)/%,$(SRC_METAOPT_SCIP_HEUR))
 SRC_METAOPT+=$(patsubst %,$(SRC_METAOPT_SCIP_DIR)/%,$(SRC_METAOPT_SCIP))
 SRC_METAOPT+=$(patsubst %,$(SRC_METAOPT_ALGORITHMS_DIR)/%,$(SRC_METAOPT_ALGORITHMS))
+SRC_METAOPT+=$(patsubst %,$(SRC_METAOPT_MATLAB_DIR)/%,$(SRC_METAOPT_MATLAB))
 SRC+=$(patsubst %,$(SRC_METAOPT_DIR)/%,$(SRC_METAOPT))
 
 SOURCES=$(patsubst %,$(SRC_DIR)/%,$(SRC))
 OBJECTS=$(patsubst %.cpp,$(OBJ_DIR)/%.o,$(SRC))
 LIBRARY=libthermo.so
 
+MEXTGT=metaopt.mexa64
 
 #depending if SBML is turned on, we have to setup the include and linker correctily
 ifeq ($(SBML),off)
@@ -96,7 +104,10 @@ else
 	LMATLAB=-L$(MATLAB_LIB)
 	RMATLAB=$(MATLAB_LIB)
 	libMATLAB=-lmat -lmx -lut
+	
+	MEXFLAG=-m64 -shared -DMATLAB_MEX_FILE -Wl
 endif
+
 
 
 CC=g++
@@ -109,7 +120,7 @@ DEBUGFLAGS=-g3 -fno-inline -O0 -D_GLIBCXX_DEBUG
 CFLAGS=-Wall -fPIC $(DEBUGFLAGS)
 LDFLAGS=-shared
 
-all : obj_dir $(BIN_DIR)/$(LIBRARY)
+all : obj_dir $(BIN_DIR)/$(LIBRARY) $(BIN_DIR)/$(MEXTGT)
 
 obj_dir :
 	mkdir -p $(dir $(OBJECTS))
@@ -117,6 +128,10 @@ obj_dir :
 clean :
 	rm -Rf $(OBJ_DIR)
 	rm -Rf $(BIN_DIR)
+
+$(BIN_DIR)/$(MEXTGT) : $(OBJECTS)
+	mkdir -p $(BIN_DIR)
+	$(LD) -o $@ $(MEXFLAG) $(OBJECTS) -L$(SCIP_LIB) $(LSBML) $(LMATLAB) -Xlinker -rpath=$(SCIP_LIB):$(RSBML):$(RMATLAB) $(libSBML) $(libMATLAB) -lscip -lobjscip -llpispx -lnlpi -lsoplex -lzimpl -lz -lgmp -lreadline -lncurses -lm
 
 $(BIN_DIR)/$(LIBRARY) : $(OBJECTS)
 	mkdir -p $(BIN_DIR)

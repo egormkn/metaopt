@@ -5,6 +5,8 @@
  *      Author: arne
  */
 
+#include <iostream>
+
 #include "FVA.h"
 #include "metaopt/Properties.h"
 
@@ -43,6 +45,8 @@ void fva(ModelPtr model, ModelFactory& factory, boost::unordered_map<ReactionPtr
 	foreach(MetabolitePtr a, model->getMetabolites()) {
 		a->setPotObj(0);
 	}
+
+	int i = 0;
 	foreach(ReactionPtr a, model->getReactions()) {
 		a->setObj(1);
 		ScipModelPtr scip = factory.build(model);
@@ -54,6 +58,10 @@ void fva(ModelPtr model, ModelFactory& factory, boost::unordered_map<ReactionPtr
 		scip->solve();
 		min[a] = scip->getObjectiveValue();
 		a->setObj(0);
+
+		std::cout << std::endl;
+		std::cout << "solved " << i << " : " << a->getName() << std::endl;
+		std::cout << std::endl;
 	}
 }
 
