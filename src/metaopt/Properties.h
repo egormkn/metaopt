@@ -2,6 +2,9 @@
  * This header file stores global properties
  */
 
+#include <cstddef>
+#include <boost/shared_ptr.hpp>
+
 #ifndef PROPERTIES_H_
 #define PROPERTIES_H_
 
@@ -15,6 +18,16 @@
 #else
     #define foreach BOOST_FOREACH
 #endif
+
+namespace boost
+{
+   template <class T>
+   std::size_t
+   hash_value(boost::shared_ptr<T> const & _ptr)
+   {
+      return reinterpret_cast<std::size_t>( _ptr.get() );
+   }
+}
 
 //#define _GLIBCXX_DEBUG
 

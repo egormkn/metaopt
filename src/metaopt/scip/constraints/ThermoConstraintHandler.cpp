@@ -82,7 +82,17 @@ ThermoConstraintHandler::ThermoConstraintHandler(ScipModelPtr model) :
 	_pbp(model->getModel())
 #endif
 {
-	// initialization of helper variables is done after presolving to account for improvements of the presolver.
+	// initialization of helper variables is not done after presolving
+	// currently we do not account for improvements of the presolver that way.
+
+	// init helper variables
+	_cycle_find = LPFluxPtr( new LPFlux(_model, false));
+	_cycle_find->setObjSense(false); // minimize
+	_cycle_test = LPFluxPtr( new LPFlux(_model, false));
+	_cycle_test->setObjSense(true); // maximize
+	_flux_simpl = LPFluxPtr( new LPFlux(_model, true));
+	_is_find = DualPotentialsPtr( new DualPotentials(_model));
+	_pot_test = LPPotentialsPtr( new LPPotentials(_model)); // this cannot be initialized after presolving, because check may already be run earlier
 }
 
 ThermoConstraintHandler::~ThermoConstraintHandler() {
@@ -940,15 +950,6 @@ SCIP_RETCODE ThermoConstraintHandler::scip_exitpre(
 	}
 	_coupling->computeClosure();
 #endif
-
-	// init helper variables
-	_cycle_find = LPFluxPtr( new LPFlux(_model, false));
-	_cycle_find->setObjSense(false); // minimize
-	_cycle_test = LPFluxPtr( new LPFlux(_model, false));
-	_cycle_test->setObjSense(true); // maximize
-	_flux_simpl = LPFluxPtr( new LPFlux(_model, true));
-	_is_find = DualPotentialsPtr( new DualPotentials(_model));
-	_pot_test = LPPotentialsPtr( new LPPotentials(_model));
 
 #endif
 
