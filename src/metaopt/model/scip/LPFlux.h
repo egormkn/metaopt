@@ -16,6 +16,7 @@
 #include "metaopt/Uncopyable.h"
 #include "metaopt/model/scip/ISSupply.h"
 #include "metaopt/model/scip/PotSpaceConstraint.h"
+#include "metaopt/Properties.h"
 
 namespace metaopt {
 

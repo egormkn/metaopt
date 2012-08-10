@@ -12,6 +12,7 @@
 
 #include "metaopt/model/scip/AbstractScipFluxModel.h"
 #include "metaopt/model/scip/ScipModel.h"
+#include "metaopt/Properties.h"
 
 namespace metaopt {
 

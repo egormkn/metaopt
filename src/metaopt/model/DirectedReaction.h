@@ -10,6 +10,7 @@
 #include <boost/graph/adjacency_list.hpp>
 
 #include "metaopt/model/Reaction.h"
+#include "metaopt/Properties.h"
 
 using namespace std;
 using namespace boost;

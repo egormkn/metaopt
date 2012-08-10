@@ -13,6 +13,7 @@
 #include "metaopt/model/Model.h"
 #include "metaopt/model/scip/ScipModel.h"
 #include "metaopt/algorithms/ModelFactory.h"
+#include "metaopt/Properties.h"
 
 
 namespace metaopt {

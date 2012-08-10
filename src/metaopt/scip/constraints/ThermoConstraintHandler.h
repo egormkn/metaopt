@@ -19,6 +19,7 @@
 #include "metaopt/model/Coupling.h"
 #include "metaopt/model/scip/ISSupply.h"
 #include "metaopt/model/scip/PotSpaceConstraint.h"
+#include "metaopt/Properties.h"
 
 // set to 1 to use aggregated reactions instead of the original reactions (not correctly implemented yet)
 #define THERMOCONS_USE_AGGR_RXN 0

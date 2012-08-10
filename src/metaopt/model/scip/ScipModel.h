@@ -17,6 +17,7 @@
 #include "Solution.h"
 #include "metaopt/scip/ScipError.h"
 #include "metaopt/Uncopyable.h"
+#include "metaopt/Properties.h"
 
 namespace metaopt {
 

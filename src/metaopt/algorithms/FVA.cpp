@@ -60,7 +60,7 @@ void fva(ModelPtr model, ModelFactory& factory, boost::unordered_map<ReactionPtr
 		a->setObj(0);
 
 		std::cout << std::endl;
-		std::cout << "solved " << i << " : " << a->getName() << std::endl;
+		std::cout << "solved " << ++i << " : " << a->getName() << std::endl;
 		std::cout << std::endl;
 	}
 }

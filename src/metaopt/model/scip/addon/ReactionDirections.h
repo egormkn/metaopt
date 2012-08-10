@@ -14,6 +14,7 @@
 #include "metaopt/scip/ScipError.h"
 #include "PotentialDifferences.h"
 #include "metaopt/model/scip/ModelAddOn.h"
+#include "metaopt/Properties.h"
 
 namespace metaopt {
 

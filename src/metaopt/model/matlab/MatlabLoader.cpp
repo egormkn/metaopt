@@ -289,6 +289,7 @@ ReactionPtr MatlabLoader::getReaction(int index) {
 	catch(std::exception& ex) {
 		stringstream msg;
 		msg << string("Unable to get reaction for index ") << index << " range: 0.." << (_reactions.size()-1);
+		cout << msg.str() << endl;
 		BOOST_THROW_EXCEPTION(MatlabLoaderError() << matlab_error_message(msg.str()));
 	}
 	return ReactionPtr();

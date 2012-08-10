@@ -10,6 +10,7 @@
 
 #include <boost/unordered_map.hpp>
 #include "scip/scip.h"
+#include "metaopt/Properties.h"
 
 namespace metaopt {
 

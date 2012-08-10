@@ -14,6 +14,7 @@
 #include <boost/shared_ptr.hpp>
 
 #include "metaopt/Uncopyable.h"
+#include "metaopt/Properties.h"
 
 namespace metaopt {
 

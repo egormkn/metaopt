@@ -13,6 +13,7 @@
 #include "metaopt/model/scip/LPFlux.h"
 #include "metaopt/model/scip/LPPotentials.h"
 #include "metaopt/Uncopyable.h"
+#include "metaopt/Properties.h"
 
 namespace metaopt {
 

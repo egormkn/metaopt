@@ -17,6 +17,7 @@
 
 #include "metaopt/model/Reaction.h"
 #include "metaopt/model/DirectedReaction.h"
+#include "metaopt/Properties.h"
 
 #ifdef BOOST_NO_TEMPLATE_PARTIAL_SPECIALIZATION
 #error The transitive closure algorithm uses partial specialization.

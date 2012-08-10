@@ -13,6 +13,7 @@
 #include <vector>
 #include "metaopt/model/Reaction.h"
 #include "metaopt/model/scip/PotSpaceConstraint.h"
+#include "metaopt/Properties.h"
 
 namespace metaopt {
 

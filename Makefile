@@ -105,7 +105,10 @@ CC=g++
 # This has the additional consequence that the -rpath option has to be preceded by -Xlinker, since it is not a direct g++ command
 LD=g++
 
-DEBUGFLAGS=-g3 -fno-inline -O0 -D_GLIBCXX_DEBUG
+DEBUGFLAGS=-g3 -fno-inline -O0 
+#-D_GLIBCXX_DEBUG
+
+#remark: If we compile the whole thing with _GLIBCXX_DEBUG defined every lib using this lib must also define _GLIBCXX_DEBUG. Otherwise we might get illegal writes in boost
 
 CFLAGS=-Wall -fPIC $(DEBUGFLAGS)
 LDFLAGS=-shared

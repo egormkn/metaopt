@@ -16,6 +16,7 @@
 #include <boost/foreach.hpp>
 #include <vector>
 #include "metaopt/Uncopyable.h"
+#include "metaopt/Properties.h"
 
 namespace metaopt {
 

@@ -14,6 +14,7 @@
 #include "Reaction.h"
 #include "Metabolite.h"
 #include "metaopt/Uncopyable.h"
+#include "metaopt/Properties.h"
 
 namespace metaopt {
 

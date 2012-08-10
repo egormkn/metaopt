@@ -10,6 +10,7 @@
 
 #include "metaopt/model/scip/addon/PotentialDifferences.h"
 #include "metaopt/model/scip/addon/ReactionDirections.h"
+#include "metaopt/Properties.h"
 
 namespace metaopt {
 

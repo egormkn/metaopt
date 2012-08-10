@@ -12,6 +12,7 @@
 #include "metaopt/model/scip/ScipModel.h"
 #include "metaopt/model/scip/ModelAddOn.h"
 #include <boost/unordered_map.hpp>
+#include "metaopt/Properties.h"
 
 namespace metaopt {
 

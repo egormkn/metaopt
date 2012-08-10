@@ -10,6 +10,7 @@
 
 #include "metaopt/model/Model.h"
 #include "metaopt/model/Coupling.h"
+#include "metaopt/Properties.h"
 
 namespace metaopt {
 

@@ -11,6 +11,7 @@
 #include "ScipModel.h"
 #include "LPFlux.h"
 #include "metaopt/Uncopyable.h"
+#include "metaopt/Properties.h"
 
 namespace metaopt {
 

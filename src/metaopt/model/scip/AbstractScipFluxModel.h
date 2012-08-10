@@ -10,6 +10,7 @@
 
 #include "metaopt/model/Model.h"
 #include "metaopt/model/scip/Solution.h"
+#include "metaopt/Properties.h"
 
 namespace metaopt {
 

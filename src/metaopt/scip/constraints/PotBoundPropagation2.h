@@ -14,6 +14,7 @@
 #include "metaopt/model/Model.h"
 #include "metaopt/model/scip/ScipModel.h"
 #include "objscip/objscip.h"
+#include "metaopt/Properties.h"
 
 namespace metaopt {
 
