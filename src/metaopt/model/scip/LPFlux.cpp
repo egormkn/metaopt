@@ -67,6 +67,27 @@ SCIP_RETCODE LPFlux::init_lp(bool exchange) {
 	_num_reactions = reaction_var;
 	_primsol.resize(_num_reactions,0); // allocate sufficient memory
 
+	int nrows;
+	SCIP_CALL( SCIPlpiGetNRows(_lpi, &nrows) );
+	if(nrows < _num_metabolites) {
+		// in particular with exchange=false it can happen that not all metabolites are used
+		// if the last metabolite is not used, the lpi matrix does not have enough rows
+		// in this case we fill it up with (empty) rows
+		double lhs = 0;
+		double rhs = 0;
+		int beg[0];
+		int ind[0];
+		double var[0];
+		for(int i = 0; i < _num_metabolites-nrows; i++) {
+			SCIP_CALL( SCIPlpiAddRows(_lpi, 1, &lhs, &rhs, NULL, 0, beg, ind, var) );
+		}
+	}
+
+#ifndef NDEBUG
+	SCIP_CALL( SCIPlpiGetNRows(_lpi, &nrows) );
+	assert(nrows == _num_metabolites);
+#endif
+
 	// set coefficients of rhs and lhs of every row to zero (steady state assupmtion)
 	// metabolites with boundary condition are already excluded
 	double zeros[_num_metabolites];

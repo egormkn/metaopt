@@ -81,6 +81,30 @@ SCIP_RETCODE LPPotentials::init_lp() {
 	_num_reactions = reaction_index;
 	_primsol.resize(_num_metabolites+1, 0); // allocate sufficient memory
 
+	// make sure all metabolites have been created
+	int ncols;
+	SCIP_CALL( SCIPlpiGetNCols(_lpi, &ncols) );
+	if(ncols < _num_metabolites+1) {
+		// in particular with exchange=false it can happen that not all metabolites are used
+		// if the last metabolite is not used, the lpi matrix does not have enough rows
+		// in this case we fill it up with (empty) rows
+		double obj = 0;
+		double lb = 0;
+		double ub = 0;
+		int beg[0];
+		int ind[0];
+		double val[0];
+		for(int i = 0; i < _num_metabolites+1-ncols; i++) {
+			SCIP_CALL( SCIPlpiAddCols(_lpi, 1, &obj, &lb, &ub, NULL, 0, beg, ind, val) );
+		}
+	}
+
+#ifndef NDEBUG
+	SCIP_CALL( SCIPlpiGetNCols(_lpi, &ncols) );
+	assert(ncols == _num_metabolites+1);
+#endif
+
+
 	// set bounds on metabolite potentials
 	double lb[_num_metabolites+1];
 	double ub[_num_metabolites+1];
@@ -104,6 +128,7 @@ SCIP_RETCODE LPPotentials::init_lp() {
 			_zero_obj.push_back(0);
 		}
 	}
+
 	SCIP_CALL( SCIPlpiChgBounds(_lpi, _num_metabolites+1, ind, lb, ub));
 	double obj = 1;
 	// ind already has the correct value at index 0
