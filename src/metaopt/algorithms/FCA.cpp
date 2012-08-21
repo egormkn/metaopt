@@ -11,6 +11,9 @@
 
 #include "metaopt/algorithms/FVA.h"
 
+// the condition of metabolic networks can be very bad. In particular here, we need some extra factor.
+#define SCALE_FACTOR 10000
+
 using namespace boost;
 using namespace std;
 
@@ -27,9 +30,9 @@ void fca(ModelPtr model, CouplingPtr coupling) {
 	LPFluxPtr test(new LPFlux(model, true));
 	foreach (ReactionPtr a, model->getReactions()) {
 		test->setObj(a, 0);
-		if(a->getLb() < -EPSILON) test->setLb(a,-1);
+		if(a->getLb() < -EPSILON) test->setLb(a,-SCALE_FACTOR);
 		else test->setLb(a,0);
-		if(a->getUb() > EPSILON) test->setUb(a,1);
+		if(a->getUb() > EPSILON) test->setUb(a,SCALE_FACTOR);
 		else test->setUb(a,0);
 
 	}
@@ -62,7 +65,7 @@ void fca(ModelPtr model, CouplingPtr coupling) {
 					test->setObj(b,0);
 				}
 			}
-			test->setLb(a,-1);
+			test->setLb(a,-SCALE_FACTOR);
 		}
 		if(max[a] > EPSILON) {
 			test->setUb(a,0);
@@ -72,6 +75,9 @@ void fca(ModelPtr model, CouplingPtr coupling) {
 					test->solvePrimal();
 					if(test->getObjVal() < EPSILON) {
 						// b^+ -> a^+
+						if(test->getObjVal() > EPSILON*EPSILON) {
+							cout << b->getName() + "_fwd -> " + a->getName() + "_fwd" << " " << test->getObjVal() << endl;
+						}
 						coupling->addCoupled(DirectedReaction(b,true), DirectedReaction(a,true));
 					}
 					test->setObj(b,0);
@@ -88,7 +94,7 @@ void fca(ModelPtr model, CouplingPtr coupling) {
 					test->setObj(b,0);
 				}
 			}
-			test->setUb(a,1);
+			test->setUb(a,SCALE_FACTOR);
 		}
 #ifndef SILENT
 		count++;

@@ -123,6 +123,16 @@ bool Coupling::isCoupled(DirectedReaction a, DirectedReaction b) {
 
 shared_ptr<vector<CoverReaction> > Coupling::computeCover(boost::unordered_set<DirectedReaction>& reactions) {
 	assert(!israw);
+
+#define NOTCOMPUTE 0
+#if NOTCOMPUTE
+	shared_ptr<vector<CoverReaction> > cover(new vector<CoverReaction>());
+	foreach(DirectedReaction d, reactions) {
+		CoverReaction c(d);
+		cover->push_back(c);
+	}
+#else
+
 	boost::unordered_set<DirectedReaction> unanalyzed(reactions);
 
 	// now we have to analyze the aggregated coupling information
@@ -222,6 +232,8 @@ shared_ptr<vector<CoverReaction> > Coupling::computeCover(boost::unordered_set<D
 		cover->push_back(c);
 	}
 	assert(unanalyzed.empty());
+
+#endif
 	return cover;
 }
 

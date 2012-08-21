@@ -22,6 +22,9 @@
 #define CONSTRAINT_NAME THERMO_CONSTRAINT_NAME
 #define CONSTRAINT_DESCRIPTION "This Constraint enforces thermodynamic feasible from the perspective of the flux variables. It is most efficient, if we do not optimize on the potentials"
 
+//#define FINDBUG
+#define LOGBRANCHING
+
 // A note on priorities:
 // Large priorities are executed first
 
@@ -439,13 +442,40 @@ SCIP_RESULT ThermoConstraintHandler::branch(unordered_set<DirectedReaction>& bra
 	// compute a cover
 	shared_ptr<vector<CoverReaction> > cover = _coupling->computeCover(branchingCandidates);
 
+#ifdef LOGBRANCHING
+	cout << "Input Branching Set: ";
+	foreach(DirectedReaction d, branchingCandidates) {
+		cout << d._rxn->getName() << (d._fwd?"_fwd ":"_bwd ");
+	}
+	cout << endl;
+	cout << "Computed Cover: ";
+	foreach(CoverReaction c, *cover) {
+		cout << c.reaction._rxn->getName() << " ( ";
+		foreach(DirectedReaction d, *c.covered) {
+			cout << d._rxn->getName() << " ";
+		}
+		cout << ") ";
+	}
+	cout << endl;
+	SCIP_NODE* current = SCIPgetCurrentNode(model->getScip());
+	cout << "children of: " << SCIPnodeGetNumber(current) << " are ";
+#endif
+
 	if(cover->size() == 0) {
+
+#ifdef LOGBRANCHING
+		cout << " cutoff" << endl;
+#endif
 		return SCIP_CUTOFF;
 	}
 	else if(cover->size() == 1) {
 		CoverReaction c = *(cover->begin());
 		SCIP_NODE* node = SCIPgetCurrentNode(model->getScip());
 		setDirection(iss, node, c); // restrict reaction to backward direction
+
+#ifdef LOGBRANCHING
+		cout << " reduced dom" << endl;
+#endif
 		return SCIP_REDUCEDDOM;
 	}
 	else {
@@ -464,8 +494,15 @@ SCIP_RESULT ThermoConstraintHandler::branch(unordered_set<DirectedReaction>& bra
 			double estimate = SCIPgetLocalTransEstimate(model->getScip()); // it may not give any improvement
 			//double estimate = SCIPtransformObj(model->getScip(),SCIPgetSolOrigObj(model->getScip(), sol.get())); // estimate must SCIPgetSolTransObj(scip, NULL)-lpobjval/prio)be for transformed node, sp transform estimated value for orig prob
 			BOOST_SCIP_CALL( SCIPcreateChild(model->getScip(), &node, prio, estimate) );
+#ifdef LOGBRANCHING
+			cout << SCIPnodeGetNumber(node) << " ";
+#endif
 			setDirection(iss, node, c); // restrict reaction to backward direction
 		}
+
+#ifdef LOGBRANCHING
+		cout << endl;
+#endif
 		return SCIP_BRANCHED;
 	}
 }
@@ -875,7 +912,7 @@ SCIP_RETCODE ThermoConstraintHandler::scip_exitpre(
 		_coupling = CouplingPtr(new Coupling()); // if not supplied with external coupling information, start from scratch
 	}
 
-#if 1
+#ifndef FINDBUG
 	// this map maps the transformed variables to their original reaction
 	unordered_map<SCIP_VAR*, ReactionPtr> toOriginal;
 	foreach(ReactionPtr rxn, _model->getReactions()) {
@@ -948,8 +985,8 @@ SCIP_RETCODE ThermoConstraintHandler::scip_exitpre(
 			}
 		}
 	}
-	_coupling->computeClosure();
 #endif
+	_coupling->computeClosure();
 
 #endif
 
@@ -993,6 +1030,7 @@ SCIP_RETCODE ThermoConstraintHandler::scip_print(
 }
 
 void ThermoConstraintHandler::addPotSpaceConstraint(PotSpaceConstraintPtr psc, SCIP_NODE* node) {
+#ifndef FINDBUG
 	SCIP_CONS* cons;
 	SCIP* scip = getScip()->getScip();
 	SCIP_CONSHDLR* hdlr = SCIPfindConshdlr(scip, CONSTRAINT_NAME);
@@ -1003,6 +1041,7 @@ void ThermoConstraintHandler::addPotSpaceConstraint(PotSpaceConstraintPtr psc, S
 	SCIPcreateCons(scip, &cons, "potSpaceCon", hdlr, data, true, true, true, false, true, true, false, false, false, true);
 	SCIPaddConsNode(scip, node, cons, NULL);
 	SCIPreleaseCons(scip, &cons);
+#endif
 }
 
 SCIP_RETCODE ThermoConstraintHandler::scip_delete(
