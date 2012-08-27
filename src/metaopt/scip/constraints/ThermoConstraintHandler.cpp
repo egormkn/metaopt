@@ -361,6 +361,53 @@ SCIP_RESULT ThermoConstraintHandler::branchIS(SolutionPtr& sol) {
 	}
 }
 
+void ThermoConstraintHandler::reduceFluxSpace(ISSupplyPtr& iss, SCIP_NODE*& node, CoverReaction& c) {
+	ScipModelPtr model = getScip();
+	PotSpaceConstraintPtr psc(new PotSpaceConstraint());
+	psc->_coef = unordered_map<MetabolitePtr, double>(c.reaction._rxn->getStoichiometries());
+	double a = iss->getAlpha(c.reaction._rxn);
+	foreach(DirectedReaction d, *(c.covered)) {
+		double da = iss->getAlpha(d._rxn);
+		foreach(Stoichiometry s, d._rxn->getStoichiometries()) {
+			double sval = 0;
+			unordered_map<MetabolitePtr, double>::iterator iter = psc->_coef.find(s.first);
+			if(iter != psc->_coef.end()) sval = iter->second;
+			sval += (da / a) * s.second;
+			psc->_coef[s.first] = sval;
+		}
+	}
+	// the pot space constraint will always be formulated as _coef * mu >= 0
+	if(!c.reaction._fwd) {
+		// if we block backward flux, the potential difference should be negative, hence we have to switch the signs
+		foreach(Stoichiometry& s, psc->_coef) {
+			s.second *= -1;
+		}
+	}
+	// reduce the indirect potential space
+	addPotSpaceConstraint(psc, node);
+
+	// if we have potential variables, we can also reduce the potential space directly
+	if(model->hasPotentials()) {
+		// if we block forward flux, this means that the potential difference must be nonnegative
+		double lhs = 0;
+		double rhs = INFINITY;
+
+		// transform data into usable format
+		vector<SCIP_VAR*> vars;
+		vector<double> coef;
+		foreach(Stoichiometry s, psc->_coef) {
+			assert(model->hasPotentialVar(s.first)); // if we have some potential variables, we assume, that we have all potential variables
+			vars.push_back(model->getPotential(s.first));
+			coef.push_back(s.second);
+		}
+
+		SCIP_CONS* cons;
+		BOOST_SCIP_CALL( SCIPcreateConsLinear(model->getScip(), &cons, "branchCover", vars.size(), vars.data(), coef.data(), lhs, rhs, false, true, true, true, true, true, false, false, true, false) );
+		BOOST_SCIP_CALL( SCIPaddConsNode(model->getScip(), node, cons, NULL) );
+		BOOST_SCIP_CALL( SCIPreleaseCons(model->getScip(), &cons) );
+	}
+}
+
 void ThermoConstraintHandler::setDirection(ISSupplyPtr& iss, SCIP_NODE*& node, CoverReaction& c) {
 	ScipModelPtr model = getScip();
 	if(c.covered->empty()) {
@@ -390,49 +437,7 @@ void ThermoConstraintHandler::setDirection(ISSupplyPtr& iss, SCIP_NODE*& node, C
 		// but only disable flux through the covering reaction.
 		// However, we can also constrain the flux space (and should do so),
 		// by enforcing that the potential difference of the sum of the covering and the covered reactions to have a specific sign (depending on fwd).
-		PotSpaceConstraintPtr psc(new PotSpaceConstraint());
-		psc->_coef = unordered_map<MetabolitePtr, double>(c.reaction._rxn->getStoichiometries());
-		double a = iss->getAlpha(c.reaction._rxn);
-		foreach(DirectedReaction d, *(c.covered)) {
-			double da = iss->getAlpha(d._rxn);
-			foreach(Stoichiometry s, d._rxn->getStoichiometries()) {
-				double sval = 0;
-				unordered_map<MetabolitePtr, double>::iterator iter = psc->_coef.find(s.first);
-				if(iter != psc->_coef.end()) sval = iter->second;
-				sval += (da / a) * s.second;
-				psc->_coef[s.first] = sval;
-			}
-		}
-		// the pot space constraint will always be formulated as _coef * mu >= 0
-		if(!c.reaction._fwd) {
-			// if we block backward flux, the potential difference should be negative, hence we have to switch the signs
-			foreach(Stoichiometry& s, psc->_coef) {
-				s.second *= -1;
-			}
-		}
-		// reduce the indirect potential space
-		addPotSpaceConstraint(psc, node);
-
-		// if we have potential variables, we can also reduce the potential space directly
-		if(model->hasPotentials()) {
-			// if we block forward flux, this means that the potential difference must be nonnegative
-			double lhs = 0;
-			double rhs = INFINITY;
-
-			// transform data into usable format
-			vector<SCIP_VAR*> vars;
-			vector<double> coef;
-			foreach(Stoichiometry s, psc->_coef) {
-				assert(model->hasPotentialVar(s.first)); // if we have some potential variables, we assume, that we have all potential variables
-				vars.push_back(model->getPotential(s.first));
-				coef.push_back(s.second);
-			}
-
-			SCIP_CONS* cons;
-			BOOST_SCIP_CALL( SCIPcreateConsLinear(model->getScip(), &cons, "branchCover", vars.size(), vars.data(), coef.data(), lhs, rhs, false, true, true, true, true, true, false, false, true, false) );
-			BOOST_SCIP_CALL( SCIPaddConsNode(model->getScip(), node, cons, NULL) );
-			BOOST_SCIP_CALL( SCIPreleaseCons(model->getScip(), &cons) );
-		}
+		reduceFluxSpace(iss, node, c);
 	}
 }
 
@@ -480,6 +485,15 @@ SCIP_RESULT ThermoConstraintHandler::branch(unordered_set<DirectedReaction>& bra
 	}
 	else {
 		// we have to branch
+
+		// to ensure that we create a partition, we don't only block directions, but branch on the following:
+		// Dmu_r >= 0 or
+		// Dmu_s >= 0 and Dmu_r <= 0 or
+		// Dmu_r >= 0 and Dmu_s <= 0 and Dmu_r <= 0 and so forth
+		// so we have to remember the old reactions we already created branching decisions for
+		// but we have to store them in reverse direction
+		vector<CoverReaction> additional;
+
 		foreach(CoverReaction c, *cover) {
 			ReactionPtr& rxn = c.reaction._rxn;
 			//double val = iss->getAlpha(rxn);
@@ -498,6 +512,45 @@ SCIP_RESULT ThermoConstraintHandler::branch(unordered_set<DirectedReaction>& bra
 			cout << SCIPnodeGetNumber(node) << " ";
 #endif
 			setDirection(iss, node, c); // restrict reaction to backward direction
+			// also enforce potential directions on additional reactions
+#ifndef FINDBUG
+			foreach(CoverReaction ca, additional) {
+				if(ca.covered->empty()) {
+					// also fix flux direction
+					// if the reaction is already fixed to one direction, don't fix the flux direction again
+					if(ca.reaction._fwd) {
+						if(model->getCurrentFluxUb(ca.reaction._rxn) > EPSILON) {
+							setDirection(iss, node, ca);
+						}
+						else {
+							// only fix pot difference sign
+							reduceFluxSpace(iss, node, ca);
+						}
+					}
+					else {
+						if(model->getCurrentFluxLb(ca.reaction._rxn) < -EPSILON) {
+							setDirection(iss, node, ca);
+						}
+						else {
+							// only fix pot difference sign
+							reduceFluxSpace(iss, node, ca);
+						}
+					}
+				}
+				else {
+					// only fix pot difference sign
+					reduceFluxSpace(iss, node, ca);
+				}
+			}
+
+			// add new additional reaction
+			CoverReaction a = c;
+			a.reaction._fwd = !a.reaction._fwd;
+			foreach(DirectedReaction& d, *(a.covered)) {
+				d._fwd = !d._fwd;
+			}
+			additional.push_back(a);
+#endif
 		}
 
 #ifdef LOGBRANCHING
