@@ -28,7 +28,7 @@ LPFlux::LPFlux(ModelPtr model, bool exchange) {
 
 SCIP_RETCODE LPFlux::init_lp(bool exchange) {
 	_lpi = NULL;
-	SCIP_CALL( SCIPlpiCreate(&_lpi, "LPFlux", SCIP_OBJSEN_MAXIMIZE) );
+	SCIP_CALL( SCIPlpiCreate(&_lpi, NULL, "LPFlux", SCIP_OBJSEN_MAXIMIZE) );
 
 	// create metabolite -> row_index map
 	int metabolite_index = 0;
@@ -40,6 +40,20 @@ SCIP_RETCODE LPFlux::init_lp(bool exchange) {
 		}
 	}
 	_num_metabolites = metabolite_index;
+
+	// create (empty) rows
+	{
+		// the new scip version seems to require that rows are created beforehand
+		double lhs = 0;
+		double rhs = 0;
+		int beg[0];
+		int ind[0];
+		double var[0];
+		for(int i = 0; i < _num_metabolites; i++) {
+			SCIP_CALL( SCIPlpiAddRows(_lpi, 1, &lhs, &rhs, NULL, 0, beg, ind, var) );
+		}
+	}
+
 
 	// create flux variables,
 	// create reaction -> variable_index map
@@ -69,19 +83,6 @@ SCIP_RETCODE LPFlux::init_lp(bool exchange) {
 
 	int nrows;
 	SCIP_CALL( SCIPlpiGetNRows(_lpi, &nrows) );
-	if(nrows < _num_metabolites) {
-		// in particular with exchange=false it can happen that not all metabolites are used
-		// if the last metabolite is not used, the lpi matrix does not have enough rows
-		// in this case we fill it up with (empty) rows
-		double lhs = 0;
-		double rhs = 0;
-		int beg[0];
-		int ind[0];
-		double var[0];
-		for(int i = 0; i < _num_metabolites-nrows; i++) {
-			SCIP_CALL( SCIPlpiAddRows(_lpi, 1, &lhs, &rhs, NULL, 0, beg, ind, var) );
-		}
-	}
 
 #ifndef NDEBUG
 	SCIP_CALL( SCIPlpiGetNRows(_lpi, &nrows) );

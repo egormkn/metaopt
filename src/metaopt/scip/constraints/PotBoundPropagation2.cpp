@@ -493,7 +493,7 @@ void PotBoundPropagation2::updateStepHard(ScipModelPtr scip) {
 	}
 #else
 	SCIP_LPI* lpi;
-	BOOST_SCIP_CALL( SCIPlpiCreate(&lpi, "potboundprop_updateStepHard", SCIP_OBJSEN_MAXIMIZE) );
+	BOOST_SCIP_CALL( SCIPlpiCreate(&lpi, NULL, "potboundprop_updateStepHard", SCIP_OBJSEN_MAXIMIZE) );
 
 	unordered_map<MetabolitePtr, int> met_idx;
 	int i = 0;
@@ -605,7 +605,7 @@ bool PotBoundPropagation2::updateStepFlow() {
 	// we now have to create the LP for solving the update step
 
 	SCIP_LPI* lpi;
-	BOOST_SCIP_CALL( SCIPlpiCreate(&lpi, "potboundprop_updateStepFlow", SCIP_OBJSEN_MINIMIZE) );
+	BOOST_SCIP_CALL( SCIPlpiCreate(&lpi, NULL, "potboundprop_updateStepFlow", SCIP_OBJSEN_MINIMIZE) );
 
 	// create vars - we do this by creating empty columns, since this guarantees that the var exists
 	foreach(VarEntry e, _vars) {

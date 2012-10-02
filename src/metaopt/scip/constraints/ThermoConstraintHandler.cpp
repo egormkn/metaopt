@@ -854,15 +854,8 @@ SCIP_RETCODE ThermoConstraintHandler::scip_exitpre(
 		SCIP* 			scipscip,
 		SCIP_CONSHDLR*  conshdlr,
 		SCIP_CONS**		conss,
-		int				ncons,
-		SCIP_Bool		isunbounded,
-		SCIP_Bool		isinfeasible,
-		SCIP_RESULT*	result)
+		int				ncons)
 {
-	if(isunbounded || isinfeasible) {
-		*result = SCIP_DIDNOTRUN;
-	}
-
 	// here, we create all the helper variables,
 	// however we also want to account for model improvements the presolver derived
 	// these may, for example, reduce the sizes of the circuits
@@ -1043,7 +1036,6 @@ SCIP_RETCODE ThermoConstraintHandler::scip_exitpre(
 
 #endif
 
-	*result = SCIP_FEASIBLE;
 	return SCIP_OKAY;
 }
 

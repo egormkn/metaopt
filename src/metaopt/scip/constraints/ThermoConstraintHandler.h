@@ -157,10 +157,7 @@ public:
 			SCIP* 			scip,
 			SCIP_CONSHDLR*  conshdlr,
 			SCIP_CONS**		conss,
-			int				ncons,
-			SCIP_Bool		isunbounded,
-			SCIP_Bool		isinfeasible,
-			SCIP_RESULT*	result);
+			int				ncons);
 
 	/// Constraint display method of constraint handler.
 	virtual SCIP_RETCODE scip_print(
@@ -241,13 +238,15 @@ private:
 	std::vector<LockingInfo> _lockingInfos;
 
 	/**
-	 * Given a list of candidates to branch on, performs some simplifications
+	 * Given a list of candidates to branch on, performs some simplifications,
 	 * and then performs the branching.
+	 * The candidate reactions are oriented in the direction that should be blocked.
 	 */
 	SCIP_RESULT branch(boost::unordered_set<DirectedReaction>& candidates, ISSupplyPtr iss, SolutionPtr sol);
 
 	/**
 	 * Method called by branch to setup the node with the branching decisions.
+	 * Sets the direction of the potential difference, which is exactly the opposite of the flux direction.
 	 */
 	void setDirection(ISSupplyPtr& iss, SCIP_NODE*& node, CoverReaction& c);
 

@@ -31,7 +31,7 @@ SCIP_RETCODE LPPotentials::init_lp() {
 	// we initially build the feas-test LP, because feas test should always be called before the optimization step
 
 	_lpi = NULL;
-	SCIP_CALL( SCIPlpiCreate(&_lpi, "LPFlux", SCIP_OBJSEN_MAXIMIZE) );
+	SCIP_CALL( SCIPlpiCreate(&_lpi, NULL, "LPPotentials", SCIP_OBJSEN_MAXIMIZE) );
 
 	// create metabolite -> row_index map
 	int metabolite_var = 1;
@@ -40,6 +40,20 @@ SCIP_RETCODE LPPotentials::init_lp() {
 		metabolite_var++;
 	}
 	_num_metabolites = metabolite_var-1; // we have the feastest var at index 0
+
+	// the new version of scip / soplex seems to requires that empty rows / cols are created before they are used
+	{
+		double obj = 0;
+		double lb = 0;
+		double ub = 0;
+		int beg[0];
+		int ind[0];
+		double val[0];
+		for(int i = 0; i < _num_metabolites+1; i++) {
+			SCIP_CALL( SCIPlpiAddCols(_lpi, 1, &obj, &lb, &ub, NULL, 0, beg, ind, val) );
+		}
+	}
+
 
 	// create flux variables,
 	// create reaction -> variable_index map
@@ -84,20 +98,6 @@ SCIP_RETCODE LPPotentials::init_lp() {
 	// make sure all metabolites have been created
 	int ncols;
 	SCIP_CALL( SCIPlpiGetNCols(_lpi, &ncols) );
-	if(ncols < _num_metabolites+1) {
-		// in particular with exchange=false it can happen that not all metabolites are used
-		// if the last metabolite is not used, the lpi matrix does not have enough rows
-		// in this case we fill it up with (empty) rows
-		double obj = 0;
-		double lb = 0;
-		double ub = 0;
-		int beg[0];
-		int ind[0];
-		double val[0];
-		for(int i = 0; i < _num_metabolites+1-ncols; i++) {
-			SCIP_CALL( SCIPlpiAddCols(_lpi, 1, &obj, &lb, &ub, NULL, 0, beg, ind, val) );
-		}
-	}
 
 #ifndef NDEBUG
 	SCIP_CALL( SCIPlpiGetNCols(_lpi, &ncols) );

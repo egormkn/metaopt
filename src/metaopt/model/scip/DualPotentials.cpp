@@ -40,13 +40,33 @@ SCIP_RETCODE DualPotentials::init_lp() {
 	// we initially build the feas-test LP, because feas test should always be called before the optimization step
 
 	_lpi = NULL;
-	SCIP_CALL( SCIPlpiCreate(&_lpi, "LPFlux", SCIP_OBJSEN_MINIMIZE) );
+	SCIP_CALL( SCIPlpiCreate(&_lpi, NULL, "LPFlux", SCIP_OBJSEN_MINIMIZE) );
 
 	// create metabolite -> index map
 	// initialize beta variables
 	int metabolite_index = 0;
 	_num_beta_vars = 0;
 	_num_metabolites = _model->getMetabolites().size();
+
+	// create (empty) rows
+	{
+		// the new scip version seems to require that rows are created beforehand
+		double lhs = 0;
+		double rhs = 0;
+		int beg[0];
+		int ind[0];
+		double var[0];
+		for(int i = MU_START; i < MU_START+_num_metabolites; i++) {
+			SCIP_CALL( SCIPlpiAddRows(_lpi, 1, &lhs, &rhs, NULL, 0, beg, ind, var) );
+		}
+		// X
+		SCIP_CALL( SCIPlpiAddRows(_lpi, 1, &lhs, &rhs, NULL, 0, beg, ind, var) );
+		// Z
+		SCIP_CALL( SCIPlpiAddRows(_lpi, 1, &lhs, &rhs, NULL, 0, beg, ind, var) );
+	}
+
+
+
 	foreach(const MetabolitePtr m, _model->getMetabolites()) {
 		_metabolites[m] = metabolite_index;
 		vector<int> ind;

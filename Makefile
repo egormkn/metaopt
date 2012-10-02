@@ -124,7 +124,7 @@ clean :
 
 $(BIN_DIR)/$(LIBRARY) : $(OBJECTS)
 	mkdir -p $(BIN_DIR)
-	$(LD) -o $@ $(LDFLAGS) $(OBJECTS) -L$(SCIP_LIB) $(LSBML) $(LMATLAB) -Xlinker -rpath=$(SCIP_LIB):$(RSBML):$(RMATLAB) $(libSBML) $(libMATLAB) -lscip -lobjscip -llpispx -lnlpi -lsoplex -lzimpl -lz -lgmp -lreadline -lncurses -lm
+	$(LD) -o $@ $(LDFLAGS) $(OBJECTS) -L$(SCIP_LIB) $(LSBML) $(LMATLAB) -Xlinker -rpath=$(SCIP_LIB):$(RSBML):$(RMATLAB) $(libSBML) $(libMATLAB) -lscip -lobjscip -llpispx -lnlpi.cppad -lsoplex -lzimpl -lz -lgmp -lreadline -lncurses -lm
 
 obj/%.o: src/%.cpp
 	$(CC) $(CFLAGS) -c $< -o $@ -I$(SRC_DIR) -I$(SCIP_H) $(ISBML) $(IMATLAB)
