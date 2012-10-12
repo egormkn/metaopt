@@ -307,8 +307,19 @@ void DualPotentials::setDirections(LPFluxPtr flux, boost::unordered_map<Reaction
 
 void DualPotentials::optimize() {
 	BOOST_SCIP_CALL( SCIPlpiSolveDual(_lpi) );
+#ifdef LPSOLVER_SOPLEX
+	if(SCIPlpiGetInternalStatus(_lpi) == -4) {
+		// basis is singular, we should resolve from scratch
+		BOOST_SCIP_CALL( SCIPlpiClearState(_lpi) );
+		// resolve
+		BOOST_SCIP_CALL( SCIPlpiSolveDual(_lpi) );
+	}
+#endif
 
-	BOOST_SCIP_CALL( SCIPlpiGetSol(_lpi, NULL, _primsol.data(), NULL, NULL, NULL) );
+	if(SCIPlpiIsPrimalFeasible(_lpi)) {
+		// capture solution in _primsol
+		BOOST_SCIP_CALL( SCIPlpiGetSol(_lpi, NULL, _primsol.data(), NULL, NULL, NULL) );
+	}
 }
 
 bool DualPotentials::isFeasible() {

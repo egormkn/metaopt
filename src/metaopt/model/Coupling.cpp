@@ -124,7 +124,7 @@ bool Coupling::isCoupled(DirectedReaction a, DirectedReaction b) {
 shared_ptr<vector<CoverReaction> > Coupling::computeCover(boost::unordered_set<DirectedReaction>& reactions) {
 	assert(!israw);
 
-#define NOTCOMPUTE 1
+#define NOTCOMPUTE 0
 #if NOTCOMPUTE
 	shared_ptr<vector<CoverReaction> > cover(new vector<CoverReaction>());
 	foreach(DirectedReaction d, reactions) {

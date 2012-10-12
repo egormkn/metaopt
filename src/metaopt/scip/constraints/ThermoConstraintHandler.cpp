@@ -222,6 +222,9 @@ SCIP_RESULT ThermoConstraintHandler::enforceNonSimple(SolutionPtr& sol) {
 	_cycle_test->setDirectionObj(_flux_simpl);
 	// iteratively search for a cycle and subtract that cycle
 	bool hasFlux;
+#ifndef NDEBUG
+	int debugi = 0;
+#endif
 	do {
 		// only allow flux through reactions that still carry flux
 		_cycle_test->setDirectionBounds(_flux_simpl);
@@ -265,6 +268,10 @@ SCIP_RESULT ThermoConstraintHandler::enforceNonSimple(SolutionPtr& sol) {
 			assert(scale > 0);
 			_flux_simpl->subtract(_cycle_test, scale);
 		}
+#ifndef NDEBUG
+		debugi++;
+		if(debugi % 100 == 0) std::cout << "CycleDeletionHeur.cpp " << __LINE__ << " caught endless loop" << std::endl;
+#endif
 	}
 	while(hasFlux);
 
@@ -361,12 +368,12 @@ SCIP_RESULT ThermoConstraintHandler::branchIS(SolutionPtr& sol) {
 	}
 }
 
-void ThermoConstraintHandler::reduceFluxSpace(ISSupplyPtr& iss, SCIP_NODE*& node, CoverReaction& c) {
+void ThermoConstraintHandler::reducePotSpace(ISSupplyPtr& iss, SCIP_NODE* node, CoverReaction& c) {
 	ScipModelPtr model = getScip();
 	PotSpaceConstraintPtr psc(new PotSpaceConstraint());
 	psc->_coef = unordered_map<MetabolitePtr, double>(c.reaction._rxn->getStoichiometries());
 	double a = iss->getAlpha(c.reaction._rxn);
-	foreach(DirectedReaction d, *(c.covered)) {
+	foreach(DirectedReaction& d, *(c.covered)) {
 		double da = iss->getAlpha(d._rxn);
 		foreach(Stoichiometry s, d._rxn->getStoichiometries()) {
 			double sval = 0;
@@ -408,7 +415,7 @@ void ThermoConstraintHandler::reduceFluxSpace(ISSupplyPtr& iss, SCIP_NODE*& node
 	}
 }
 
-void ThermoConstraintHandler::setDirection(ISSupplyPtr& iss, SCIP_NODE*& node, CoverReaction& c) {
+void ThermoConstraintHandler::setDirection(ISSupplyPtr& iss, SCIP_NODE* node, CoverReaction& c) {
 	ScipModelPtr model = getScip();
 	if(c.covered->empty()) {
 		model->setDirection(node, c.reaction._rxn, !c.reaction._fwd);
@@ -435,9 +442,9 @@ void ThermoConstraintHandler::setDirection(ISSupplyPtr& iss, SCIP_NODE*& node, C
 
 		// on the branching step, we will not set the direction of a reaction,
 		// but only disable flux through the covering reaction.
-		// However, we can also constrain the flux space (and should do so),
+		// However, we can also constrain the potemntial space (and should do so),
 		// by enforcing that the potential difference of the sum of the covering and the covered reactions to have a specific sign (depending on fwd).
-		reduceFluxSpace(iss, node, c);
+		reducePotSpace(iss, node, c);
 	}
 }
 
@@ -454,9 +461,9 @@ SCIP_RESULT ThermoConstraintHandler::branch(unordered_set<DirectedReaction>& bra
 	}
 	cout << endl;
 	cout << "Computed Cover: ";
-	foreach(CoverReaction c, *cover) {
+	foreach(CoverReaction& c, *cover) {
 		cout << c.reaction._rxn->getName() << " ( ";
-		foreach(DirectedReaction d, *c.covered) {
+		foreach(DirectedReaction& d, *c.covered) {
 			cout << d._rxn->getName() << " ";
 		}
 		cout << ") ";
@@ -494,7 +501,7 @@ SCIP_RESULT ThermoConstraintHandler::branch(unordered_set<DirectedReaction>& bra
 		// but we have to store them in reverse direction
 		vector<CoverReaction> additional;
 
-		foreach(CoverReaction c, *cover) {
+		foreach(CoverReaction& c, *cover) {
 			ReactionPtr& rxn = c.reaction._rxn;
 			//double val = iss->getAlpha(rxn);
 			SCIP_NODE* node;
@@ -514,7 +521,7 @@ SCIP_RESULT ThermoConstraintHandler::branch(unordered_set<DirectedReaction>& bra
 			setDirection(iss, node, c); // restrict reaction to backward direction
 			// also enforce potential directions on additional reactions
 #ifndef FINDBUG
-			foreach(CoverReaction ca, additional) {
+			foreach(CoverReaction& ca, additional) {
 				if(ca.covered->empty()) {
 					// also fix flux direction
 					// if the reaction is already fixed to one direction, don't fix the flux direction again
@@ -524,7 +531,7 @@ SCIP_RESULT ThermoConstraintHandler::branch(unordered_set<DirectedReaction>& bra
 						}
 						else {
 							// only fix pot difference sign
-							reduceFluxSpace(iss, node, ca);
+							reducePotSpace(iss, node, ca);
 						}
 					}
 					else {
@@ -533,13 +540,13 @@ SCIP_RESULT ThermoConstraintHandler::branch(unordered_set<DirectedReaction>& bra
 						}
 						else {
 							// only fix pot difference sign
-							reduceFluxSpace(iss, node, ca);
+							reducePotSpace(iss, node, ca);
 						}
 					}
 				}
 				else {
 					// only fix pot difference sign
-					reduceFluxSpace(iss, node, ca);
+					reducePotSpace(iss, node, ca);
 				}
 			}
 

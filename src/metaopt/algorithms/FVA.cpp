@@ -6,9 +6,17 @@
  */
 
 #include <iostream>
+#include <time.h>
+#include "scip/scip.h"
 
 #include "FVA.h"
 #include "metaopt/Properties.h"
+#include "metaopt/model/scip/LPPotentials.h"
+#include "metaopt/scip/constraints/SteadyStateConstraint.h"
+#include "metaopt/scip/constraints/ThermoConstraintHandler.h"
+#include "metaopt/scip/heur/CycleDeletionHeur.h"
+
+using namespace boost;
 
 namespace metaopt {
 
@@ -64,5 +72,227 @@ void fva(ModelPtr model, ModelFactory& factory, boost::unordered_map<ReactionPtr
 		std::cout << std::endl;
 	}
 }
+
+class FVAThermoModelFactory : public ModelFactory {
+public:
+	ScipModelPtr build(ModelPtr m) {
+		ScipModelPtr scip(new ScipModel(m));
+		createSteadyStateConstraint(scip);
+		createThermoConstraint(scip);
+		createCycleDeletionHeur(scip);
+		//registerExitEventHandler(scip);
+
+		return scip;
+	}
+};
+
+/**
+ * checks if a loopless free flux with the same objective value can be attained
+ */
+bool isLooplessFluxAttainable(LPFluxPtr sol, LPFluxPtr helper) {
+	ModelPtr model = sol->getModel();
+	helper->setDirectionBounds(sol);
+	helper->setZeroObj();
+	foreach(ReactionPtr r, model->getObjectiveReactions()) {
+		if(!r->isExchange()) {
+			double val = sol->getFlux(r);
+			if(val > EPSILON) {
+				helper->setObj(r, 1);
+			}
+			else if(val < -EPSILON) {
+				helper->setObj(r, -1);
+			}
+		}
+	}
+	foreach(ReactionPtr r, model->getFluxForcingReactions()) {
+		if(!r->isExchange()) {
+			double val = sol->getFlux(r);
+			if(val > EPSILON) {
+				helper->setObj(r, 1);
+			}
+			else if(val < -EPSILON) {
+				helper->setObj(r, -1);
+			}
+		}
+	}
+	foreach(ReactionPtr r, model->getProblematicReactions()) {
+		if(!r->isExchange()) {
+			double val = sol->getFlux(r);
+			if(val > EPSILON) {
+				helper->setObj(r, 1);
+			}
+			else if(val < -EPSILON) {
+				helper->setObj(r, -1);
+			}
+		}
+	}
+	helper->solve();
+	if(!helper->isOptimal()) { // if we weren't able to compute the optimum, we better be pessimistic
+		return false;
+	}
+#ifndef SILENT
+	std::cout << "test: " << helper->getObjVal() << std::endl;
+#endif
+	return helper->getObjVal() < EPSILON;
+}
+
+/**
+ * checks if a thermodynamically feasible flux with the same objective value can be attained
+ */
+bool isThermoFluxAttainable(LPFluxPtr sol, LPFluxPtr helper, LPPotentialsPtr potTest) {
+	// make sure that subtracting cycles does not violate flux bounds or objective value
+	assert(isLooplessFluxAttainable(sol, helper));
+	ModelPtr model = sol->getModel();
+#ifndef NDEBUG
+	int debugi = 0;
+#endif
+	do {
+		helper->setDirectionBounds(sol);
+		helper->setZeroObj();
+		foreach(ReactionPtr r, model->getReactions()) {
+			double val = sol->getFlux(r);
+			if(val > EPSILON) {
+				helper->setObj(r, 1);
+			}
+			else if(val < -EPSILON) {
+				helper->setObj(r, -1);
+			}
+		}
+		helper->solve();
+		if(!helper->isFeasible()) { // something strange, abort
+			return false;
+		}
+		if(helper->getObjVal() > EPSILON) {
+			double scale = sol->getSubScale(helper);
+			if(scale < -0.5) return false;
+			sol->subtract(helper, scale);
+		}
+#ifndef NDEBUG
+		debugi++;
+		if(debugi % 1000 == 0) std::cout << "FVA.cpp " << __LINE__ << " caught endless loop" << std::endl;
+#endif
+	} while(helper->getObjVal() > EPSILON);
+	// now we computed a guess of a thermodynamically feasible flow, now we have to check
+	potTest->setDirections(sol);
+	bool result;
+	if(!potTest->testStrictFeasible(result)) {
+		return false;
+	}
+	else return result;
+}
+
+void tfva(ModelPtr model, FVASettingsPtr settings, unordered_map<ReactionPtr,double >& min , unordered_map<ReactionPtr,double >& max ) {
+	/*
+	 * Depending on the kind of thermodynamic information given there are different kinds of speedups possible.
+	 * If no potential bounds are given, we just have loopless FVA and we can check if FBA = tFBA by solving two LPs
+	 * In the other case, we basically have to run the cycle elimination heur
+	 */
+
+	clock_t start = clock();
+	double runningTime = 0;
+
+	bool simple = true;
+
+	foreach(MetabolitePtr met, model->getMetabolites()) {
+		if(isinf(met->getPotLb()) != -1) {
+			simple = false;
+		}
+		if(isinf(met->getPotUb()) != 1) {
+			simple = false;
+		}
+	}
+
+	if(simple) std::cout << "tfva problem has simple structure " << std::endl;
+
+	FVAThermoModelFactory factory;
+
+	/**
+	 * reset objective functions
+	 */
+	foreach(ReactionPtr a, model->getReactions()) {
+		a->setObj(0);
+	}
+	foreach(MetabolitePtr a, model->getMetabolites()) {
+		a->setPotObj(0);
+	}
+
+	/**
+	 * for the cases where it is sufficient to run an LP, we just run an LP
+	 */
+	LPFluxPtr flux(new LPFlux(model, true));
+
+	// the helper flux is used to test if the LP solution is already optimal
+	LPFluxPtr helper(new LPFlux(model, false));
+	helper->setObjSense(true);
+
+	LPPotentialsPtr potTest;
+	if(!simple) {
+		potTest = LPPotentialsPtr(new LPPotentials(model));
+	}
+
+	flux->setObjSense(true);
+	foreach(ReactionPtr a, settings->reactions) {
+		a->setObj(1);
+		flux->setObj(a,1);
+		flux->solvePrimal();
+		// for shortcut looplessflux must always be attainable
+		// if it is simple, it is sufficient, else we have to do more
+		if(isLooplessFluxAttainable(flux, helper) && (simple || isThermoFluxAttainable(flux, helper, potTest))) {
+			max[a] = flux->getObjVal();
+		}
+		else {
+			ScipModelPtr scip = factory.build(model);
+			if(settings->timeout > EPSILON) {
+				BOOST_SCIP_CALL( SCIPsetRealParam(scip->getScip(), "limits/time", settings->timeout) );
+			}
+			scip->setObjectiveSense(true);
+			scip->solve();
+			max[a] = scip->getObjectiveValue();
+		}
+		flux->setObj(a,0);
+		a->setObj(0);
+
+		runningTime = (double) (clock() - start) / CLOCKS_PER_SEC;
+
+		if(settings->timeout > EPSILON && runningTime > settings->timeout) {
+			cout << endl;
+			cout << "aborted by timeout of " << settings->timeout << " seconds" << endl;
+			BOOST_THROW_EXCEPTION( TimeoutError() );
+		}
+	}
+
+	flux->setObjSense(false);
+	foreach(ReactionPtr a, settings->reactions) {
+		a->setObj(1);
+		flux->setObj(a,1);
+		flux->solvePrimal();
+		// for shortcut looplessflux must always be attainable
+		// if it is simple, it is sufficient, else we have to do more
+		if(isLooplessFluxAttainable(flux, helper) && (simple || isThermoFluxAttainable(flux, helper, potTest))) {
+			min[a] = flux->getObjVal();
+		}
+		else {
+			ScipModelPtr scip = factory.build(model);
+			if(settings->timeout > EPSILON) {
+				BOOST_SCIP_CALL( SCIPsetRealParam(scip->getScip(), "limits/time", settings->timeout) );
+			}
+			scip->setObjectiveSense(false);
+			scip->solve();
+			min[a] = scip->getObjectiveValue();
+		}
+		flux->setObj(a,0);
+		a->setObj(0);
+
+		runningTime = (double) (clock() - start) / CLOCKS_PER_SEC;
+
+		if(settings->timeout > EPSILON && runningTime > settings->timeout) {
+			cout << endl;
+			cout << "aborted by timeout of " << settings->timeout << " seconds" << endl;
+			BOOST_THROW_EXCEPTION( TimeoutError() );
+		}
+
+	}
+}
+
 
 } /* namespace metaopt */

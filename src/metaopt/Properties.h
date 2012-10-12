@@ -15,6 +15,7 @@
 #ifdef __CDT_PARSER__
 	#define foreach(a, b) for(a : b)
 	#define BOOST_THROW_EXCEPTION(x)
+	#define CLOCKS_PER_SEC 0
 #else
     #define foreach BOOST_FOREACH
 #endif

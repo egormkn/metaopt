@@ -126,6 +126,9 @@ bool CycleDeletionHeur::computeFluxSolution(SolutionPtr sol) {
 	// create new flux containing no exchange reactions, to find internal cycles
 	_cycle->setDirectionObj(_tflux);
 	// iteratively search for a cycle and subtract that cycle
+#ifndef NDEBUG
+	int debugi = 0;
+#endif
 	do {
 		// only allow flux through reactions that still carry flux
 		_cycle->setDirectionBounds(_tflux);
@@ -142,6 +145,10 @@ bool CycleDeletionHeur::computeFluxSolution(SolutionPtr sol) {
 			assert(scale > 0);
 			_tflux->subtract(_cycle, scale);
 		}
+#ifndef NDEBUG
+		debugi++;
+		if(debugi % 100 == 0) std::cout << "CycleDeletionHeur.cpp " << __LINE__ << " caught endless loop" << std::endl;
+#endif
 	}
 	while(hasFlux);
 	// copy computed solution into sol

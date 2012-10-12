@@ -350,20 +350,50 @@ void LPFlux::setObjSense(bool maximize) {
 
 void LPFlux::solvePrimal() {
 	BOOST_SCIP_CALL( SCIPlpiSolvePrimal(_lpi) );
-	// capture solution in _primsol
-	BOOST_SCIP_CALL( SCIPlpiGetSol(_lpi, NULL, _primsol.data(), NULL, NULL, NULL) );
+#ifdef LPSOLVER_SOPLEX
+	if(SCIPlpiGetInternalStatus(_lpi) == -4) {
+		// basis is singular, we should resolve from scratch
+		BOOST_SCIP_CALL( SCIPlpiClearState(_lpi) );
+		// resolve
+		BOOST_SCIP_CALL( SCIPlpiSolvePrimal(_lpi) );
+	}
+#endif
+	if(SCIPlpiIsPrimalFeasible(_lpi)) {
+		// capture solution in _primsol
+		BOOST_SCIP_CALL( SCIPlpiGetSol(_lpi, NULL, _primsol.data(), NULL, NULL, NULL) );
+	}
 }
 
 void LPFlux::solveDual() {
 	BOOST_SCIP_CALL( SCIPlpiSolveDual(_lpi) );
-	// capture solution in _primsol
-	BOOST_SCIP_CALL( SCIPlpiGetSol(_lpi, NULL, _primsol.data(), NULL, NULL, NULL) );
+#ifdef LPSOLVER_SOPLEX
+	if(SCIPlpiGetInternalStatus(_lpi) == -4) {
+		// basis is singular, we should resolve from scratch
+		BOOST_SCIP_CALL( SCIPlpiClearState(_lpi) );
+		// resolve
+		BOOST_SCIP_CALL( SCIPlpiSolveDual(_lpi) );
+	}
+#endif
+	if(SCIPlpiIsPrimalFeasible(_lpi)) {
+		// capture solution in _primsol
+		BOOST_SCIP_CALL( SCIPlpiGetSol(_lpi, NULL, _primsol.data(), NULL, NULL, NULL) );
+	}
 }
 
 void LPFlux::solve() {
 	BOOST_SCIP_CALL( SCIPlpiSolveDual(_lpi) );
-	// capture solution in _primsol
-	BOOST_SCIP_CALL( SCIPlpiGetSol(_lpi, NULL, _primsol.data(), NULL, NULL, NULL) );
+#ifdef LPSOLVER_SOPLEX
+	if(SCIPlpiGetInternalStatus(_lpi) == -4) {
+		// basis is singular, we should resolve from scratch
+		BOOST_SCIP_CALL( SCIPlpiClearState(_lpi) );
+		// resolve
+		BOOST_SCIP_CALL( SCIPlpiSolveDual(_lpi) );
+	}
+#endif
+	if(SCIPlpiIsPrimalFeasible(_lpi)) {
+		// capture solution in _primsol
+		BOOST_SCIP_CALL( SCIPlpiGetSol(_lpi, NULL, _primsol.data(), NULL, NULL, NULL) );
+	}
 }
 
 double LPFlux::getFlux(ReactionPtr rxn) {
