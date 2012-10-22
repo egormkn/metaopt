@@ -233,11 +233,12 @@ void tfva(ModelPtr model, FVASettingsPtr settings, unordered_map<ReactionPtr,dou
 	flux->setObjSense(true);
 	foreach(ReactionPtr a, settings->reactions) {
 		a->setObj(1);
+		cout << "max " << a->getName() << endl;
 		flux->setObj(a,1);
 		flux->solvePrimal();
 		// for shortcut looplessflux must always be attainable
 		// if it is simple, it is sufficient, else we have to do more
-		if(isLooplessFluxAttainable(flux, helper) && (simple || isThermoFluxAttainable(flux, helper, potTest))) {
+		if(flux->isOptimal() && isLooplessFluxAttainable(flux, helper) && (simple || isThermoFluxAttainable(flux, helper, potTest))) {
 			max[a] = flux->getObjVal();
 		}
 		else {
@@ -264,11 +265,12 @@ void tfva(ModelPtr model, FVASettingsPtr settings, unordered_map<ReactionPtr,dou
 	flux->setObjSense(false);
 	foreach(ReactionPtr a, settings->reactions) {
 		a->setObj(1);
+		cout << "min " << a->getName() << endl;
 		flux->setObj(a,1);
 		flux->solvePrimal();
 		// for shortcut looplessflux must always be attainable
 		// if it is simple, it is sufficient, else we have to do more
-		if(isLooplessFluxAttainable(flux, helper) && (simple || isThermoFluxAttainable(flux, helper, potTest))) {
+		if(flux->isOptimal() && isLooplessFluxAttainable(flux, helper) && (simple || isThermoFluxAttainable(flux, helper, potTest))) {
 			min[a] = flux->getObjVal();
 		}
 		else {

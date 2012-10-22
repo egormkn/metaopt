@@ -29,6 +29,8 @@ LPFlux::LPFlux(ModelPtr model, bool exchange) {
 SCIP_RETCODE LPFlux::init_lp(bool exchange) {
 	_lpi = NULL;
 	SCIP_CALL( SCIPlpiCreate(&_lpi, NULL, "LPFlux", SCIP_OBJSEN_MAXIMIZE) );
+	//SCIPlpiSetRealpar(_lpi, SCIP_LPPAR_FEASTOL, 1e-10);
+	//SCIPlpiSetRealpar(_lpi, SCIP_LPPAR_DUALFEASTOL, 1e-10);
 
 	// create metabolite -> row_index map
 	int metabolite_index = 0;
@@ -362,6 +364,12 @@ void LPFlux::solvePrimal() {
 		// capture solution in _primsol
 		BOOST_SCIP_CALL( SCIPlpiGetSol(_lpi, NULL, _primsol.data(), NULL, NULL, NULL) );
 	}
+	if(!SCIPlpiIsStable(_lpi)) {
+		cout << "warning unstable solution" << endl;
+	}
+	if(!SCIPlpiIsOptimal(_lpi)) {
+		cout << "warning not solved to optimality" << endl;
+	}
 }
 
 void LPFlux::solveDual() {
@@ -378,6 +386,12 @@ void LPFlux::solveDual() {
 		// capture solution in _primsol
 		BOOST_SCIP_CALL( SCIPlpiGetSol(_lpi, NULL, _primsol.data(), NULL, NULL, NULL) );
 	}
+	if(!SCIPlpiIsStable(_lpi)) {
+		cout << "warning unstable solution" << endl;
+	}
+	if(!SCIPlpiIsOptimal(_lpi)) {
+		cout << "warning not solved to optimality" << endl;
+	}
 }
 
 void LPFlux::solve() {
@@ -393,6 +407,12 @@ void LPFlux::solve() {
 	if(SCIPlpiIsPrimalFeasible(_lpi)) {
 		// capture solution in _primsol
 		BOOST_SCIP_CALL( SCIPlpiGetSol(_lpi, NULL, _primsol.data(), NULL, NULL, NULL) );
+	}
+	if(!SCIPlpiIsStable(_lpi)) {
+		cout << "warning unstable solution" << endl;
+	}
+	if(!SCIPlpiIsOptimal(_lpi)) {
+		cout << "warning not solved to optimality" << endl;
 	}
 }
 
