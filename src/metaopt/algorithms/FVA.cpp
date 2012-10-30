@@ -53,12 +53,21 @@ void fva(LPFluxPtr flux, boost::unordered_map<ReactionPtr,double >& min , boost:
 	foreach(ReactionPtr a, model->getReactions()) {
 		flux->setObj(a,1);
 		flux->solvePrimal();
+		if(!flux->isOptimal()) {
+			flux->solvePrimal();
+		}
+		assert(flux->isOptimal());
 		max[a] = flux->getObjVal();
 		flux->setObj(a,0);
 	}
 	foreach(ReactionPtr a, model->getReactions()) {
 		flux->setObj(a,-1);
 		flux->solvePrimal();
+		if(!flux->isOptimal()) {
+			flux->solvePrimal();
+		}
+		assert(flux->isOptimal());
+
 		min[a] = -flux->getObjVal();
 		flux->setObj(a,0);
 	}
@@ -254,6 +263,11 @@ void tfva(ModelPtr model, FVASettingsPtr settings, unordered_map<ReactionPtr,dou
 		cout << "max " << a->getName() << endl;
 		flux->setObj(a,1);
 		flux->solvePrimal();
+#ifndef NDEBUG
+		if(flux->isOptimal()) {
+			cout << "opt-flux = " << flux->getObjVal() << endl;
+		}
+#endif
 		// for shortcut looplessflux must always be attainable
 		// if it is simple, it is sufficient, else we have to do more
 		if(flux->isOptimal() && isLooplessFluxAttainable(flux, helper) && (simple || isThermoFluxAttainable(flux, helper, potTest))) {
@@ -266,6 +280,7 @@ void tfva(ModelPtr model, FVASettingsPtr settings, unordered_map<ReactionPtr,dou
 			}
 			scip->setObjectiveSense(true);
 			scip->solve();
+			assert(scip->isOptimal());
 			max[a] = scip->getObjectiveValue();
 		}
 		flux->setObj(a,0);
@@ -298,6 +313,7 @@ void tfva(ModelPtr model, FVASettingsPtr settings, unordered_map<ReactionPtr,dou
 			}
 			scip->setObjectiveSense(false);
 			scip->solve();
+			assert(scip->isOptimal());
 			min[a] = scip->getObjectiveValue();
 		}
 		flux->setObj(a,0);
