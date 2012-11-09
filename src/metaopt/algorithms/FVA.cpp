@@ -301,6 +301,11 @@ void tfva(ModelPtr model, FVASettingsPtr settings, unordered_map<ReactionPtr,dou
 		cout << "min " << a->getName() << endl;
 		flux->setObj(a,1);
 		flux->solvePrimal();
+#ifndef NDEBUG
+		if(flux->isOptimal()) {
+			cout << "opt-flux = " << flux->getObjVal() << endl;
+		}
+#endif
 		// for shortcut looplessflux must always be attainable
 		// if it is simple, it is sufficient, else we have to do more
 		if(flux->isOptimal() && isLooplessFluxAttainable(flux, helper) && (simple || isThermoFluxAttainable(flux, helper, potTest))) {

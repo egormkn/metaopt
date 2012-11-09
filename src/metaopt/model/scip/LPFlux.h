@@ -60,6 +60,15 @@ public:
 	/** set all objective coefficients to zero */
 	void setZeroObj();
 
+	/** gets the lower bound on the specified reaction */
+	double getLb(ReactionPtr r);
+
+	/** gets the upper bound on the specified reaction */
+	double getUb(ReactionPtr r);
+
+	/** gets the objective on the specified reaction */
+	double getObj(ReactionPtr r);
+
 	/**
 	 * Set the bounds to the same values as in the specified flux.
 	 * Every reaction that appears in this flux, must also appear in the other flux.
@@ -158,6 +167,11 @@ public:
 	 */
 	void solve();
 
+	/**
+	 * resets this LPFlux. The next solve will be from scratch.
+	 */
+	void resetState();
+
 	double getFlux(ReactionPtr rxn);
 
 	/**
@@ -188,6 +202,16 @@ public:
 	 * print a human readable representation. For debugging.
 	 */
 	void print();
+
+	/**
+	 * writes the current LP into a file
+	 */
+	void write(const char* filename);
+
+	/**
+	 * writes the current state of the LP into a file (i.e. basis information)
+	 */
+	void writeState(const char* filename);
 
 	/**
 	 * copy the flux of the current solution of the ScipModel into this solution
@@ -224,6 +248,21 @@ public:
 	 * updates list of extra constraints
 	 */
 	void setExtraPotConstraints(boost::unordered_set<PotSpaceConstraintPtr>& psc);
+
+#ifndef NDEBUG
+	// these methods are for debugging only! A state of the LP can be stored and fetched later on
+	std::vector<int> cstat;
+	std::vector<int> rstat;
+
+	void loadState();
+
+	void setOldState();
+
+	void initStateInfo();
+
+	SCIP_LPI* getLPI();
+	int getIndex(ReactionPtr rxn);
+#endif
 
 private:
 	ModelPtr _model;

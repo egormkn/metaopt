@@ -162,6 +162,47 @@ void LPFlux::setObj(ReactionPtr r, double obj) {
 	BOOST_SCIP_CALL( SCIPlpiChgObj(_lpi, 1, &ind, &obj));
 }
 
+double LPFlux::getLb(ReactionPtr r) {
+	try {
+		int ind = _reactions.at(r);
+		double lb;
+		BOOST_SCIP_CALL( SCIPlpiGetBounds(_lpi, ind, ind, &lb, NULL) );
+		return lb;
+	}
+	catch(std::exception &ex) {
+		BOOST_SCIP_CALL( SCIP_ERROR );
+		return NAN;
+	}
+}
+
+double LPFlux::getUb(ReactionPtr r) {
+	try {
+		int ind = _reactions.at(r);
+		double ub;
+		BOOST_SCIP_CALL( SCIPlpiGetBounds(_lpi, ind, ind, NULL, &ub) );
+		return ub;
+	}
+	catch(std::exception &ex) {
+		BOOST_SCIP_CALL( SCIP_ERROR );
+		return NAN;
+	}
+}
+
+double LPFlux::getObj(ReactionPtr r) {
+	try {
+		int ind = _reactions.at(r);
+		double obj;
+		BOOST_SCIP_CALL( SCIPlpiGetObj(_lpi, ind, ind, &obj) );
+		return obj;
+	}
+	catch(std::exception &ex) {
+		BOOST_SCIP_CALL( SCIP_ERROR );
+		return NAN;
+	}
+}
+
+
+
 void LPFlux::setZeroObj() {
 	double zeros[_num_reactions];
 	int ind[_num_reactions];
@@ -434,6 +475,10 @@ void LPFlux::solve() {
 	}
 }
 
+void LPFlux::resetState() {
+	BOOST_SCIP_CALL( SCIPlpiClearState(_lpi) );
+}
+
 double LPFlux::getFlux(ReactionPtr rxn) {
 	boost::unordered_map<ReactionPtr, int>::iterator iter = _reactions.find(rxn);
 	if(iter == _reactions.end()) {
@@ -545,6 +590,15 @@ void LPFlux::print() {
 	}
 }
 
+void LPFlux::write(const char* filename) {
+	BOOST_SCIP_CALL(SCIPlpiWriteLP(_lpi, filename));
+}
+
+void LPFlux::writeState(const char* filename) {
+	BOOST_SCIP_CALL(SCIPlpiWriteState(_lpi, filename));
+}
+
+
 void LPFlux::setExtraPotConstraints(unordered_set<PotSpaceConstraintPtr>& psc) {
 	// pot constraints are variables (we are working in the dual!)
 	int columns = _reactions.size() + _extraConstraints.size();
@@ -598,5 +652,35 @@ void LPFlux::setExtraPotConstraints(unordered_set<PotSpaceConstraintPtr>& psc) {
 	_primsol.resize(end, 0);
 }
 
+
+#ifndef NDEBUG
+	// these methods are for debugging only! A state of the LP can be stored and fetched later on
+	void LPFlux::loadState() {
+		if(SCIPlpiWasSolved(_lpi)) {
+			cout << "lp was solved, storing basis" << endl;
+			SCIPlpiGetBase(_lpi, cstat.data(), rstat.data());
+		}
+		else {
+			cout << "lp was not solved, stroing no basis" << endl;
+		}
+	}
+
+	void LPFlux::setOldState() {
+		SCIPlpiSetBase(_lpi, cstat.data(), rstat.data());
+	}
+
+	void LPFlux::initStateInfo() {
+		cstat.reserve(10000);
+		rstat.reserve(10000);
+	}
+
+	SCIP_LPI* LPFlux::getLPI() {
+		return _lpi;
+	}
+
+	int LPFlux::getIndex(ReactionPtr rxn) {
+		return _reactions[rxn];
+	}
+#endif
 
 } /* namespace metaopt */

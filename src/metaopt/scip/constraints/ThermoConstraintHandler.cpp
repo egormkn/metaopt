@@ -147,6 +147,12 @@ SCIP_RESULT ThermoConstraintHandler::enforceObjectiveCycles(SolutionPtr& sol) {
 			_cycle_find->setObj(rxn, 0);
 #endif
 	}
+	// we changed so many things at the cycle_find LP, that we'd better solve from scratch
+	_cycle_find->resetState();
+#ifndef NDEBUG
+	_cycle_find->initStateInfo();
+#endif
+	cout << "starting solve from scratch" <<endl;
 
 #if THERMOCONS_USE_AGGR_RXN
 	foreach(ReactionPtr rxn, _reduced->getObjectiveReactions()) {
@@ -166,6 +172,9 @@ SCIP_RESULT ThermoConstraintHandler::enforceObjectiveCycles(SolutionPtr& sol) {
 				if(_cycle_find->isFeasible()) {
 					return branchCycle(sol);
 				}
+#ifndef NDEBUG
+				_cycle_find->loadState();
+#endif
 				_cycle_find->setLb(rxn, 0); //undo the change
 			}
 			else if( val < -EPSILON) {
@@ -174,6 +183,9 @@ SCIP_RESULT ThermoConstraintHandler::enforceObjectiveCycles(SolutionPtr& sol) {
 				if(_cycle_find->isFeasible()) {
 					return branchCycle(sol);
 				}
+#ifndef NDEBUG
+				_cycle_find->loadState();
+#endif
 				_cycle_find->setUb(rxn, 0); //undo the change
 			}
 		}
@@ -209,12 +221,42 @@ SCIP_RESULT ThermoConstraintHandler::branchCycle(SolutionPtr& sol) {
 			if(val > EPSILON) {
 				if(lb < EPSILON) { // ub must be positive, since positive flow is not allowed else, restriction to zero must also be allowed
 					//cout << "branching ub "<<iter.getId() << endl;
+#ifndef NDEBUG
+					if(ub <= EPSILON) {
+						vector<double> primsol(10000);
+						BOOST_SCIP_CALL( SCIPlpiGetSol(_cycle_find->getLPI(), NULL, primsol.data(), NULL, NULL, NULL) );
+						int index = _cycle_find->getIndex(rxn);
+						cout << index << ": upper bound = " << _cycle_find->getUb(rxn) << " but flux value = " << val  << "(" << primsol[index] << ")" << endl;
+						_cycle_find->write("cycle_find.lp");
+						_cycle_find->writeState("cycle_find_state.bas");
+						assert(_cycle_find->isFeasible());
+						assert(_cycle_find->isOptimal());
+						//_cycle_find->setOldState();
+						//_cycle_find->writeState("cycle_find_old_state.bas");
+					}
+#endif
+					assert(ub > EPSILON);
 					branchingCandidates.insert(DirectedReaction(rxn, true));
 				}
 			}
 			else if(val < -EPSILON) {
 				if(ub > -EPSILON) { // lb must be negative, since negative flow is not allowed else, restriction to zero must also be allowed
 					//cout << "branching lb "<<iter.getId() << endl;
+#ifndef NDEBUG
+					if(lb >= -EPSILON) {
+						vector<double> primsol(10000);
+						BOOST_SCIP_CALL( SCIPlpiGetSol(_cycle_find->getLPI(), NULL, primsol.data(), NULL, NULL, NULL) );
+						int index = _cycle_find->getIndex(rxn);
+						cout << index << ": lower bound = " << _cycle_find->getLb(rxn) << " but flux value = " << val  << "(" << primsol[index] << ")" << endl;
+						_cycle_find->write("cycle_find.lp");
+						_cycle_find->writeState("cycle_find_state.bas");
+						assert(_cycle_find->isFeasible());
+						assert(_cycle_find->isOptimal());
+						//_cycle_find->setOldState();
+						//_cycle_find->writeState("cycle_find_old_state.bas");
+					}
+#endif
+					assert(lb < -EPSILON);
 					branchingCandidates.insert(DirectedReaction(rxn, false));
 				}
 			}
@@ -348,6 +390,7 @@ SCIP_RESULT ThermoConstraintHandler::branchIS(SolutionPtr& sol) {
 				//std::cout << rxn->toString() << "; " << lb << " (" << rxn->getLb() << ") <= " << val << " <= " << ub << " (" << rxn->getUb() << ")" << std::endl;
 				if(val > 0) {
 					if(lb < EPSILON) {
+						assert(ub > EPSILON);
 						branchingCandidates.insert(DirectedReaction(rxn, true));
 #if 0
 						debugFlux.setBounds(model);
@@ -362,6 +405,7 @@ SCIP_RESULT ThermoConstraintHandler::branchIS(SolutionPtr& sol) {
 				}
 				else {
 					if(ub > -EPSILON) {
+						assert(lb < -EPSILON);
 						branchingCandidates.insert(DirectedReaction(rxn, false));
 #if 0
 						debugFlux.setBounds(model);
