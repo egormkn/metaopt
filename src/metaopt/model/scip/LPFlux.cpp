@@ -49,6 +49,7 @@ SCIP_RETCODE LPFlux::init_lp(bool exchange) {
 	SCIP_CALL( SCIPlpiCreate(&_lpi, NULL, "LPFlux", SCIP_OBJSEN_MAXIMIZE) );
 	SCIPlpiSetRealpar(_lpi, SCIP_LPPAR_FEASTOL, 1e-10);
 	SCIPlpiSetRealpar(_lpi, SCIP_LPPAR_DUALFEASTOL, 1e-10);
+	SCIPlpiSetIntpar(_lpi, SCIP_LPPAR_PRESOLVING, 0);
 
 	// create metabolite -> row_index map
 	int metabolite_index = 0;

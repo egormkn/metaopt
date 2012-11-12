@@ -9,6 +9,7 @@
 SCIP_PATH=$(CURDIR)/../third_party/scip
 SCIP_LIB=$(SCIP_PATH)/lib
 SCIP_H=$(SCIP_PATH)/src
+SOPLEX_H=$(CURDIR)/../third_party/soplex/src
 
 #default path for sbml
 SBML_PATH=$(CURDIR)/../third_party/libsbml/build
@@ -127,4 +128,4 @@ $(BIN_DIR)/$(LIBRARY) : $(OBJECTS)
 	$(LD) -o $@ $(LDFLAGS) $(OBJECTS) -L$(SCIP_LIB) $(LSBML) $(LMATLAB) -Xlinker -rpath=$(SCIP_LIB):$(RSBML):$(RMATLAB) $(libSBML) $(libMATLAB) -lscip -lobjscip -llpispx -lnlpi.cppad -lsoplex -lzimpl -lz -lgmp -lreadline -lncurses -lm
 
 obj/%.o: src/%.cpp
-	$(CC) $(CFLAGS) -c $< -o $@ -I$(SRC_DIR) -I$(SCIP_H) $(ISBML) $(IMATLAB)
+	$(CC) $(CFLAGS) -c $< -o $@ -I$(SRC_DIR) -I$(SCIP_H) -I$(SOPLEX_H) $(ISBML) $(IMATLAB)

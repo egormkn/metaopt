@@ -27,6 +27,7 @@
 #define LPFLUX_H_
 
 #include "scip/lpi.h"
+#include "soplex.h"
 
 #include "metaopt/model/Model.h"
 #include "metaopt/model/scip/ScipModel.h"
@@ -269,6 +270,7 @@ private:
 	boost::unordered_map<ReactionPtr, int> _reactions; // in the internal LP problem, columns are only identified by indices, so we have to map reactions to indices
 	boost::unordered_map<MetabolitePtr, int> _metabolites; // in the internal LP problem, rows are only identified by indices, so we have to map metabolites to indices
 	SCIP_LPI* _lpi; //< internal LP problem
+	//soplex::SoPlex _soplex; // lp solver
 	int _num_metabolites; //< number of metabolites in the LP model (depends if we include exchange fluxes or not)
 	int _num_reactions; //< number of reactions in the LP model (depends if we include exchange fluxes or not)
 

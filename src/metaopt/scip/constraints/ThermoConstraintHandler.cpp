@@ -148,11 +148,11 @@ SCIP_RESULT ThermoConstraintHandler::enforceObjectiveCycles(SolutionPtr& sol) {
 #endif
 	}
 	// we changed so many things at the cycle_find LP, that we'd better solve from scratch
-	_cycle_find->resetState();
+	//_cycle_find->resetState();
 #ifndef NDEBUG
 	_cycle_find->initStateInfo();
 #endif
-	cout << "starting solve from scratch" <<endl;
+	//cout << "starting solve from scratch" <<endl;
 
 #if THERMOCONS_USE_AGGR_RXN
 	foreach(ReactionPtr rxn, _reduced->getObjectiveReactions()) {
