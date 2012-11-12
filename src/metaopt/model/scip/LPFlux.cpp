@@ -47,8 +47,8 @@ LPFlux::LPFlux(ModelPtr model, bool exchange) {
 SCIP_RETCODE LPFlux::init_lp(bool exchange) {
 	_lpi = NULL;
 	SCIP_CALL( SCIPlpiCreate(&_lpi, NULL, "LPFlux", SCIP_OBJSEN_MAXIMIZE) );
-	//SCIPlpiSetRealpar(_lpi, SCIP_LPPAR_FEASTOL, 1e-10);
-	//SCIPlpiSetRealpar(_lpi, SCIP_LPPAR_DUALFEASTOL, 1e-10);
+	SCIPlpiSetRealpar(_lpi, SCIP_LPPAR_FEASTOL, 1e-10);
+	SCIPlpiSetRealpar(_lpi, SCIP_LPPAR_DUALFEASTOL, 1e-10);
 
 	// create metabolite -> row_index map
 	int metabolite_index = 0;
@@ -620,10 +620,10 @@ void LPFlux::setExtraPotConstraints(unordered_set<PotSpaceConstraintPtr>& psc) {
 	BOOST_SCIP_CALL( SCIPlpiDelColset(_lpi, dstat) );
 #ifndef NDEBUG
 	for(unsigned int i = 0; i < _reactions.size(); i++) {
-		assert(dstat[i] == i); // reactions should keep indices
+		assert(dstat[i] == (int) i); // reactions should keep indices
 	}
 #endif
-	int end = _reactions.size() + _extraConstraints.size();
+	unsigned int end = _reactions.size() + _extraConstraints.size();
 	foreach(PotSpaceConstraintPtr p, psc) {
 		unordered_map<PotSpaceConstraintPtr, int>::iterator iter = _extraConstraints.find(p);
 		if(iter != _extraConstraints.end()) {

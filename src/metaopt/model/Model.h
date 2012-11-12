@@ -39,7 +39,7 @@ namespace metaopt {
 struct ModelOwnershipError : virtual boost::exception, virtual std::exception {
 public:
 	ModelOwnershipError() {
-		int foo = 0;
+		//int foo = 0;
 	}
 };
 
