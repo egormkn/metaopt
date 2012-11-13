@@ -50,7 +50,7 @@ SRC_METAOPT_MODEL_SCIP_ADDON=PotentialDifferences.cpp ReactionDirections.cpp
 SRC_METAOPT_MODEL_SCIP_ADDON_DIR=addon
 SRC_METAOPT_SCIP=
 SRC_METAOPT_SCIP_DIR=scip
-SRC_METAOPT_SCIP_CONSTRAINTS=SteadyStateConstraint.cpp RelaxedNaiveThermoConstraint.cpp ThermoConstraintHandler.cpp PotBoundPropagation2.cpp
+SRC_METAOPT_SCIP_CONSTRAINTS=SteadyStateConstraint.cpp RelaxedNaiveThermoConstraint.cpp ThermoConstraintHandler.cpp PotBoundPropagation2.cpp ThermoInfeasibleSetPool.cpp
 SRC_METAOPT_SCIP_CONSTRAINTS_DIR=constraints
 SRC_METAOPT_SCIP_HEUR=CycleDeletionHeur.cpp
 SRC_METAOPT_SCIP_HEUR_DIR=heur
@@ -106,7 +106,13 @@ CC=g++
 # This has the additional consequence that the -rpath option has to be preceded by -Xlinker, since it is not a direct g++ command
 LD=g++
 
-DEBUGFLAGS=-g3 -fno-inline -O0 
+ifeq ($(OPT),opt)
+DEBUGFLAGS=-O3
+# macro option -DNDEBUG removed, since it cause strange effects on SCIP_CONS (fields are missing!)
+else
+DEBUGFLAGS=-g3 -fno-inline -O0
+#DEBUGFLAGS=-O3
+endif
 #-D_GLIBCXX_DEBUG
 
 #remark: If we compile the whole thing with _GLIBCXX_DEBUG defined every lib using this lib must also define _GLIBCXX_DEBUG. Otherwise we might get illegal writes in boost

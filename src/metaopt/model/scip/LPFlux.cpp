@@ -654,7 +654,22 @@ void LPFlux::setExtraPotConstraints(unordered_set<PotSpaceConstraintPtr>& psc) {
 }
 
 
-#ifndef NDEBUG
+vector<PotSpaceConstraintPtr> LPFlux::getActivePotConstraints() {
+	typedef pair<PotSpaceConstraintPtr, int> PSCEntry;
+
+	vector<PotSpaceConstraintPtr> out;
+
+	foreach(PSCEntry e, _extraConstraints) {
+		// potSpaceConstraints only allow reverse flux
+		if(_primsol[e.second] < -EPSILON) {
+			out.push_back(e.first);
+		}
+	}
+	return out;
+}
+
+
+#if 0
 	// these methods are for debugging only! A state of the LP can be stored and fetched later on
 	void LPFlux::loadState() {
 		if(SCIPlpiWasSolved(_lpi)) {

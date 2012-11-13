@@ -102,10 +102,17 @@ void fva(ModelPtr model, ModelFactory& factory, boost::unordered_map<ReactionPtr
 
 class FVAThermoModelFactory : public ModelFactory {
 public:
+	CouplingPtr coupling;
+
 	ScipModelPtr build(ModelPtr m) {
 		ScipModelPtr scip(new ScipModel(m));
 		createSteadyStateConstraint(scip);
-		createThermoConstraint(scip);
+		if(coupling.use_count() >= 1) {
+			createThermoConstraint(scip, coupling);
+		}
+		else {
+			createThermoConstraint(scip);
+		}
 		createCycleDeletionHeur(scip);
 		//registerExitEventHandler(scip);
 
@@ -232,6 +239,7 @@ void tfva(ModelPtr model, FVASettingsPtr settings, unordered_map<ReactionPtr,dou
 	if(simple) std::cout << "tfva problem has simple structure " << std::endl;
 
 	FVAThermoModelFactory factory;
+	factory.coupling = settings->coupling;
 
 	/**
 	 * reset objective functions
@@ -243,10 +251,15 @@ void tfva(ModelPtr model, FVASettingsPtr settings, unordered_map<ReactionPtr,dou
 		a->setPotObj(0);
 	}
 
-	/**
+	/*
 	 * for the cases where it is sufficient to run an LP, we just run an LP
+	 *
+	 * We will maximize fluxes and minimizes fluxes in parallel.
+	 * This way we can exploit that we do not need to solve CPs for reactions which are already fixed by LP
+	 * We use two different LPs for it, so that we don't have to change the objective too much.
 	 */
-	LPFluxPtr flux(new LPFlux(model, true));
+	LPFluxPtr max_flux(new LPFlux(model, true));
+	LPFluxPtr min_flux(new LPFlux(model, true));
 
 	// the helper flux is used to test if the LP solution is already optimal
 	LPFluxPtr helper(new LPFlux(model, false));
@@ -257,73 +270,105 @@ void tfva(ModelPtr model, FVASettingsPtr settings, unordered_map<ReactionPtr,dou
 		potTest = LPPotentialsPtr(new LPPotentials(model));
 	}
 
-	flux->setObjSense(true);
+	max_flux->setObjSense(true);
+	min_flux->setObjSense(false);
+
+	int i = 1;
+	int num_rxns = settings->reactions.size();
+
 	foreach(ReactionPtr a, settings->reactions) {
+		/*
+		 * First solve the LPs
+		 */
 		a->setObj(1);
 		cout << "max " << a->getName() << endl;
-		flux->setObj(a,1);
-		flux->solvePrimal();
+		max_flux->setObj(a,1);
+		max_flux->solvePrimal();
 #ifndef NDEBUG
-		if(flux->isOptimal()) {
-			cout << "opt-flux = " << flux->getObjVal() << endl;
+		if(max_flux->isOptimal()) {
+			cout << "opt-flux = " << max_flux->getObjVal() << endl;
 		}
 #endif
-		// for shortcut looplessflux must always be attainable
-		// if it is simple, it is sufficient, else we have to do more
-		if(flux->isOptimal() && isLooplessFluxAttainable(flux, helper) && (simple || isThermoFluxAttainable(flux, helper, potTest))) {
-			max[a] = flux->getObjVal();
-		}
-		else {
-			ScipModelPtr scip = factory.build(model);
-			if(settings->timeout > EPSILON) {
-				BOOST_SCIP_CALL( SCIPsetRealParam(scip->getScip(), "limits/time", settings->timeout) );
-			}
-			scip->setObjectiveSense(true);
-			scip->solve();
-			assert(scip->isOptimal());
-			max[a] = scip->getObjectiveValue();
-		}
-		flux->setObj(a,0);
-		a->setObj(0);
 
-		runningTime = (double) (clock() - start) / CLOCKS_PER_SEC;
-
-		if(settings->timeout > EPSILON && runningTime > settings->timeout) {
-			cout << endl;
-			cout << "aborted by timeout of " << settings->timeout << " seconds" << endl;
-			BOOST_THROW_EXCEPTION( TimeoutError() );
-		}
-	}
-
-	flux->setObjSense(false);
-	foreach(ReactionPtr a, settings->reactions) {
-		a->setObj(1);
 		cout << "min " << a->getName() << endl;
-		flux->setObj(a,1);
-		flux->solvePrimal();
+		min_flux->setObj(a,1);
+		min_flux->solvePrimal();
 #ifndef NDEBUG
-		if(flux->isOptimal()) {
-			cout << "opt-flux = " << flux->getObjVal() << endl;
+		if(min_flux->isOptimal()) {
+			cout << "opt-flux = " << min_flux->getObjVal() << endl;
 		}
 #endif
-		// for shortcut looplessflux must always be attainable
-		// if it is simple, it is sufficient, else we have to do more
-		if(flux->isOptimal() && isLooplessFluxAttainable(flux, helper) && (simple || isThermoFluxAttainable(flux, helper, potTest))) {
-			min[a] = flux->getObjVal();
+
+		if(max_flux->isFeasible() && min_flux->isFeasible() && max_flux->getObjVal() - min_flux->getObjVal() < EPSILON) {
+			// both fluxes are feasible and the same, hence they also must be optimal
+			max[a] = max_flux->getObjVal();
+			min[a] = min_flux->getObjVal();
 		}
 		else {
-			ScipModelPtr scip = factory.build(model);
-			if(settings->timeout > EPSILON) {
-				BOOST_SCIP_CALL( SCIPsetRealParam(scip->getScip(), "limits/time", settings->timeout) );
+			// we were not able to derive that we already found the optimum, so deal with min and max separately
+
+			/*
+			 * Maximization
+			 */
+
+			// for shortcut looplessflux must always be attainable
+			// if it is simple, it is sufficient, else we have to do more
+			if(max_flux->isOptimal() && isLooplessFluxAttainable(max_flux, helper) && (simple || isThermoFluxAttainable(max_flux, helper, potTest))) {
+				max[a] = max_flux->getObjVal();
 			}
-			scip->setObjectiveSense(false);
-			scip->solve();
-			assert(scip->isOptimal());
-			min[a] = scip->getObjectiveValue();
+			else {
+				ScipModelPtr scip = factory.build(model);
+				if(settings->timeout > EPSILON) {
+					BOOST_SCIP_CALL( SCIPsetRealParam(scip->getScip(), "limits/time", settings->timeout) );
+				}
+				scip->setObjectiveSense(true);
+				scip->solve();
+				assert(scip->isOptimal());
+				double opt = scip->getObjectiveValue();
+				max[a] = opt;
+				a->setUb(opt); // we computed an upper bound, so use it for future computations
+			}
+
+			/*
+			 * Minimization
+			 */
+
+			// for shortcut looplessflux must always be attainable
+			// if it is simple, it is sufficient, else we have to do more
+			if(min_flux->isOptimal() && isLooplessFluxAttainable(min_flux, helper) && (simple || isThermoFluxAttainable(min_flux, helper, potTest))) {
+				min[a] = min_flux->getObjVal();
+			}
+			else {
+				ScipModelPtr scip = factory.build(model);
+				if(settings->timeout > EPSILON) {
+					BOOST_SCIP_CALL( SCIPsetRealParam(scip->getScip(), "limits/time", settings->timeout) );
+				}
+				scip->setObjectiveSense(false);
+				scip->solve();
+				assert(scip->isOptimal());
+				double opt = scip->getObjectiveValue();
+				min[a] = opt;
+				a->setLb(opt); // we computed a lower bound, so use it for future computations
+			}
+
+			max_flux->setUb(a, max[a]);
+			min_flux->setUb(a, max[a]);
+			max_flux->setLb(a, min[a]);
+			min_flux->setLb(a, min[a]);
+			max_flux->solveDual();
+			min_flux->solveDual();
 		}
-		flux->setObj(a,0);
+		/*
+		 * reset objective function
+		 */
+		max_flux->setObj(a,0);
+		min_flux->setObj(a,0);
+
 		a->setObj(0);
 
+		/*
+		 * Check, if we are still in the run time limit
+		 */
 		runningTime = (double) (clock() - start) / CLOCKS_PER_SEC;
 
 		if(settings->timeout > EPSILON && runningTime > settings->timeout) {
@@ -332,6 +377,8 @@ void tfva(ModelPtr model, FVASettingsPtr settings, unordered_map<ReactionPtr,dou
 			BOOST_THROW_EXCEPTION( TimeoutError() );
 		}
 
+		cout << "finished iteration " << i << " of " << num_rxns << endl;
+		i++;
 	}
 }
 

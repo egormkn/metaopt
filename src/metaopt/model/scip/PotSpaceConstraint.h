@@ -28,6 +28,7 @@
 
 #include <boost/unordered_map.hpp>
 #include "scip/scip.h"
+#include "metaopt/model/Coupling.h"
 #include "metaopt/Properties.h"
 
 namespace metaopt {
@@ -35,9 +36,13 @@ namespace metaopt {
 /**
  * Use this constraint to formulate side constraints on the potential space variables, even if we do not create the potential variables explicitly.
  * Formulates _coef * mu >= 0
+ *
+ * PotSpace Constraints are aggregated CoverReactions. I.e. the columns of the reactions in the cover reaction are linear combined to the potspace constraint.
+ * The PotSpaceConstraint essentially prohibits flow through this CoverReaction.
  */
 struct PotSpaceConstraint {
 	boost::unordered_map<MetabolitePtr, double> _coef;
+	CoverReactionPtr _cover;
 };
 
 typedef boost::shared_ptr<PotSpaceConstraint> PotSpaceConstraintPtr;

@@ -48,6 +48,11 @@ public:
 	 * updates list of extra constraints
 	 */
 	virtual void setExtraPotConstraints(boost::unordered_set<PotSpaceConstraintPtr>& psc) = 0;
+
+	/**
+	 * Returns a list of the active extra pot-space constraints in the current solution.
+	 */
+	virtual std::vector<PotSpaceConstraintPtr> getActivePotConstraints() = 0;
 };
 
 typedef boost::shared_ptr<ISSupply> ISSupplyPtr;

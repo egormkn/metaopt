@@ -50,6 +50,7 @@ struct CoverReaction {
 	CoverReaction(DirectedReaction& r) : reaction(r), covered(new std::vector<DirectedReaction>()) {}
 };
 
+typedef shared_ptr<CoverReaction> CoverReactionPtr;
 
 /**
  * This class manages directed flux coupling information on reactions.

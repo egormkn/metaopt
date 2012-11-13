@@ -58,27 +58,38 @@ void fca(ModelPtr model, CouplingPtr coupling) {
 	fva(test, min, max);
 
 	int count = 0;
+	unordered_set<ReactionPtr> notCheck;
 	foreach(ReactionPtr a, model->getReactions()) {
 		if(min[a] < -EPSILON) {
 			test->setLb(a,0);
+			notCheck.clear();
 			foreach(ReactionPtr b, model->getReactions()) {
-				if(max[b] > EPSILON) {
+				if(notCheck.find(b) == notCheck.end() && max[b] > EPSILON) {
 					test->setObj(b,1);
 					test->solvePrimal();
-					if(test->getObjVal() < EPSILON) {
+					if(test->isOptimal() && test->getObjVal() < EPSILON) {
 						// b^+ -> a^-
 						coupling->addCoupled(DirectedReaction(b,true), DirectedReaction(a,false));
+					}
+					foreach(ReactionPtr c, model->getReactions()) {
+						// we already know that we can have positive flux, so we'll not have to solve an LP in future
+						if(test->getFlux(c) > EPSILON) notCheck.insert(c);
 					}
 					test->setObj(b,0);
 				}
 			}
+			notCheck.clear();
 			foreach(ReactionPtr b, model->getReactions()) {
-				if(min[b] < -EPSILON) {
+				if(notCheck.find(b) == notCheck.end() && min[b] < -EPSILON) {
 					test->setObj(b,-1);
 					test->solvePrimal();
-					if(test->getObjVal() < EPSILON) {
+					if(test->isOptimal() && test->getObjVal() < EPSILON) {
 						// b^- -> a^-
 						coupling->addCoupled(DirectedReaction(b,false), DirectedReaction(a,false));
+					}
+					foreach(ReactionPtr c, model->getReactions()) {
+						// we already know that we can have negative flux, so we'll not have to solve an LP in future
+						if(test->getFlux(c) < -EPSILON) notCheck.insert(c);
 					}
 					test->setObj(b,0);
 				}
@@ -87,27 +98,37 @@ void fca(ModelPtr model, CouplingPtr coupling) {
 		}
 		if(max[a] > EPSILON) {
 			test->setUb(a,0);
+			notCheck.clear();
 			foreach(ReactionPtr b, model->getReactions()) {
-				if(max[b] > EPSILON) {
+				if(notCheck.find(b) == notCheck.end() && max[b] > EPSILON) {
 					test->setObj(b,1);
 					test->solvePrimal();
-					if(test->getObjVal() < EPSILON) {
+					if(test->isOptimal() && test->getObjVal() < EPSILON) {
 						// b^+ -> a^+
 						if(test->getObjVal() > EPSILON*EPSILON) {
 							cout << b->getName() + "_fwd -> " + a->getName() + "_fwd" << " " << test->getObjVal() << endl;
 						}
 						coupling->addCoupled(DirectedReaction(b,true), DirectedReaction(a,true));
 					}
+					foreach(ReactionPtr c, model->getReactions()) {
+						// we already know that we can have positive flux, so we'll not have to solve an LP in future
+						if(test->getFlux(c) > EPSILON) notCheck.insert(c);
+					}
 					test->setObj(b,0);
 				}
 			}
+			notCheck.clear();
 			foreach(ReactionPtr b, model->getReactions()) {
-				if(min[b] < -EPSILON) {
+				if(notCheck.find(b) == notCheck.end() && min[b] < -EPSILON) {
 					test->setObj(b,-1);
 					test->solvePrimal();
-					if(test->getObjVal() < EPSILON) {
+					if(test->isOptimal() && test->getObjVal() < EPSILON) {
 						// b^- -> a^+
 						coupling->addCoupled(DirectedReaction(b,false), DirectedReaction(a,true));
+					}
+					foreach(ReactionPtr c, model->getReactions()) {
+						// we already know that we can have negative flux, so we'll not have to solve an LP in future
+						if(test->getFlux(c) < -EPSILON) notCheck.insert(c);
 					}
 					test->setObj(b,0);
 				}

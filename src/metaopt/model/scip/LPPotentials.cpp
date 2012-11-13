@@ -50,6 +50,7 @@ SCIP_RETCODE LPPotentials::init_lp() {
 
 	_lpi = NULL;
 	SCIP_CALL( SCIPlpiCreate(&_lpi, NULL, "LPPotentials", SCIP_OBJSEN_MAXIMIZE) );
+	SCIPlpiSetIntpar(_lpi, SCIP_LPPAR_PRESOLVING, 0);
 
 	// create metabolite -> row_index map
 	int metabolite_var = 1;

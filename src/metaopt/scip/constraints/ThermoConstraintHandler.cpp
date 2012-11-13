@@ -43,6 +43,8 @@
 //#define FINDBUG
 #define LOGBRANCHING
 
+#define USE_INFEAS_POOL 0
+
 // A note on priorities:
 // Large priorities are executed first
 
@@ -149,7 +151,7 @@ SCIP_RESULT ThermoConstraintHandler::enforceObjectiveCycles(SolutionPtr& sol) {
 	}
 	// we changed so many things at the cycle_find LP, that we'd better solve from scratch
 	//_cycle_find->resetState();
-#ifndef NDEBUG
+#if 0
 	_cycle_find->initStateInfo();
 #endif
 	//cout << "starting solve from scratch" <<endl;
@@ -172,7 +174,7 @@ SCIP_RESULT ThermoConstraintHandler::enforceObjectiveCycles(SolutionPtr& sol) {
 				if(_cycle_find->isFeasible()) {
 					return branchCycle(sol);
 				}
-#ifndef NDEBUG
+#if 0
 				_cycle_find->loadState();
 #endif
 				_cycle_find->setLb(rxn, 0); //undo the change
@@ -183,7 +185,7 @@ SCIP_RESULT ThermoConstraintHandler::enforceObjectiveCycles(SolutionPtr& sol) {
 				if(_cycle_find->isFeasible()) {
 					return branchCycle(sol);
 				}
-#ifndef NDEBUG
+#if 0
 				_cycle_find->loadState();
 #endif
 				_cycle_find->setUb(rxn, 0); //undo the change
@@ -201,6 +203,8 @@ SCIP_RESULT ThermoConstraintHandler::branchCycle(SolutionPtr& sol) {
 
 	unordered_set<DirectedReaction> branchingCandidates;
 
+	ThermoInfeasibleSetPtr tis(new ThermoInfeasibleSet());
+
 #if THERMOCONS_USE_AGGR_RXN
 	foreach(ReactionPtr rxn, _reduced->getReactions()) {
 		if(fixedDirs->find(_toOriginalRxn[rxn]) == fixedDirs->end()) { // not fixed
@@ -211,17 +215,30 @@ SCIP_RESULT ThermoConstraintHandler::branchCycle(SolutionPtr& sol) {
 			ub = _reducedScip->getCurrentFluxUb(rxn);
 #else
 	foreach(ReactionPtr rxn, _model->getReactions()) {
+		double val = _cycle_find->getFlux(rxn);
+
+		// build the tis (add rxns. that carry flux irrespective if the branching makes sense)
+		if(val > EPSILON) {
+			DirectedReaction d(rxn, true);
+			tis->set.insert(d);
+		}
+		else if(val < -EPSILON) {
+			DirectedReaction d(rxn, false);
+			tis->set.insert(d);
+		}
+
+		// create the branching set
 		if(fixedDirs->find(rxn) == fixedDirs->end()) { // not fixed
-			double val = _cycle_find->getFlux(rxn);
 			double lb;
 			double ub;
 			lb = model->getCurrentFluxLb(rxn);
 			ub = model->getCurrentFluxUb(rxn);
+
 #endif
 			if(val > EPSILON) {
 				if(lb < EPSILON) { // ub must be positive, since positive flow is not allowed else, restriction to zero must also be allowed
 					//cout << "branching ub "<<iter.getId() << endl;
-#ifndef NDEBUG
+#if 0
 					if(ub <= EPSILON) {
 						vector<double> primsol(10000);
 						BOOST_SCIP_CALL( SCIPlpiGetSol(_cycle_find->getLPI(), NULL, primsol.data(), NULL, NULL, NULL) );
@@ -242,7 +259,7 @@ SCIP_RESULT ThermoConstraintHandler::branchCycle(SolutionPtr& sol) {
 			else if(val < -EPSILON) {
 				if(ub > -EPSILON) { // lb must be negative, since negative flow is not allowed else, restriction to zero must also be allowed
 					//cout << "branching lb "<<iter.getId() << endl;
-#ifndef NDEBUG
+#if 0
 					if(lb >= -EPSILON) {
 						vector<double> primsol(10000);
 						BOOST_SCIP_CALL( SCIPlpiGetSol(_cycle_find->getLPI(), NULL, primsol.data(), NULL, NULL, NULL) );
@@ -262,6 +279,24 @@ SCIP_RESULT ThermoConstraintHandler::branchCycle(SolutionPtr& sol) {
 			}
 		}
 	}
+
+#if USE_INFEAS_POOL
+	// we also have to add the rxns that are implicitely used by PotSpaceConstraints
+	vector<PotSpaceConstraintPtr> apscs = _cycle_find->getActivePotConstraints();
+	foreach(PotSpaceConstraintPtr apsc, apscs) {
+		DirectedReaction d = apsc->_cover->reaction;
+		d._fwd = !d._fwd;
+		tis->set.insert(d);
+		foreach(DirectedReaction& c, *(apsc->_cover->covered)) {
+			DirectedReaction ccopy = c;
+			ccopy._fwd = !c._fwd;
+			tis->set.insert(ccopy);
+		}
+	}
+	tis->priority = tis->set.size();
+
+	_infeas_pool.add(tis);
+#endif
 
 	return branch(branchingCandidates, _cycle_find, sol);
 }
@@ -433,7 +468,13 @@ SCIP_RESULT ThermoConstraintHandler::branchIS(SolutionPtr& sol) {
 void ThermoConstraintHandler::reducePotSpace(ISSupplyPtr& iss, SCIP_NODE* node, CoverReaction& c) {
 	ScipModelPtr model = getScip();
 	PotSpaceConstraintPtr psc(new PotSpaceConstraint());
+	// the potspace constraint basically is just a linear constraint,
+	// it is build out of a linear combination out of the cover reaction
 	psc->_coef = unordered_map<MetabolitePtr, double>(c.reaction._rxn->getStoichiometries());
+	// also store the cover reaction, where this pot space constraint originated from.
+	// this is important for the list of known infeasible sets.
+	psc->_cover = CoverReactionPtr(new CoverReaction(c));
+
 	double a = iss->getAlpha(c.reaction._rxn);
 	foreach(DirectedReaction& d, *(c.covered)) {
 		double da = iss->getAlpha(d._rxn);
@@ -495,6 +536,7 @@ void ThermoConstraintHandler::setDirection(ISSupplyPtr& iss, SCIP_NODE* node, Co
 				psc->_coef[s.first] = -s.second;
 			}
 		}
+		psc->_cover = CoverReactionPtr(new CoverReaction(c));
 		// reduce the indirect potential space
 		addPotSpaceConstraint(psc, node);
 	}
@@ -660,6 +702,32 @@ SCIP_RETCODE ThermoConstraintHandler::enforce(SCIP_CONS** conss, int nconss, SCI
 	*result = SCIP_FEASIBLE;
 	try {
 
+		SolutionPtr solptr = wrap_weak(sol);
+
+#if USE_INFEAS_POOL
+		// before we do anything, first check, if we can directly apply one of our already found infeasible sets
+		foreach(ThermoInfeasibleSetPtr tis, _infeas_pool.getInfeasibleSets()) {
+			bool ok = true;
+			foreach(DirectedReaction d, tis->set) {
+				double flux = getScip()->getFlux(solptr, d._rxn);
+				if(d._fwd && flux <= EPSILON) {
+					ok = false;
+					break;
+				}
+				if(!d._fwd && flux >= -EPSILON) {
+					ok = false;
+					break;
+				}
+			}
+			if(ok) {
+				cout << "found an applicable infeasible set with priority " << tis->priority << endl;
+			}
+			else {
+				// break;
+			}
+		}
+#endif
+
 		//configure additional cons to helper variables
 		unordered_set<PotSpaceConstraintPtr> extra;
 		for(int i = 0; i < nconss; i++) {
@@ -674,7 +742,6 @@ SCIP_RETCODE ThermoConstraintHandler::enforce(SCIP_CONS** conss, int nconss, SCI
 
 
 		// 1st step: try finding objective cycles
-		SolutionPtr solptr = wrap_weak(sol);
 		*result = enforceObjectiveCycles(solptr);
 		assert(solptr.unique());
 		if(*result != SCIP_FEASIBLE) return SCIP_OKAY;

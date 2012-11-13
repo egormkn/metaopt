@@ -27,7 +27,9 @@
 #define LPFLUX_H_
 
 #include "scip/lpi.h"
-#include "soplex.h"
+//#ifndef NDEBUG
+//#include "soplex.h"
+//#endif
 
 #include "metaopt/model/Model.h"
 #include "metaopt/model/scip/ScipModel.h"
@@ -250,7 +252,13 @@ public:
 	 */
 	void setExtraPotConstraints(boost::unordered_set<PotSpaceConstraintPtr>& psc);
 
-#ifndef NDEBUG
+	/**
+	 * Returns a list of the active extra pot-space constraints in the current solution.
+	 * The activity level will always be negative.
+	 */
+	std::vector<PotSpaceConstraintPtr> getActivePotConstraints();
+
+#if 0
 	// these methods are for debugging only! A state of the LP can be stored and fetched later on
 	std::vector<int> cstat;
 	std::vector<int> rstat;

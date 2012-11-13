@@ -102,6 +102,10 @@ public:
 	 */
 	void setExtraPotConstraints(boost::unordered_set<PotSpaceConstraintPtr>& psc);
 
+	/**
+	 * Returns a list of the active extra pot-space constraints in the current solution.
+	 */
+	std::vector<PotSpaceConstraintPtr> getActivePotConstraints();
 
 private:
 	std::vector<double> _primsol; // use vector to store primal solution to circumvent deallocation hassle

@@ -37,6 +37,7 @@
 #include "metaopt/model/Coupling.h"
 #include "metaopt/model/scip/ISSupply.h"
 #include "metaopt/model/scip/PotSpaceConstraint.h"
+#include "metaopt/scip/constraints/ThermoInfeasibleSetPool.h"
 #include "metaopt/Properties.h"
 
 // set to 1 to use aggregated reactions instead of the original reactions (not correctly implemented yet)
@@ -223,6 +224,10 @@ private:
 
 	// for checking feasibility
 	LPPotentialsPtr _pot_test;
+
+	// this pool is used to store already found infeasible sets, so that we don't have to go looking again.
+	ThermoInfeasibleSetPool _infeas_pool;
+
 
 	// propagates potential bounds that can be used to detect disabled reactions
 #if 0

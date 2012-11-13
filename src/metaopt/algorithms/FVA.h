@@ -33,6 +33,7 @@
 #include "metaopt/model/scip/LPFlux.h"
 
 #include "metaopt/algorithms/ModelFactory.h"
+#include "metaopt/model/Coupling.h"
 #include "metaopt/Properties.h"
 
 namespace metaopt {
@@ -40,6 +41,7 @@ namespace metaopt {
 struct FVASettings {
 	double timeout;
 	boost::unordered_set<ReactionPtr> reactions;
+	CouplingPtr coupling;
 
 	FVASettings() : timeout(-1), reactions() {};
 };

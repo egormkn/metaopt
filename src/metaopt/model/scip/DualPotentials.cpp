@@ -59,6 +59,7 @@ SCIP_RETCODE DualPotentials::init_lp() {
 
 	_lpi = NULL;
 	SCIP_CALL( SCIPlpiCreate(&_lpi, NULL, "LPFlux", SCIP_OBJSEN_MINIMIZE) );
+	SCIPlpiSetIntpar(_lpi, SCIP_LPPAR_PRESOLVING, 0);
 
 	// create metabolite -> index map
 	// initialize beta variables
@@ -419,6 +420,21 @@ void DualPotentials::setExtraPotConstraints(unordered_set<PotSpaceConstraintPtr>
 	assert(end == EXTRA + _extraConstraints.size());
 	SCIPlpiClearState(_lpi); // hmm... very ugly
 	_primsol.resize(end, 0);
+}
+
+
+vector<PotSpaceConstraintPtr> DualPotentials::getActivePotConstraints() {
+	typedef pair<PotSpaceConstraintPtr, int> PSCEntry;
+
+	vector<PotSpaceConstraintPtr> out;
+
+	foreach(PSCEntry e, _extraConstraints) {
+		// potSpaceConstraints only allow reverse flux
+		if(_primsol[e.second] < -EPSILON) {
+			out.push_back(e.first);
+		}
+	}
+	return out;
 }
 
 } /* namespace metaopt */
