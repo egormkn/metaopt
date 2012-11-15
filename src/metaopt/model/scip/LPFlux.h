@@ -73,6 +73,16 @@ public:
 	double getObj(ReactionPtr r);
 
 	/**
+	 * Sets this LPFlux to have the same objective function as other
+	 */
+	void setObjective(LPFluxPtr other);
+
+	/**
+	 * returns true if the objective sense is set to maximize
+	 */
+	bool isMaximize();
+
+	/**
 	 * Set the bounds to the same values as in the specified flux.
 	 * Every reaction that appears in this flux, must also appear in the other flux.
 	 */

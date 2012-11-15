@@ -54,7 +54,7 @@ SRC_METAOPT_SCIP_CONSTRAINTS=SteadyStateConstraint.cpp RelaxedNaiveThermoConstra
 SRC_METAOPT_SCIP_CONSTRAINTS_DIR=constraints
 SRC_METAOPT_SCIP_HEUR=CycleDeletionHeur.cpp
 SRC_METAOPT_SCIP_HEUR_DIR=heur
-SRC_METAOPT_ALGORITHMS=FCA.cpp FVA.cpp ModelFactory.cpp FluxForcing.cpp
+SRC_METAOPT_ALGORITHMS=FCA.cpp FVA.cpp ModelFactory.cpp FluxForcing.cpp BlockingSet.cpp
 SRC_METAOPT_ALGORITHMS_DIR=algorithms
 
 SRC_METAOPT_MODEL+=$(patsubst %,$(SRC_METAOPT_MODEL_SBML_DIR)/%,$(SRC_METAOPT_MODEL_SBML))

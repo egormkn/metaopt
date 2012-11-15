@@ -202,6 +202,28 @@ double LPFlux::getObj(ReactionPtr r) {
 	}
 }
 
+void LPFlux::setObjective(LPFluxPtr other) {
+	/**
+	 * reallign values
+	 */
+	double oobj[other->_num_reactions];
+	BOOST_SCIP_CALL( SCIPlpiGetObj(other->_lpi, 0, other->_num_reactions-1, oobj) );
+	int ind[_num_reactions];
+	double obj[_num_reactions];
+	foreach(VarAssign v, _reactions) {
+		ind[v.second] = v.second;
+		obj[v.second] = oobj[other->_reactions.at(v.first)];
+	}
+	// set
+	BOOST_SCIP_CALL(SCIPlpiChgObj(_lpi, _num_reactions, ind, obj));
+}
+
+
+bool LPFlux::isMaximize() {
+	SCIP_OBJSEN objsen;
+	BOOST_SCIP_CALL(SCIPlpiGetObjsen(_lpi, &objsen));
+	return objsen == SCIP_OBJSEN_MAXIMIZE;
+}
 
 
 void LPFlux::setZeroObj() {

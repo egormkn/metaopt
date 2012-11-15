@@ -40,6 +40,16 @@
     #define foreach BOOST_FOREACH
 #endif
 
+/** Thrown id an endless loop has been detected */
+struct EndlessLoopError : virtual boost::exception, virtual std::exception {
+public:
+	EndlessLoopError() {}
+};
+
+/** If an endless loop is detected, this error message indicates the number of iterations after the loop was aborted */
+typedef boost::error_info<struct tag_iteration_count,int> iteration_count;
+
+
 namespace boost
 {
    template <class T>
