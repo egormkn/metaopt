@@ -120,7 +120,7 @@ public:
 	/**
 	 * Returns the flux value through the specified reaction.
 	 * If the problem has been solved, the value of an optimal solution is returned.
-	 * Else, the value of the current LP-relaxation is returned. The LP-relaxation, however has to be solved to optimality.
+	 * Else, the value of the current LP-relaxation is returned. The LP-relaxation, however has to be solved to optimality or the primal ray proving unboundedness has been computed.
 	 *
 	 * Precondition: hasFluxVar(rxn),  hasCurrentFlux()
 	 *
@@ -142,6 +142,7 @@ public:
 
 	/**
 	 * Returns the flux value of specified solution through the specified reaction.
+	 * If the solution is unbounded, the values of the ray are returned instead.
 	 */
 	double getFlux(SolutionPtr sol, ReactionPtr rxn);
 
@@ -191,6 +192,16 @@ public:
 	 * If the problem has been solved, checks if the computed solution is unbounded.
 	 */
 	bool isUnbounded();
+
+	/**
+	 * If the problem is unbounded, returns truw if also a primal ray is stored.
+	 */
+	bool hasPrimalRay();
+
+	/**
+	 * If the problem has been solved, returns true if the problem is infeasible
+	 */
+	bool isInfeasible();
 
 	/**
 	 * Returns the internal scip instance.

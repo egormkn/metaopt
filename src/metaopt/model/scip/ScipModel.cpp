@@ -205,7 +205,7 @@ bool ScipModel::hasPotentialVar(MetabolitePtr met) {
 bool ScipModel::hasCurrentFlux() {
 	return(!_reactions.empty()
 		&& (
-				(SCIPgetStage(_scip) == SCIP_STAGE_SOLVING && SCIPgetLPSolstat(_scip) == SCIP_LPSOLSTAT_OPTIMAL)
+				(SCIPgetStage(_scip) == SCIP_STAGE_SOLVING && (SCIPgetLPSolstat(_scip) == SCIP_LPSOLSTAT_OPTIMAL || SCIPhasPrimalRay(_scip)) )
 			 || SCIPgetStage(_scip) == SCIP_STAGE_SOLVED
 		   )
 		  );
@@ -231,15 +231,26 @@ bool ScipModel::hasPotentials() {
 double ScipModel::getCurrentFlux(ReactionPtr rxn) {
 	assert( hasFluxVar(rxn) );
 	if( SCIPgetStage(_scip) == SCIP_STAGE_SOLVING) {
-		assert( SCIPgetLPSolstat(_scip) == SCIP_LPSOLSTAT_OPTIMAL ); // LP must be solved to optimality, else the result is rather meaningless
-		/*if(oldnode == SCIPgetCurrentNode(_scip)) {
-			// return cached value
-		}*/
-		return SCIPgetSolVal(_scip, NULL, getFlux(rxn));
+		if(SCIPhasPrimalRay(_scip)) {
+			// if it is unbounded, set value of ray instead
+			return SCIPgetPrimalRayVal(_scip, getFlux(rxn));
+		}
+		else {
+			assert( SCIPgetLPSolstat(_scip) == SCIP_LPSOLSTAT_OPTIMAL ); // LP must be solved to optimality, else the result is rather meaningless
+			/*if(oldnode == SCIPgetCurrentNode(_scip)) {
+				// return cached value
+			}*/
+			return SCIPgetSolVal(_scip, NULL, getFlux(rxn));
+		}
 	}
 	else if(SCIPgetStage(_scip) == SCIP_STAGE_SOLVED) {
-		SCIP_SOL* sol = SCIPgetBestSol(_scip);
-		return SCIPgetSolVal(_scip, sol, getFlux(rxn));
+		if(SCIPhasPrimalRay(_scip)) {
+			return SCIPgetPrimalRayVal(_scip, getFlux(rxn));
+		}
+		else {
+			SCIP_SOL* sol = SCIPgetBestSol(_scip);
+			return SCIPgetSolVal(_scip, sol, getFlux(rxn));
+		}
 	}
 	else {
 		assert( false ); // solving has not yet started
@@ -296,6 +307,15 @@ bool ScipModel::isOptimal() {
 bool ScipModel::isUnbounded() {
 	assert( SCIPgetStage(_scip) == SCIP_STAGE_SOLVED );  // Problem has not yet been solved!";
 	return SCIPgetStatus(_scip) == SCIP_STATUS_UNBOUNDED;
+}
+
+bool ScipModel::hasPrimalRay() {
+	return SCIPhasPrimalRay(_scip);
+}
+
+bool ScipModel::isInfeasible() {
+	assert( SCIPgetStage(_scip) == SCIP_STAGE_SOLVED );  // Problem has not yet been solved!";
+	return SCIPgetStatus(_scip) == SCIP_STATUS_INFEASIBLE;
 }
 
 void ScipModel::addAddOn(ModelAddOnPtr addon) {
