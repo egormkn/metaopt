@@ -170,18 +170,20 @@ shared_ptr<vector<DirectedReaction> > findBlockingSet(LPFluxPtr test, LPFluxPtr 
 	foreach(ReactionPtr rxn, flux->getModel()->getInternalReactions()) {
 		int stat = test->getColumnStatus(rxn);
 		if(stat == SCIP_BASESTAT_LOWER && test->getLb(rxn) < -EPSILON && flux->getFlux(rxn) > -EPSILON) {
-			cout << rxn->getName() << " redcost=" << test->getReducedCost(rxn) << endl;
+			// cout << rxn->getName() << " redcost=" << test->getReducedCost(rxn) << endl;
 			// we can block negative flux through this reaction
 			double redcost = test->getReducedCost(rxn);
-			if(redcost > EPSILON || redcost < -EPSILON) { // is this check valid?
+			// see in ideas.tex, why we can add this extra check using reduced costs
+			if(redcost > EPSILON || redcost < -EPSILON) { // do the check in both direction, because it may depend on the objective sense
 				block->push_back(DirectedReaction(rxn, false));
 			}
 		}
 		else if(stat == SCIP_BASESTAT_UPPER && test->getUb(rxn) > EPSILON && flux->getFlux(rxn) < EPSILON) {
-			cout << rxn->getName() << " redcost=" << test->getReducedCost(rxn) << endl;
+			// cout << rxn->getName() << " redcost=" << test->getReducedCost(rxn) << endl;
 			// we can block positive flux through this reaction
 			double redcost = test->getReducedCost(rxn);
-			if(redcost > EPSILON || redcost < -EPSILON) { // is this check valid?
+			// see in ideas.tex, why we can add this extra check using reduced costs
+			if(redcost > EPSILON || redcost < -EPSILON) { // do the check in both direction, because it may depend on the objective sense
 				block->push_back(DirectedReaction(rxn, true));
 			}
 		}
