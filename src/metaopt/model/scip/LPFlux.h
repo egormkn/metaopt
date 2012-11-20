@@ -27,6 +27,7 @@
 #define LPFLUX_H_
 
 #include "scip/lpi.h"
+#include "scip/type_lpi.h"
 //#ifndef NDEBUG
 //#include "soplex.h"
 //#endif
@@ -196,6 +197,22 @@ public:
 	double getDual(MetabolitePtr met);
 
 	/**
+	 * gets the reduced cost of the specified reaction.
+	 */
+	double getReducedCost(ReactionPtr rxn);
+
+	/**
+	 * fetches the column status of the specified reaction.
+	 *
+	 * Returned value is one of
+	 * SCIP_BASESTAT_LOWER if lower bound is active
+	 * SCIP_BASESTAT_UPPER if upper bound is active
+	 * SCIP_BASESTAT_BASIC if variable is basic
+	 * SCIP_BASESTAT_ZERO if variable is non-basic and set to zero
+	 */
+	int getColumnStatus(ReactionPtr rxn);
+
+	/**
 	 * Is the current LP solution optimal ?
 	 */
 	bool isOptimal();
@@ -293,6 +310,10 @@ private:
 	int _num_reactions; //< number of reactions in the LP model (depends if we include exchange fluxes or not)
 
 	std::vector<double> _primsol; // use vector to store primal solution to circumvent deallocation hassle
+	std::vector<int> _cstat; // store column basis status, so we don't have to fetch it each time from the LP solver
+	bool _cstat_computed; // only fetch it if needed
+	std::vector<double> _redcost;
+	bool _redcost_computed; // same philosophy as for _cstat_computed
 
 	SCIP_RETCODE init_lp(bool exchange);
 	SCIP_RETCODE free_lp();

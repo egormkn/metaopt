@@ -101,6 +101,8 @@ SCIP_RETCODE LPFlux::init_lp(bool exchange) {
 	}
 	_num_reactions = reaction_var;
 	_primsol.resize(_num_reactions,0); // allocate sufficient memory
+	_cstat_computed = false;
+	_redcost_computed = false;
 
 	int nrows;
 	SCIP_CALL( SCIPlpiGetNRows(_lpi, &nrows) );
@@ -433,6 +435,8 @@ void LPFlux::setObjSense(bool maximize) {
 }
 
 void LPFlux::solvePrimal() {
+	_cstat_computed = false;
+	_redcost_computed = false;
 	BOOST_SCIP_CALL( SCIPlpiSolvePrimal(_lpi) );
 #ifdef LPSOLVER_SOPLEX
 	if(SCIPlpiGetInternalStatus(_lpi) == -4) {
@@ -455,6 +459,8 @@ void LPFlux::solvePrimal() {
 }
 
 void LPFlux::solveDual() {
+	_cstat_computed = false;
+	_redcost_computed = false;
 	BOOST_SCIP_CALL( SCIPlpiSolveDual(_lpi) );
 #ifdef LPSOLVER_SOPLEX
 	if(SCIPlpiGetInternalStatus(_lpi) == -4) {
@@ -477,6 +483,8 @@ void LPFlux::solveDual() {
 }
 
 void LPFlux::solve() {
+	_cstat_computed = false;
+	_redcost_computed = false;
 	BOOST_SCIP_CALL( SCIPlpiSolveDual(_lpi) );
 #ifdef LPSOLVER_SOPLEX
 	if(SCIPlpiGetInternalStatus(_lpi) == -4) {
@@ -527,6 +535,41 @@ double LPFlux::getDual(MetabolitePtr met) {
 		return dualsol[iter->second];
 	}
 }
+
+int LPFlux::getColumnStatus(ReactionPtr rxn) {
+	if(!_cstat_computed) {
+		int ncols;
+		BOOST_SCIP_CALL( SCIPlpiGetNCols(_lpi, &ncols) );
+		_cstat.resize(ncols, 0);
+		BOOST_SCIP_CALL( SCIPlpiGetBase(_lpi, _cstat.data(), NULL) );
+		_cstat_computed = true;
+	}
+	boost::unordered_map<ReactionPtr, int>::iterator iter = _reactions.find(rxn);
+	if(iter == _reactions.end()) {
+		return SCIP_BASESTAT_ZERO;
+	}
+	else {
+		return _cstat[iter->second];
+	}
+}
+
+double LPFlux::getReducedCost(ReactionPtr rxn) {
+	if(!_redcost_computed) {
+		int ncols;
+		BOOST_SCIP_CALL( SCIPlpiGetNCols(_lpi, &ncols) );
+		_redcost.resize(ncols, 0);
+		BOOST_SCIP_CALL( SCIPlpiGetSol(_lpi, NULL, NULL, NULL, NULL, _redcost.data()) );
+		_redcost_computed = true;
+	}
+	boost::unordered_map<ReactionPtr, int>::iterator iter = _reactions.find(rxn);
+	if(iter == _reactions.end()) {
+		return SCIP_BASESTAT_ZERO;
+	}
+	else {
+		return _redcost[iter->second];
+	}
+}
+
 
 void LPFlux::set(AbstractScipFluxModelPtr smodel) {
 	foreach(VarAssign v, _reactions) {

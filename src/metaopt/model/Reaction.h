@@ -136,6 +136,20 @@ public:
 	inline bool isProblematic() const;
 
 	/**
+	 * checks if this reaction is flux forcing.
+	 *
+	 * A reaction is flux forcing, if it has a positive lower bound or a negative upper bound
+	 */
+	inline bool isFluxForcing() const;
+
+	/**
+	 * checks if this reaction is objective.
+	 *
+	 * A reaction is objectvie, if it has a non-zero objective coefficient
+	 */
+	inline bool isObjective() const;
+
+	/**
 	 * marks this reaction as problematic.
 	 *
 	 * Problematic reactions are reactions whose flux variable is also used in additional constraint (e.g. kinetics).
@@ -313,6 +327,14 @@ bool Reaction::isProblematic() const {
 void Reaction::setProblematic(bool problematic) {
 	_problematic = problematic;
 	notifyChange();
+}
+
+bool Reaction::isObjective() const {
+	return _obj < -EPSILON || _obj > EPSILON;
+}
+
+bool Reaction::isFluxForcing() const {
+	return _lb > EPSILON || _ub < -EPSILON;
 }
 
 } /* namespace metaopt */
