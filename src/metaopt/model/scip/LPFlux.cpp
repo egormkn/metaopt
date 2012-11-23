@@ -161,8 +161,14 @@ void LPFlux::setUb(ReactionPtr r, double ub) {
 }
 
 void LPFlux::setObj(ReactionPtr r, double obj) {
-	int ind = _reactions.at(r);
-	BOOST_SCIP_CALL( SCIPlpiChgObj(_lpi, 1, &ind, &obj));
+	try {
+		int ind = _reactions.at(r);
+		double olb;
+		BOOST_SCIP_CALL( SCIPlpiChgObj(_lpi, 1, &ind, &obj));
+	}
+	catch(std::exception &ex) {
+		BOOST_SCIP_CALL( SCIP_ERROR );
+	}
 }
 
 double LPFlux::getLb(ReactionPtr r) {
@@ -754,6 +760,7 @@ vector<PotSpaceConstraintPtr> LPFlux::getActivePotConstraints() {
 		cstat.reserve(10000);
 		rstat.reserve(10000);
 	}
+#endif
 
 	SCIP_LPI* LPFlux::getLPI() {
 		return _lpi;
@@ -762,6 +769,9 @@ vector<PotSpaceConstraintPtr> LPFlux::getActivePotConstraints() {
 	int LPFlux::getIndex(ReactionPtr rxn) {
 		return _reactions[rxn];
 	}
-#endif
+
+	int LPFlux::getIndex(MetabolitePtr met) {
+		return _metabolites[met];
+	}
 
 } /* namespace metaopt */

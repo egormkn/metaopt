@@ -236,7 +236,7 @@ shared_ptr<vector<DirectedReaction> > findBlockingSet(LPFluxPtr flux) {
 	foreach(ReactionPtr rxn, model->getProblematicReactions()) {
 		// with flux forcing reactions we deal later
 		// for objective reactions, we only check the reaction unfavoured by the objective function
-		if(!rxn->isFluxForcing()) {
+		if(!rxn->isFluxForcing() && !rxn->isExchange()) { //only internal reactions are interesting
 			// positive flux case
 			if(rxn->getUb() > EPSILON && rxn->getObj() < EPSILON) { // if the objective is also positive, we deal with it later
 				test->setObj(rxn, 1); // ask for flow through the problematic reaction
@@ -298,24 +298,26 @@ shared_ptr<vector<DirectedReaction> > findBlockingSet(LPFluxPtr flux) {
 	// we dealt with the problematic reactions
 	// now we process the flux forcing reactions
 	foreach(ReactionPtr rxn, model->getFluxForcingReactions()) {
-		if(rxn->getLb() > EPSILON) {
-			test->setObj(rxn, 1); // ask for flow through the flux forcing reaction
+		if(!rxn->isExchange()) { // only internal reactions are interesting
+			if(rxn->getLb() > EPSILON) {
+				test->setObj(rxn, 1); // ask for flow through the flux forcing reaction
+			}
+			else {
+				assert(rxn->getUb() < -EPSILON);
+				test->setObj(rxn, -1);
+			}
+			test->solvePrimal();
+			// we always have to compute the blocking set
+			shared_ptr<vector<DirectedReaction> > b = findBlockingSet(test, flux);
+			// and enforce it
+			foreach(DirectedReaction& d, *b) {
+				block->push_back(d);
+				if(d._fwd) test->setUb(d._rxn, 0);
+				else test->setLb(d._rxn, 0);
+			}
+			// undo the objective change
+			test->setObj(rxn, 0);
 		}
-		else {
-			assert(rxn->getUb() < -EPSILON);
-			test->setObj(rxn, -1);
-		}
-		test->solvePrimal();
-		// we always have to compute the blocking set
-		shared_ptr<vector<DirectedReaction> > b = findBlockingSet(test, flux);
-		// and enforce it
-		foreach(DirectedReaction& d, *b) {
-			block->push_back(d);
-			if(d._fwd) test->setUb(d._rxn, 0);
-			else test->setLb(d._rxn, 0);
-		}
-		// undo the objective change
-		test->setObj(rxn, 0);
 	}
 	// we have now dealt with flux-forcing and problematic reactions
 	// now deal with the objective reactions
@@ -324,23 +326,25 @@ shared_ptr<vector<DirectedReaction> > findBlockingSet(LPFluxPtr flux) {
 	// so, we deal with one objective reaction after another.
 	// this also makes sure, that we don't get problems with cycles consisting only of objective reactions
 	foreach(ReactionPtr rxn, model->getObjectiveReactions()) {
-		if(rxn->getObj() > EPSILON) {
-			test->setObj(rxn, sense); // ask for flow through the objective reaction according to the sense of the optimization problem
+		if(!rxn->isExchange()) { // only internal reactions are interesting
+			if(rxn->getObj() > EPSILON) {
+				test->setObj(rxn, sense); // ask for flow through the objective reaction according to the sense of the optimization problem
+			}
+			else {
+				test->setObj(rxn, -sense);
+			}
+			test->solvePrimal();
+			// we always have to compute the blocking set
+			shared_ptr<vector<DirectedReaction> > b = findBlockingSet(test, flux);
+			// and enforce it
+			foreach(DirectedReaction& d, *b) {
+				block->push_back(d);
+				if(d._fwd) test->setUb(d._rxn, 0);
+				else test->setLb(d._rxn, 0);
+			}
+			// undo the objective change
+			test->setObj(rxn, 0);
 		}
-		else {
-			test->setObj(rxn, -sense);
-		}
-		test->solvePrimal();
-		// we always have to compute the blocking set
-		shared_ptr<vector<DirectedReaction> > b = findBlockingSet(test, flux);
-		// and enforce it
-		foreach(DirectedReaction& d, *b) {
-			block->push_back(d);
-			if(d._fwd) test->setUb(d._rxn, 0);
-			else test->setLb(d._rxn, 0);
-		}
-		// undo the objective change
-		test->setObj(rxn, 0);
 	}
 
 	// we are done and we can return the blocking set!

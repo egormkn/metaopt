@@ -60,6 +60,18 @@ public:
 	 */
 	inline bool isMaximize() const;
 
+#if 0
+	/**
+	 * sets the solver to solve with the desired precision
+	 */
+	void setPrecision(double precision);
+
+	/**
+	 * returns the precision with which the problem will be solved.
+	 */
+	double getPrecision();
+#endif
+
 	/**
 	 * fetches the scip variable representing the flux.
 	 * If the variable does not exist yet, it is created.

@@ -285,6 +285,11 @@ public:
 	 */
 	std::vector<PotSpaceConstraintPtr> getActivePotConstraints();
 
+	// only for debugging!
+	SCIP_LPI* getLPI();
+	int getIndex(ReactionPtr rxn);
+	int getIndex(MetabolitePtr rxn);
+
 #if 0
 	// these methods are for debugging only! A state of the LP can be stored and fetched later on
 	std::vector<int> cstat;
@@ -296,8 +301,6 @@ public:
 
 	void initStateInfo();
 
-	SCIP_LPI* getLPI();
-	int getIndex(ReactionPtr rxn);
 #endif
 
 private:

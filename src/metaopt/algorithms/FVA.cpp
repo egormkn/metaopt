@@ -323,6 +323,27 @@ void tfva(ModelPtr model, FVASettingsPtr settings, unordered_map<ReactionPtr,dou
 				}
 				scip->setObjectiveSense(true);
 				scip->solve();
+
+#ifndef NDEBUG
+				if(!scip->isOptimal()) {
+					SCIPprintStatistics(scip->getScip(), NULL);
+					cout << "LP primal infeasible = " << SCIPlpiIsPrimalInfeasible(max_flux->getLPI()) << endl;
+					if( SCIPlpiHasDualRay(max_flux->getLPI())) {
+						double dualfarkas[model->getMetabolites().size()];
+						SCIPlpiGetDualfarkas(max_flux->getLPI(), dualfarkas);
+						foreach(MetabolitePtr met, model->getMetabolites()) {
+							double d = dualfarkas[max_flux->getIndex(met)];
+							if(d < -EPSILON || d > EPSILON) {
+								cout << met->getName() << " = " << d << endl;
+							}
+						}
+					}
+					else {
+						cout << "no dual ray available" << endl;
+					}
+					SCIPwriteOrigProblem(scip->getScip(), "debug.lp", NULL, TRUE);
+				}
+#endif
 				assert(scip->isOptimal());
 				double opt = scip->getObjectiveValue();
 				max[a] = opt;
@@ -345,6 +366,26 @@ void tfva(ModelPtr model, FVASettingsPtr settings, unordered_map<ReactionPtr,dou
 				}
 				scip->setObjectiveSense(false);
 				scip->solve();
+#ifndef NDEBUG
+				if(!scip->isOptimal()) {
+					SCIPprintStatistics(scip->getScip(), NULL);
+					cout << "LP primal infeasible = " << SCIPlpiIsPrimalInfeasible(min_flux->getLPI()) << endl;
+					if( SCIPlpiHasDualRay(min_flux->getLPI())) {
+						double dualfarkas[model->getMetabolites().size()];
+						SCIPlpiGetDualfarkas(min_flux->getLPI(), dualfarkas);
+						foreach(MetabolitePtr met, model->getMetabolites()) {
+							double d = dualfarkas[min_flux->getIndex(met)];
+							if(d < -EPSILON || d > EPSILON) {
+								cout << met->getName() << " = " << d << endl;
+							}
+						}
+					}
+					else {
+						cout << "no dual ray available" << endl;
+					}
+					SCIPwriteOrigProblem(scip->getScip(), "debug.lp", NULL, TRUE);
+				}
+#endif
 				assert(scip->isOptimal());
 				double opt = scip->getObjectiveValue();
 				min[a] = opt;
