@@ -42,14 +42,18 @@ CycleDeletionHeur::CycleDeletionHeur(ScipModelPtr scip) :
 	_scip = scip;
 	// initialize with original objective
 	_difficultyTestFlux = LPFluxPtr(new LPFlux(scip->getModel(), false));
+	// use default precision for _difficultyTestFlux, because it uses only -1/0/1 bounds.
 	_difficultyTestFlux->setObjSense(scip->isMaximize());
 
 	_tflux = LPFluxPtr(new LPFlux(scip->getModel(), true));
+	_tflux->setPrecision(scip->getPrecision()); // _tflux eventually produces a solution for the original problem, so it should have the same precision
 	// _tflux doesn't need an Objsense, since we do not use it to solve optimization problems.
 	_cycle = LPFluxPtr(new LPFlux(scip->getModel(), false));
+	_cycle->setPrecision(scip->getPrecision()->getSlavePrecision()); // solve _cycle with slave precision, because we will subtract it several times and errors may accumulate
 	_cycle->setObjSense(true);
 
 	_potentials = LPPotentialsPtr(new LPPotentials(scip->getModel()));
+	_potentials->setPrecision(scip->getPotPrecision());
 }
 
 CycleDeletionHeur::~CycleDeletionHeur() {
@@ -131,7 +135,10 @@ bool CycleDeletionHeur::isDifficult() {
 		// numerical issues may cause this - we then don't want to fail completely
 		return true; // if we have numerical issues, the problem is difficult!
 	}
-	return _difficultyTestFlux->getObjVal() > EPSILON || _difficultyTestFlux->getObjVal() < -EPSILON;
+
+	const PrecisionPtr& prec = _difficultyTestFlux->getPrecision();
+
+	return _difficultyTestFlux->getObjVal() > prec->getCheckTol() || _difficultyTestFlux->getObjVal() < -prec->getCheckTol();
 }
 
 bool CycleDeletionHeur::computeFluxSolution(SolutionPtr sol) {
@@ -140,6 +147,8 @@ bool CycleDeletionHeur::computeFluxSolution(SolutionPtr sol) {
 	_tflux->set(scip);
 
 	bool hasFlux = true;
+
+	const PrecisionPtr& cyclePrec = _cycle->getPrecision();
 
 	// create new flux containing no exchange reactions, to find internal cycles
 	_cycle->setDirectionObj(_tflux);
@@ -156,7 +165,7 @@ bool CycleDeletionHeur::computeFluxSolution(SolutionPtr sol) {
 			// these numerical issues should not kill the program
 			return false;
 		}
-		hasFlux = _cycle->getObjVal() > EPSILON;
+		hasFlux = _cycle->getObjVal() > cyclePrec->getCheckTol();
 		if(hasFlux) {
 			// now subtract computed flux from solution flux
 			double scale = _tflux->getSubScale(_cycle);
@@ -238,6 +247,8 @@ bool CycleDeletionHeur::computePotentials(SolutionPtr sol) {
 			}
 		}
 #ifndef NDEBUG
+		const PrecisionPtr& fluxPrec = _tflux->getPrecision();
+		const PrecisionPtr& potPrec = _potentials->getPrecision();
 		// check if potential differences match to flux directions
 		foreach(ReactionPtr rxn, scip->getModel()->getInternalReactions()) {
 			double potDiff = 0;
@@ -245,7 +256,7 @@ bool CycleDeletionHeur::computePotentials(SolutionPtr sol) {
 				potDiff += s.second*_potentials->getPotential(s.first);
 			}
 			double flux = _tflux->getFlux(rxn);
-			if(!(flux*potDiff < 0 || (flux < EPSILON && flux > -EPSILON) || (potDiff < EPSILON && potDiff > -EPSILON))) { // also allow potDiff = 0, because of closure of the domain
+			if(!(flux*potDiff < 0 || (flux < fluxPrec->getCheckTol() && flux > -fluxPrec->getCheckTol()) || (potDiff < potPrec->getCheckTol() && potDiff > -potPrec->getCheckTol()))) { // also allow potDiff = 0, because of closure of the domain
 				_potentials->save();
 				foreach(Stoichiometry s, rxn->getStoichiometries()) {
 					std::cout << s.first->getName() << " ("<< _potentials->getVar(s.first) << ") : " << s.second << "*" << _potentials->getPotential(s.first) << std::endl;

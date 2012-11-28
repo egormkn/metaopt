@@ -37,9 +37,12 @@ namespace metaopt {
 
 #define FEASTEST_VAR 0
 
+
 LPPotentials::LPPotentials(ModelPtr model) {
 	_model = model;
 	BOOST_SCIP_CALL( init_lp() );
+
+	setPrecision(model->getPotPrecision());
 
 	// we have the lp, we now know the size of the base
 	init(_feasTest);
@@ -89,14 +92,14 @@ SCIP_RETCODE LPPotentials::init_lp() {
 			}
 			double lhs = -INFINITY;
 			double rhs = INFINITY;
-			if(r->getLb() > EPSILON) {
+			if(r->isFwdForcing()) {
 				//rhs = -REACTION_DIRECTIONS_EPSILON;
 				rhs = 0;
 				// also add the variable to test strict feasibility
 				ind.push_back(FEASTEST_VAR);
 				coef.push_back(1);
 			}
-			if(r->getUb() < -EPSILON) {
+			if(r->isBwdForcing()) {
 				//lhs = REACTION_DIRECTIONS_EPSILON;
 				lhs = 0;
 				// also add the variable to test strict feasibility
@@ -135,13 +138,16 @@ SCIP_RETCODE LPPotentials::init_lp() {
 	ind[0] = FEASTEST_VAR;
 
 	typedef pair<MetabolitePtr, int> PotVar;
+
+	double potEps = _model->getPotPrecision()->getCheckTol();
+
 	foreach(PotVar v, _metabolites) {
 		ind[v.second] = v.second;
 		assert(v.first->getPotLb() <= v.first->getPotUb()); // am I allowed to check for equality?
 		lb[v.second] = v.first->getPotLb();
 		ub[v.second] = v.first->getPotUb();
 		double vobj = v.first->getPotObj();
-		if( vobj < -EPSILON || vobj > EPSILON) {
+		if( vobj < -potEps || vobj > potEps) {
 			_orig_obj.push_back(vobj);
 			_obj_ind.push_back(v.second);
 			_zero_obj.push_back(0);
@@ -181,6 +187,18 @@ LPPotentials::~LPPotentials() {
 	assert(code == SCIP_OKAY);
 }
 
+void LPPotentials::setPrecision(PrecisionPtr precision) {
+	_precision = precision;
+	SCIPlpiSetRealpar(_lpi, SCIP_LPPAR_FEASTOL, precision->getPrimalFeasTol());
+	SCIPlpiSetRealpar(_lpi, SCIP_LPPAR_DUALFEASTOL, precision->getDualFeasTol());
+}
+
+const PrecisionPtr& LPPotentials::getPrecision() {
+	return _precision;
+}
+
+
+
 void LPPotentials::setDirections(LPFluxPtr other) {
 	double lhs[_num_reactions];
 	double rhs[_num_reactions];
@@ -188,16 +206,18 @@ void LPPotentials::setDirections(LPFluxPtr other) {
 
 	typedef pair<ReactionPtr, int> RxnCon;
 
+	const PrecisionPtr& fluxPrec = other->getPrecision();
+
 	foreach(RxnCon c, _reactions) {
 		double val = other->getFlux(c.first);
 		lhs[c.second] = -INFINITY;
 		rhs[c.second] = INFINITY;
-		if(val > EPSILON) {
+		if(val > fluxPrec->getCheckTol()) {
 			//rhs[c.second] = -REACTION_DIRECTIONS_EPSILON;
 			rhs[c.second] = 0;
 			BOOST_SCIP_CALL( SCIPlpiChgCoef(_lpi, c.second, 0, 1) );
 		}
-		else if(val < -EPSILON) {
+		else if(val < -fluxPrec->getCheckTol()) {
 			//lhs[c.second] = REACTION_DIRECTIONS_EPSILON;
 			lhs[c.second] = 0;
 			BOOST_SCIP_CALL( SCIPlpiChgCoef(_lpi, c.second, 0, -1) );
@@ -217,16 +237,18 @@ void LPPotentials::setDirections(SolutionPtr sol, ScipModelPtr smodel) {
 
 	typedef pair<ReactionPtr, int> RxnCon;
 
+	const PrecisionPtr& fluxPrec = smodel->getPrecision();
+
 	foreach(RxnCon c, _reactions) {
 		double val = smodel->getFlux(sol, c.first);
 		lhs[c.second] = -INFINITY;
 		rhs[c.second] = INFINITY;
-		if(val > EPSILON) {
+		if(val > fluxPrec->getCheckTol()) {
 			//rhs[c.second] = -REACTION_DIRECTIONS_EPSILON;
 			rhs[c.second] = 0;
 			BOOST_SCIP_CALL( SCIPlpiChgCoef(_lpi, c.second, 0, 1) );
 		}
-		else if(val < -EPSILON) {
+		else if(val < -fluxPrec->getCheckTol()) {
 			//lhs[c.second] = REACTION_DIRECTIONS_EPSILON;
 			lhs[c.second] = 0;
 			BOOST_SCIP_CALL( SCIPlpiChgCoef(_lpi, c.second, 0, -1) );
@@ -329,7 +351,7 @@ bool LPPotentials::testStrictFeasible(bool& result) {
 	double val; // objective value
 	BOOST_SCIP_CALL( SCIPlpiGetObjval(_lpi, &val) );
 
-	result = val >= EPSILON; // test against epsilon (because of rounding issues)
+	result = val >= _precision->getCheckTol(); // test against epsilon (because of rounding issues)
 	return true;
 }
 

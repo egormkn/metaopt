@@ -34,6 +34,7 @@
 #include "metaopt/model/scip/AbstractScipFluxModel.h"
 #include "Solution.h"
 #include "metaopt/scip/ScipError.h"
+#include "metaopt/model/Precision.h"
 #include "metaopt/Uncopyable.h"
 #include "metaopt/Properties.h"
 
@@ -60,17 +61,33 @@ public:
 	 */
 	inline bool isMaximize() const;
 
-#if 0
 	/**
-	 * sets the solver to solve with the desired precision
+	 * Sets the solver to solve with the desired precision for flux variables.
+	 *
+	 * This can only be called during init phase.
+	 * Important: This must be called before any other addons / constraints / heuristics are added, because their precision may depend on the precision of the ScipModel!
 	 */
-	void setPrecision(double precision);
+	void setPrecision(PrecisionPtr precision);
 
 	/**
-	 * returns the precision with which the problem will be solved.
+	 * returns the precision for flux variables with which the problem will be solved.
 	 */
-	double getPrecision();
-#endif
+	const PrecisionPtr& getPrecision() const;
+
+	/**
+	 * Sets the solver to solve with the desired precision for potential variables.
+	 * This precision is only used for implicit potential variables (e.g. LPPotentials).
+	 * Explicit potential variables will be subject to the ordinary precision.
+	 *
+	 * This can only be called during init phase.
+	 * Important: This must be called before any other addons / constraints / heuristics are added, because their precision may depend on the precision of the ScipModel!
+	 */
+	void setPotPrecision(PrecisionPtr precision);
+
+	/**
+	 * returns the precision for potential variables with which the problem will be solved.
+	 */
+	const PrecisionPtr& getPotPrecision() const;
 
 	/**
 	 * fetches the scip variable representing the flux.
@@ -295,6 +312,15 @@ private:
 	 */
 	std::vector<ModelAddOnPtr> _addons;
 
+	/**
+	 * stores the precision for flux variables with which this ScipModel should be solved.
+	 */
+	PrecisionPtr _precision;
+
+	/**
+	 * stores the precision for potential variables with which this ScipModel should be solved.
+	 */
+	PrecisionPtr _potprecision;
 };
 
 inline SCIP* ScipModel::getScip() {

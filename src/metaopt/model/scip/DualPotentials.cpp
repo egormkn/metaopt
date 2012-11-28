@@ -24,6 +24,7 @@
  */
 
 #include "DualPotentials.h"
+#include "metaopt/model/Precision.h"
 
 using namespace std;
 using namespace boost;
@@ -49,9 +50,12 @@ namespace metaopt {
 // we have one "z" constraint \gamma + \Eins \alpha_N - \Eins \alpha_P = 1
 #define Z_CONSTRAINT (_num_metabolites+1)
 
+
 DualPotentials::DualPotentials(ModelPtr model) {
 	_model = model;
 	BOOST_SCIP_CALL( init_lp() );
+
+	setPrecision(model->getFluxPrecision());
 }
 
 SCIP_RETCODE DualPotentials::init_lp() {
@@ -213,6 +217,18 @@ SCIP_RETCODE DualPotentials::free_lp() {
 	return SCIP_OKAY;
 }
 
+void DualPotentials::setPrecision(PrecisionPtr precision) {
+	_precision = precision;
+	SCIPlpiSetRealpar(_lpi, SCIP_LPPAR_FEASTOL, precision->getPrimalFeasTol());
+	SCIPlpiSetRealpar(_lpi, SCIP_LPPAR_DUALFEASTOL, precision->getDualFeasTol());
+}
+
+const PrecisionPtr& DualPotentials::getPrecision() {
+	return _precision;
+}
+
+
+
 void DualPotentials::setDirections(LPFluxPtr flux, shared_ptr<unordered_set<ReactionPtr> > fixed_rxns) {
 	/* we have to adjust
 	 * * the bounds of the \alpha variables
@@ -222,10 +238,12 @@ void DualPotentials::setDirections(LPFluxPtr flux, shared_ptr<unordered_set<Reac
 
 	typedef pair<ReactionPtr, int> RxnIndex;
 
+	const PrecisionPtr& fluxPrec = flux->getPrecision();
+
 	foreach(RxnIndex ri, _reactions) {
 		double val = flux->getFlux(ri.first);
 		double lb, ub, obj, coef;
-		if(val > EPSILON) {
+		if(val > fluxPrec->getCheckTol()) {
 			lb = 0;
 			ub = INFINITY;
 			coef = 1;
@@ -237,7 +255,7 @@ void DualPotentials::setDirections(LPFluxPtr flux, shared_ptr<unordered_set<Reac
 				obj = 1;
 			}
 		}
-		else if(val < -EPSILON) {
+		else if(val < -fluxPrec->getCheckTol()) {
 			lb = -INFINITY;
 			ub = 0;
 			coef = -1;
@@ -271,6 +289,7 @@ void DualPotentials::setDirections(LPFluxPtr flux, boost::unordered_map<Reaction
 	 * * the \alpha coefficients of the Z constraint
 	 * * the objective function
 	 */
+	const PrecisionPtr& fluxPrec = flux->getPrecision();
 
 	typedef pair<ReactionPtr, int> RxnIndex;
 
@@ -284,7 +303,7 @@ void DualPotentials::setDirections(LPFluxPtr flux, boost::unordered_map<Reaction
 		}
 		double val = flux->getFlux(fluxRxn);
 		double lb, ub, obj, coef;
-		if(val > EPSILON) {
+		if(val > fluxPrec->getCheckTol()) {
 			lb = 0;
 			ub = INFINITY;
 			coef = 1;
@@ -296,7 +315,7 @@ void DualPotentials::setDirections(LPFluxPtr flux, boost::unordered_map<Reaction
 				obj = 1;
 			}
 		}
-		else if(val < -EPSILON) {
+		else if(val < -fluxPrec->getCheckTol()) {
 			lb = -INFINITY;
 			ub = 0;
 			coef = -1;
@@ -353,7 +372,7 @@ shared_ptr<unordered_set<ReactionPtr> > DualPotentials::getIS() {
 	typedef pair<ReactionPtr, int> RxnIndex;
 	foreach(RxnIndex ri, _reactions) {
 		double val = _primsol.at(ALPHA_START + ri.second);
-		if(val > EPSILON || val < -EPSILON) {
+		if(val > _precision->getCheckTol() || val < -_precision->getCheckTol()) {
 			result->insert(ri.first);
 		}
 	}
@@ -430,7 +449,7 @@ vector<PotSpaceConstraintPtr> DualPotentials::getActivePotConstraints() {
 
 	foreach(PSCEntry e, _extraConstraints) {
 		// potSpaceConstraints only allow reverse flux
-		if(_primsol[e.second] < -EPSILON) {
+		if(_primsol[e.second] < -_precision->getCheckTol()) {
 			out.push_back(e.first);
 		}
 	}

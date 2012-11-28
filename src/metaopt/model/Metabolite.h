@@ -33,6 +33,7 @@
 #include <boost/exception/error_info.hpp>
 #include <boost/foreach.hpp>
 #include <vector>
+#include "metaopt/model/Precision.h"
 #include "metaopt/Uncopyable.h"
 #include "metaopt/Properties.h"
 
@@ -48,6 +49,11 @@ public:
 	Metabolite(boost::weak_ptr<Model> model, std::string name);
 	virtual ~Metabolite();
 
+
+	/**
+	 * tests if the potential of this metabolite participates in objective functions
+	 */
+	inline bool isObjective() const;
 
 	/** @brief Gets the lower bound on the potential of this metabolite.
 	 *
@@ -145,6 +151,11 @@ public:
 	/** do not call this directly, but use the methods provided by Reaction */
 	void addConsumer(ReactionPtr r);
 
+	/**
+	 * updates the potential precision (usually only called from Model).
+	 */
+	void setPotPrecision(PrecisionPtr precision);
+
 private:
 	boost::weak_ptr<Model> _model; /** reference to the Model owning this Metabolite */
 
@@ -153,6 +164,8 @@ private:
 	double _obj;
 	std::string _name;
 	bool _boundary;
+
+	PrecisionPtr _potPrecision;
 
 	std::vector<boost::weak_ptr<Reaction> > _producers;
 	std::vector<boost::weak_ptr<Reaction> > _consumers;
@@ -213,6 +226,10 @@ inline std::string Metabolite::getName() const {
 
 inline const char* Metabolite::getCName() const {
   return _name.c_str();
+}
+
+inline bool Metabolite::isObjective() const {
+	return(_obj < _potPrecision->getCheckTol() || _obj > _potPrecision->getCheckTol());
 }
 
 } /* namespace metaopt */

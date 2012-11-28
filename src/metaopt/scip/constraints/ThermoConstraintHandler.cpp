@@ -111,11 +111,20 @@ ThermoConstraintHandler::ThermoConstraintHandler(ScipModelPtr model) :
 	// init helper variables
 	_cycle_find = LPFluxPtr( new LPFlux(_model, false));
 	_cycle_find->setObjSense(false); // minimize
+	// use default precision for cycle find, since its bounds are independent of the model bounds
+
 	_cycle_test = LPFluxPtr( new LPFlux(_model, false));
 	_cycle_test->setObjSense(true); // maximize
+	_cycle_test->setPrecision(model->getPrecision()->getSlavePrecision()); // we use cycle_test to remove unimportant cycles. Since we subtract it several times, errors may accumulate
+
 	_flux_simpl = LPFluxPtr( new LPFlux(_model, true));
+	_flux_simpl->setPrecision(model->getPrecision()); // we simplify the current flux solution. We should do this in the same range of precision
+
 	_is_find = DualPotentialsPtr( new DualPotentials(_model));
+	// use default precision for _is_find, since its bounds are independent of flux bounds or potential bounds
+
 	_pot_test = LPPotentialsPtr( new LPPotentials(_model)); // this cannot be initialized after presolving, because check may already be run earlier
+	_pot_test->setPrecision(model->getPotPrecision()); // solve this with potential precision, it is only used once in the check routine
 }
 
 ThermoConstraintHandler::~ThermoConstraintHandler() {
@@ -128,6 +137,7 @@ void ThermoConstraintHandler::setCouplingHint(CouplingPtr coupling) {
 
 SCIP_RESULT ThermoConstraintHandler::enforceObjectiveCycles(SolutionPtr& sol) {
 	ScipModelPtr model = getScip();
+	const PrecisionPtr& modelPrec = model->getPrecision();
 #if THERMOCONS_USE_AGGR_RXN
 	_cycle_find->setDirectionBoundsInfty(sol, _reducedScip);
 #else
@@ -168,7 +178,7 @@ SCIP_RESULT ThermoConstraintHandler::enforceObjectiveCycles(SolutionPtr& sol) {
 			double val = model->getFlux(sol, rxn);
 #endif
 			// force a tiny flow through the reaction in the current direction
-			if(val > EPSILON) {
+			if(val > modelPrec->getCheckTol()) {
 				_cycle_find->setLb(rxn, 1);
 				_cycle_find->solveDual();
 				if(_cycle_find->isFeasible()) {
@@ -179,7 +189,7 @@ SCIP_RESULT ThermoConstraintHandler::enforceObjectiveCycles(SolutionPtr& sol) {
 #endif
 				_cycle_find->setLb(rxn, 0); //undo the change
 			}
-			else if( val < -EPSILON) {
+			else if( val < -modelPrec->getCheckTol()) {
 				_cycle_find->setUb(rxn, -1);
 				_cycle_find->solveDual();
 				if(_cycle_find->isFeasible()) {
@@ -197,6 +207,9 @@ SCIP_RESULT ThermoConstraintHandler::enforceObjectiveCycles(SolutionPtr& sol) {
 
 SCIP_RESULT ThermoConstraintHandler::branchCycle(SolutionPtr& sol) {
 	ScipModelPtr model = getScip();
+
+	const PrecisionPtr& cyclePrec = _cycle_find->getPrecision();
+	const PrecisionPtr& modelPrec = model->getPrecision();
 
 	//TODO: its a waste computing this twice
 	shared_ptr<unordered_set<ReactionPtr> > fixedDirs = model->getFixedDirections();
@@ -218,11 +231,11 @@ SCIP_RESULT ThermoConstraintHandler::branchCycle(SolutionPtr& sol) {
 		double val = _cycle_find->getFlux(rxn);
 
 		// build the tis (add rxns. that carry flux irrespective if the branching makes sense)
-		if(val > EPSILON) {
+		if(val > cyclePrec->getCheckTol()) {
 			DirectedReaction d(rxn, true);
 			tis->set.insert(d);
 		}
-		else if(val < -EPSILON) {
+		else if(val < -cyclePrec->getCheckTol()) {
 			DirectedReaction d(rxn, false);
 			tis->set.insert(d);
 		}
@@ -235,8 +248,8 @@ SCIP_RESULT ThermoConstraintHandler::branchCycle(SolutionPtr& sol) {
 			ub = model->getCurrentFluxUb(rxn);
 
 #endif
-			if(val > EPSILON) {
-				if(lb < EPSILON) { // ub must be positive, since positive flow is not allowed else, restriction to zero must also be allowed
+			if(val > cyclePrec->getCheckTol()) {
+				if(lb < modelPrec->getCheckTol()) { // ub must be positive, since positive flow is not allowed else, restriction to zero must also be allowed
 					//cout << "branching ub "<<iter.getId() << endl;
 #if 0
 					if(ub <= EPSILON) {
@@ -252,12 +265,12 @@ SCIP_RESULT ThermoConstraintHandler::branchCycle(SolutionPtr& sol) {
 						//_cycle_find->writeState("cycle_find_old_state.bas");
 					}
 #endif
-					assert(ub > EPSILON);
+					assert(ub > modelPrec->getCheckTol());
 					branchingCandidates.insert(DirectedReaction(rxn, true));
 				}
 			}
-			else if(val < -EPSILON) {
-				if(ub > -EPSILON) { // lb must be negative, since negative flow is not allowed else, restriction to zero must also be allowed
+			else if(val < -cyclePrec->getCheckTol()) {
+				if(ub > -modelPrec->getCheckTol()) { // lb must be negative, since negative flow is not allowed else, restriction to zero must also be allowed
 					//cout << "branching lb "<<iter.getId() << endl;
 #if 0
 					if(lb >= -EPSILON) {
@@ -273,7 +286,7 @@ SCIP_RESULT ThermoConstraintHandler::branchCycle(SolutionPtr& sol) {
 						//_cycle_find->writeState("cycle_find_old_state.bas");
 					}
 #endif
-					assert(lb < -EPSILON);
+					assert(lb < -modelPrec->getCheckTol());
 					branchingCandidates.insert(DirectedReaction(rxn, false));
 				}
 			}
@@ -311,6 +324,9 @@ SCIP_RESULT ThermoConstraintHandler::enforceNonSimple(SolutionPtr& sol) {
 	ScipModelPtr scip = getScip();
 	_flux_simpl->set(sol, scip);
 #endif
+
+	const PrecisionPtr& cyclePrec = _cycle_test->getPrecision();
+
 	// use cycle_test to find internal cycles, first set the objective, because it will stay the same
 	// _cycle_test is initialized to maximize
 	// in the loop, we will adopt the bounds
@@ -356,7 +372,7 @@ SCIP_RESULT ThermoConstraintHandler::enforceNonSimple(SolutionPtr& sol) {
 			// so we'll simply throw an error
 			BOOST_SCIP_CALL( -6 ); // Error in LP solver
 		}
-		hasFlux = _cycle_test->getObjVal() > EPSILON;
+		hasFlux = _cycle_test->getObjVal() > cyclePrec->getCheckTol();
 		if(hasFlux) {
 			// now subtract computed flux from solution flux
 			double scale = _flux_simpl->getSubScale(_cycle_test);
@@ -379,6 +395,8 @@ SCIP_RESULT ThermoConstraintHandler::enforceNonSimple(SolutionPtr& sol) {
 
 SCIP_RESULT ThermoConstraintHandler::branchIS(SolutionPtr& sol) {
 	ScipModelPtr model = getScip();
+
+	const PrecisionPtr& modelPrec = model->getPrecision();
 
 	shared_ptr<unordered_set<ReactionPtr> > fixedDirs = model->getFixedDirections();
 	// _flux_simpl is in the reduced space, but _is_find is not.
@@ -424,8 +442,8 @@ SCIP_RESULT ThermoConstraintHandler::branchIS(SolutionPtr& sol) {
 #endif
 				//std::cout << rxn->toString() << "; " << lb << " (" << rxn->getLb() << ") <= " << val << " <= " << ub << " (" << rxn->getUb() << ")" << std::endl;
 				if(val > 0) {
-					if(lb < EPSILON) {
-						assert(ub > EPSILON);
+					if(lb < modelPrec->getCheckTol()) {
+						assert(ub > modelPrec->getCheckTol());
 						branchingCandidates.insert(DirectedReaction(rxn, true));
 #if 0
 						debugFlux.setBounds(model);
@@ -439,8 +457,8 @@ SCIP_RESULT ThermoConstraintHandler::branchIS(SolutionPtr& sol) {
 					}
 				}
 				else {
-					if(ub > -EPSILON) {
-						assert(lb < -EPSILON);
+					if(ub > -modelPrec->getCheckTol()) {
+						assert(lb < -modelPrec->getCheckTol());
 						branchingCandidates.insert(DirectedReaction(rxn, false));
 #if 0
 						debugFlux.setBounds(model);
@@ -555,6 +573,8 @@ void ThermoConstraintHandler::setDirection(ISSupplyPtr& iss, SCIP_NODE* node, Co
 SCIP_RESULT ThermoConstraintHandler::branch(unordered_set<DirectedReaction>& branchingCandidates, ISSupplyPtr iss, SolutionPtr sol) {
 	ScipModelPtr model = getScip();
 
+	const PrecisionPtr& modelPrec = model->getPrecision();
+
 	// compute a cover
 	shared_ptr<vector<CoverReaction> > cover = _coupling->computeCover(branchingCandidates);
 
@@ -630,7 +650,7 @@ SCIP_RESULT ThermoConstraintHandler::branch(unordered_set<DirectedReaction>& bra
 					// also fix flux direction
 					// if the reaction is already fixed to one direction, don't fix the flux direction again
 					if(ca.reaction._fwd) {
-						if(model->getCurrentFluxUb(ca.reaction._rxn) > EPSILON) {
+						if(model->getCurrentFluxUb(ca.reaction._rxn) > modelPrec->getCheckTol()) {
 							setDirection(iss, node, ca);
 						}
 						else {
@@ -639,7 +659,7 @@ SCIP_RESULT ThermoConstraintHandler::branch(unordered_set<DirectedReaction>& bra
 						}
 					}
 					else {
-						if(model->getCurrentFluxLb(ca.reaction._rxn) < -EPSILON) {
+						if(model->getCurrentFluxLb(ca.reaction._rxn) < -modelPrec->getCheckTol()) {
 							setDirection(iss, node, ca);
 						}
 						else {
@@ -944,9 +964,9 @@ SCIP_RETCODE ThermoConstraintHandler::scip_lock(
 				LockingInfo li;
 
 				// if we cannot round down away zero, rounding down is safe
-				li.down_safe = rxn->getUb() < -EPSILON || rxn->getLb() > -EPSILON;
+				li.down_safe = rxn->isBwdForcing() || !rxn->canBwd();
 				// if we cannot round up away zero, rounding up is safe
-				li.up_safe = rxn->getLb() > EPSILON || rxn->getUb() < EPSILON;
+				li.up_safe = rxn->isFwdForcing() || !rxn->canFwd();
 
 				li.var = smodel->getFlux(rxn);
 
@@ -1107,6 +1127,9 @@ SCIP_RETCODE ThermoConstraintHandler::scip_exitpre(
 			}
 		}
 	}
+
+	const PrecisionPtr& prec = scip->getPrecision();
+
 	foreach(ReactionPtr rxn, _model->getReactions()) {
 		if(scip->hasFluxVar(rxn)) {
 			SCIP_VAR* var = scip->getFlux(rxn);
@@ -1133,7 +1156,7 @@ SCIP_RETCODE ThermoConstraintHandler::scip_exitpre(
 				unordered_map<SCIP_VAR*, ReactionPtr>::iterator iter = toOriginal.find(var);
 				if(iter != toOriginal.end()) {
 					ReactionPtr other = iter->second;
-					if(constant > -EPSILON) { // also include the case where constant == 0
+					if(constant > -prec->getCheckTol()) { // also include the case where constant == 0
 						if(scalar > 0) { // TODO: numerical troubles?
 							// positive flux on other implies positive flux on rxn
 							_coupling->addCoupled(DirectedReaction(other, true), DirectedReaction(rxn, true));
@@ -1148,7 +1171,7 @@ SCIP_RETCODE ThermoConstraintHandler::scip_exitpre(
 
 						}
 					}
-					if(constant < EPSILON) { // also include the case where constant == 0
+					if(constant < prec->getCheckTol()) { // also include the case where constant == 0
 						if(scalar > 0) { // TODO: numerical troubles?
 							// negative flux on other implies negative flux on rxn
 							_coupling->addCoupled(DirectedReaction(other, false), DirectedReaction(rxn, false));

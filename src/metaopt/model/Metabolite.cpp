@@ -130,4 +130,8 @@ void Metabolite::addConsumer(ReactionPtr r) {
 	_consumers.push_back(r);
 }
 
+void Metabolite::setPotPrecision(PrecisionPtr precision) {
+	_potPrecision = precision;
+}
+
 } /* namespace metaopt */

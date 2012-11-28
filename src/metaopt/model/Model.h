@@ -31,6 +31,7 @@
 #include <boost/unordered_set.hpp>
 #include "Reaction.h"
 #include "Metabolite.h"
+#include "Precision.h"
 #include "metaopt/Uncopyable.h"
 #include "metaopt/Properties.h"
 
@@ -148,6 +149,47 @@ public:
 	 */
 	ReactionPtr getReaction(std::string name);
 
+	/**
+	 * Sets the flux precision of this model.
+	 * The check tolerance of the precision will be used to determine the sign of fluxes.
+	 * Important: Some algorithms will first increase the model precision to solve with greater accuracy, so that numerical errors do not accumulate.
+	 *
+	 * It is also used as the base precision for all algorithms.
+	 */
+	void setFluxPrecision(PrecisionPtr precision);
+
+	/**
+	 * returns the flux precision of this model.
+	 */
+	inline const PrecisionPtr& getFluxPrecision() const;
+
+	/**
+	 * Sets the potential precision of this model.
+	 * The check tolerance of the precision will be used to determine the sign of potential differences.
+	 * Important: Some algorithms will first increase the model precision to solve with greater accuracy, so that numerical errors do not accumulate.
+	 *
+	 * It is also used as the base precision for all algorithms.
+	 */
+	void setPotPrecision(PrecisionPtr precision);
+
+	/**
+	 * returns the potential precision of this model.
+	 */
+	inline const PrecisionPtr& getPotPrecision() const;
+
+
+	/**
+	 * Sets the coefficient precision of this model.
+	 * Important: Some algorithms will first increase the model precision to solve with greater accuracy, so that numerical errors do not accumulate.
+	 *
+	 * This precision is used to check if coefficients are zero.
+	 */
+	void setCoefPrecision(PrecisionPtr precision);
+
+	/**
+	 * returns the coefficient precision of this model.
+	 */
+	inline const PrecisionPtr& getCoefPrecision() const;
 
 protected:
 	boost::unordered_set<ReactionPtr> _problematic; /** list of all reactions that are marked as problematic */
@@ -155,11 +197,28 @@ protected:
 	boost::unordered_set<ReactionPtr> _objective; /** list of all objective reactions */
 	boost::unordered_set<ReactionPtr> _internal; /** list of all internal reactions */
 
+	PrecisionPtr _flux_precision; /** the precision of this model for fluxes */
+	PrecisionPtr _pot_precision; /** the precision of this model for potentials */
+	PrecisionPtr _coef_precision; /** the precision of this model for stoichiometric coefficients */
 };
 
 /** Please use ModelPtr to handle pointers to Model instances */
 typedef boost::shared_ptr<Model> ModelPtr;
 
+// inline function definitions
+// since this header is included by Model.cpp, those implementations will be known.
+
+const PrecisionPtr& Model::getFluxPrecision() const {
+	return _flux_precision;
+}
+
+const PrecisionPtr& Model::getPotPrecision() const {
+	return _pot_precision;
+}
+
+const PrecisionPtr& Model::getCoefPrecision() const {
+	return _coef_precision;
+}
 
 } /* namespace metaopt */
 #endif /* MODEL_H_ */

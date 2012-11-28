@@ -30,6 +30,7 @@
 #include "LPFlux.h"
 #include "metaopt/Uncopyable.h"
 #include "metaopt/model/scip/PotSpaceConstraint.h"
+#include "metaopt/model/Precision.h"
 #include "metaopt/Properties.h"
 
 namespace metaopt {
@@ -57,6 +58,16 @@ class DualPotentials : Uncopyable, public ISSupply {
 public:
 	DualPotentials(ModelPtr model);
 	virtual ~DualPotentials();
+
+	/**
+	 * Sets to solve with the desired precision.
+	 */
+	void setPrecision(PrecisionPtr precision);
+
+	/**
+	 * returns the precision with which the problem will be solved.
+	 */
+	const PrecisionPtr& getPrecision();
 
 	/**
 	 * set the directions of the reactions.
@@ -116,6 +127,8 @@ private:
 	SCIP_LPI* _lpi; //< internal LP problem
 	int _num_metabolites; //< number of metabolites in the LP model
 	int _num_reactions; //< number of reactions in the LP model
+
+	PrecisionPtr _precision;
 
 	int _num_beta_vars;
 

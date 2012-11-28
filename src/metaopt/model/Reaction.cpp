@@ -92,7 +92,8 @@ double Reaction::getProduct(MetabolitePtr m) const {
 
 void Reaction::setStoichiometry(MetabolitePtr m, double value) {
 	assert(m->getOwner() == getOwner());
-	if(value > -EPSILON && value < EPSILON) {
+	double coefTol = getOwner()->getCoefPrecision()->getCheckTol();
+	if(value > -coefTol && value < coefTol) {
 		// value == 0, so delete entry
 		_stoichiometries.erase(m);
 		_reactants.erase(m);
@@ -120,7 +121,8 @@ void Reaction::setStoichiometry(MetabolitePtr m, double value) {
 
 void Reaction::setReactant(MetabolitePtr m, double value) {
 	assert(m->getOwner() == getOwner());
-	if(value > -EPSILON && value < EPSILON) {
+	double coefTol = getOwner()->getCoefPrecision()->getCheckTol();
+	if(value > -coefTol && value < coefTol) {
 		// value == 0, so delete entry
 		_reactants.erase(m);
 		if(_products.find(m) == _products.end()) {
@@ -139,7 +141,8 @@ void Reaction::setReactant(MetabolitePtr m, double value) {
 
 void Reaction::setProduct(MetabolitePtr m, double value) {
 	assert(m->getOwner() == getOwner());
-	if(value > -EPSILON && value < EPSILON) {
+	double coefTol = getOwner()->getCoefPrecision()->getCheckTol();
+	if(value > -coefTol && value < coefTol) {
 		// value == 0, so delete entry
 		_products.erase(m);
 		if(_reactants.find(m) == _reactants.end()) {
@@ -171,5 +174,11 @@ string Reaction::toString() const {
 	}
 	return out.str();
 }
+
+void Reaction::setFluxPrecision(PrecisionPtr precision) {
+	_fluxPrecision = precision;
+}
+
+
 
 } /* namespace metaopt */

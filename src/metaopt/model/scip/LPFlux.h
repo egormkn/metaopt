@@ -38,6 +38,7 @@
 #include "metaopt/Uncopyable.h"
 #include "metaopt/model/scip/ISSupply.h"
 #include "metaopt/model/scip/PotSpaceConstraint.h"
+#include "metaopt/model/Precision.h"
 #include "metaopt/Properties.h"
 
 namespace metaopt {
@@ -54,6 +55,17 @@ public:
 	 */
 	LPFlux(ModelPtr model, bool exchange);
 	virtual ~LPFlux();
+
+	/**
+	 * Sets to solve with the desired precision.
+	 */
+	void setPrecision(PrecisionPtr precision);
+
+	/**
+	 * returns the precision with which the problem will be solved.
+	 */
+	const PrecisionPtr& getPrecision();
+
 
 	/** set the lower bound of the specified variable to the specified value */
 	void setLb(ReactionPtr r, double lb);
@@ -311,6 +323,8 @@ private:
 	//soplex::SoPlex _soplex; // lp solver
 	int _num_metabolites; //< number of metabolites in the LP model (depends if we include exchange fluxes or not)
 	int _num_reactions; //< number of reactions in the LP model (depends if we include exchange fluxes or not)
+
+	PrecisionPtr _precision;
 
 	std::vector<double> _primsol; // use vector to store primal solution to circumvent deallocation hassle
 	std::vector<int> _cstat; // store column basis status, so we don't have to fetch it each time from the LP solver

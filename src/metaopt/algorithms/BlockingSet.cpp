@@ -165,25 +165,28 @@ shared_ptr<vector<DirectedReaction> > findBlockingSet(LPFluxPtr test, LPFluxPtr 
 	// test is already solved to optimality
 	assert(test->isOptimal());
 
+	const PrecisionPtr& testPrec = test->getPrecision();
+	const PrecisionPtr& fluxPrec = flux->getPrecision();
+
 	shared_ptr<vector<DirectedReaction> > block(new vector<DirectedReaction>);
 
 	foreach(ReactionPtr rxn, flux->getModel()->getInternalReactions()) {
 		int stat = test->getColumnStatus(rxn);
-		if(stat == SCIP_BASESTAT_LOWER && test->getLb(rxn) < -EPSILON && flux->getFlux(rxn) > -EPSILON) {
+		if(stat == SCIP_BASESTAT_LOWER && test->getLb(rxn) < -testPrec->getCheckTol() && flux->getFlux(rxn) > -fluxPrec->getCheckTol()) {
 			// cout << rxn->getName() << " redcost=" << test->getReducedCost(rxn) << endl;
 			// we can block negative flux through this reaction
 			double redcost = test->getReducedCost(rxn);
 			// see in ideas.tex, why we can add this extra check using reduced costs
-			if(redcost > EPSILON || redcost < -EPSILON) { // do the check in both direction, because it may depend on the objective sense
+			if(redcost > testPrec->getCheckTol() || redcost < -testPrec->getCheckTol()) { // do the check in both direction, because it may depend on the objective sense
 				block->push_back(DirectedReaction(rxn, false));
 			}
 		}
-		else if(stat == SCIP_BASESTAT_UPPER && test->getUb(rxn) > EPSILON && flux->getFlux(rxn) < EPSILON) {
+		else if(stat == SCIP_BASESTAT_UPPER && test->getUb(rxn) > testPrec->getCheckTol() && flux->getFlux(rxn) < fluxPrec->getCheckTol()) {
 			// cout << rxn->getName() << " redcost=" << test->getReducedCost(rxn) << endl;
 			// we can block positive flux through this reaction
 			double redcost = test->getReducedCost(rxn);
 			// see in ideas.tex, why we can add this extra check using reduced costs
-			if(redcost > EPSILON || redcost < -EPSILON) { // do the check in both direction, because it may depend on the objective sense
+			if(redcost > testPrec->getCheckTol() || redcost < -testPrec->getCheckTol()) { // do the check in both direction, because it may depend on the objective sense
 				block->push_back(DirectedReaction(rxn, true));
 			}
 		}
@@ -198,22 +201,24 @@ shared_ptr<vector<DirectedReaction> > findBlockingSet(LPFluxPtr flux) {
 	ModelPtr model = flux->getModel();
 	double sense = flux->isMaximize() ? 1 : -1;
 
+	const PrecisionPtr& fluxPrec = flux->getPrecision();
+
 	LPFluxPtr test(new LPFlux(flux->getModel(), false));
 
 	// first set the bounds of the test flux apropriately
 	foreach(ReactionPtr rxn, model->getInternalReactions()) {
-		if(rxn->getUb() > EPSILON) {
+		if(rxn->canFwd()) {
 			// if positive flux is possible but not used, create a bound of 1 to restrict positive flow
-			if(flux->getFlux(rxn) < EPSILON) test->setUb(rxn, 1);
+			if(flux->getFlux(rxn) < fluxPrec->getCheckTol()) test->setUb(rxn, 1);
 			// otherwise we cannot block this reaction and hence, do not create a bound
 			else test->setUb(rxn, INFINITY);
 		}
 		else {
 			test->setUb(rxn, 0);
 		}
-		if(rxn->getLb() < -EPSILON) {
+		if(rxn->canBwd()) {
 			// if negative flux is possible but not used, create a bound of 1 to restrict positive flow
-			if(flux->getFlux(rxn) > -EPSILON) test->setLb(rxn, -1);
+			if(flux->getFlux(rxn) > -fluxPrec->getCheckTol()) test->setLb(rxn, -1);
 			// otherwise we cannot block this reaction and hence, do not create a bound
 			else test->setLb(rxn, -INFINITY);
 		}
@@ -233,18 +238,20 @@ shared_ptr<vector<DirectedReaction> > findBlockingSet(LPFluxPtr flux) {
 	 * So, we start with the problematic reactions, then proceed to the flux forcing reactions and finally deal with objective reactions.
 	 */
 
+	const PrecisionPtr& testPrec = test->getPrecision();
+
 	foreach(ReactionPtr rxn, model->getProblematicReactions()) {
 		// with flux forcing reactions we deal later
 		// for objective reactions, we only check the reaction unfavoured by the objective function
 		if(!rxn->isFluxForcing() && !rxn->isExchange()) { //only internal reactions are interesting
 			// positive flux case
-			if(rxn->getUb() > EPSILON && rxn->getObj() < EPSILON) { // if the objective is also positive, we deal with it later
+			if(rxn->canFwd() && rxn->getObj() < model->getFluxPrecision()->getCheckTol()) { // if the objective is also positive, we deal with it later
 				test->setObj(rxn, 1); // ask for flow through the problematic reaction
 				test->solvePrimal();
 
 				double f = flux->getFlux(rxn);
-				if(test->getObjVal() > EPSILON) {
-					if(f < EPSILON) {
+				if(test->getObjVal() > testPrec->getCheckTol()) {
+					if(f < fluxPrec->getCheckTol()) {
 						// the reaction really needs to be blocked,
 						// but it can be blocked itself.
 						// so just block the beast itself
@@ -264,14 +271,14 @@ shared_ptr<vector<DirectedReaction> > findBlockingSet(LPFluxPtr flux) {
 				}
 			}
 			// negative flux case
-			if(rxn->getLb() < -EPSILON && rxn->getObj() > -EPSILON) { // if the objective is also negative, we deal with it later
+			if(rxn->canBwd() && rxn->getObj() > -model->getFluxPrecision()->getCheckTol()) { // if the objective is also negative, we deal with it later
 				test->setObj(rxn, -1); // ask for flow through the problematic reaction
 				test->solvePrimal();
 
 				double f = flux->getFlux(rxn);
-				if(test->getObjVal() > EPSILON) {
+				if(test->getObjVal() > testPrec->getCheckTol()) {
 					// the reaction really needs to be blocked,
-					if(f > -EPSILON) {
+					if(f > -fluxPrec->getCheckTol()) {
 						// but it can be blocked itself.
 						// so just block the beast itself
 						block->push_back(DirectedReaction(rxn, false));
@@ -299,11 +306,12 @@ shared_ptr<vector<DirectedReaction> > findBlockingSet(LPFluxPtr flux) {
 	// now we process the flux forcing reactions
 	foreach(ReactionPtr rxn, model->getFluxForcingReactions()) {
 		if(!rxn->isExchange()) { // only internal reactions are interesting
-			if(rxn->getLb() > EPSILON) {
+			if(rxn->canFwd()) { // if it can have positive flux, it must have positive lower bound (else it is not flux forcing)
+				assert(rxn->getUb() > 0);
 				test->setObj(rxn, 1); // ask for flow through the flux forcing reaction
 			}
 			else {
-				assert(rxn->getUb() < -EPSILON);
+				assert(rxn->getUb() < 0);
 				test->setObj(rxn, -1);
 			}
 			test->solvePrimal();
@@ -327,7 +335,7 @@ shared_ptr<vector<DirectedReaction> > findBlockingSet(LPFluxPtr flux) {
 	// this also makes sure, that we don't get problems with cycles consisting only of objective reactions
 	foreach(ReactionPtr rxn, model->getObjectiveReactions()) {
 		if(!rxn->isExchange()) { // only internal reactions are interesting
-			if(rxn->getObj() > EPSILON) {
+			if(rxn->getObj() > model->getFluxPrecision()->getCheckTol()) {
 				test->setObj(rxn, sense); // ask for flow through the objective reaction according to the sense of the optimization problem
 			}
 			else {

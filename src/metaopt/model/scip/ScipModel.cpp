@@ -36,10 +36,14 @@ using namespace std;
 
 namespace metaopt {
 
+
 ScipModel::ScipModel(ModelPtr model) {
 	_model = model;
 
 	BOOST_SCIP_CALL( init_scip() );
+
+	setPrecision(model->getFluxPrecision());
+	setPotPrecision(model->getPotPrecision());
 }
 
 SCIP_RETCODE ScipModel::init_scip() {
@@ -97,6 +101,34 @@ ScipModel::~ScipModel() {
 	int code = free_scip();
 	assert(code == SCIP_OKAY);
 }
+
+
+void ScipModel::setPrecision(PrecisionPtr precision) {
+	assert(SCIPgetStage(_scip) == SCIP_STAGE_INIT);
+	_precision = precision;
+	BOOST_SCIP_CALL( SCIPsetRealParam(_scip, "numerics/epsilon", _precision->getPrimalFeasTol()*1e-3) ); // absolute values smaller than this are considered zero by the solver
+	BOOST_SCIP_CALL( SCIPsetRealParam(_scip, "numerics/sumepsilon", _precision->getPrimalFeasTol()) ); // absolute values of sums smaller than this are considered zero by the solver
+	BOOST_SCIP_CALL( SCIPsetRealParam(_scip, "numerics/feastol", _precision->getPrimalFeasTol()) ); // feasibility tolerance for constraints
+	BOOST_SCIP_CALL( SCIPsetRealParam(_scip, "numerics/lpfeastol", _precision->getPrimalFeasTol()) ); // primal feasibility tolerance of LP solver
+	BOOST_SCIP_CALL( SCIPsetRealParam(_scip, "numerics/dualfeastol", _precision->getDualFeasTol()) ); // feasibility tolerance for reduced costs in LP solution
+	BOOST_SCIP_CALL( SCIPsetRealParam(_scip, "numerics/barrierconvtol", _precision->getPrimalFeasTol()*1e-4) ); // LP convergence tolerance used in barrier algorithm (probably not used)
+}
+
+const PrecisionPtr& ScipModel::getPrecision() const {
+	return _precision;
+}
+
+void ScipModel::setPotPrecision(PrecisionPtr precision) {
+	assert(SCIPgetStage(_scip) == SCIP_STAGE_INIT);
+	_potprecision = precision;
+	// don't change scip, this is only important for implicit potential variables
+}
+
+const PrecisionPtr& ScipModel::getPotPrecision() const {
+	return _potprecision;
+}
+
+
 
 SCIP_VAR* ScipModel::getFlux(ReactionPtr rxn) {
 	unordered_map<ReactionPtr, SCIP_VAR*>::iterator iter = _reactions.find(rxn);

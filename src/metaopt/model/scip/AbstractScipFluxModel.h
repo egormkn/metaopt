@@ -28,6 +28,7 @@
 
 #include "metaopt/model/Model.h"
 #include "metaopt/model/scip/Solution.h"
+#include "metaopt/model/Precision.h"
 #include "metaopt/Properties.h"
 
 namespace metaopt {
@@ -35,6 +36,12 @@ namespace metaopt {
 class AbstractScipFluxModel {
 public:
 	virtual ~AbstractScipFluxModel();
+
+	/**
+	 * returns the precision with which the problem is solved.
+	 */
+	virtual const PrecisionPtr& getPrecision() const = 0;
+
 
 	/** returns true if objective sense is set to maximize.
 	 * If objective sense is minimize, false is returned.

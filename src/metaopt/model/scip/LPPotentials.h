@@ -28,6 +28,7 @@
 
 #include "ScipModel.h"
 #include "LPFlux.h"
+#include "metaopt/model/Precision.h"
 #include "metaopt/Uncopyable.h"
 #include "metaopt/Properties.h"
 
@@ -80,6 +81,17 @@ class LPPotentials : Uncopyable {
 public:
 	LPPotentials(ModelPtr model);
 	virtual ~LPPotentials();
+
+	/**
+	 * Sets to solve with the desired precision.
+	 */
+	void setPrecision(PrecisionPtr precision);
+
+	/**
+	 * returns the precision with which the problem will be solved.
+	 */
+	const PrecisionPtr& getPrecision();
+
 
 	/**
 	 * Sets reaction directions (bounds on potential differences) according to the current solution of specified LPFlux.
@@ -169,6 +181,8 @@ private:
 	SCIP_LPI* _lpi; //< internal LP problem
 	int _num_metabolites; //< number of metabolites in the LP model
 	int _num_reactions; //< number of reactions in the LP model
+
+	PrecisionPtr _precision;
 
 	std::vector<double> _primsol; // use vector to store primal solution to circumvent deallocation hassle
 	std::vector<double> _orig_obj; // store objective function for switching to optimization call

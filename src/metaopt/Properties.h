@@ -22,15 +22,17 @@
 
 #include <cstddef>
 #include <boost/shared_ptr.hpp>
+#include <boost/foreach.hpp>
 
 #ifndef PROPERTIES_H_
 #define PROPERTIES_H_
 
-#define EPSILON 0.0001
+//#define EPSILON 0.0001
 
 #define LPSOLVER_SOPLEX
 
-#define VERSION 2.0
+#define VERSION "2.0.2"
+
 
 #ifdef __CDT_PARSER__
 	#define foreach(a, b) for(a : b)
@@ -50,7 +52,7 @@ public:
 typedef boost::error_info<struct tag_iteration_count,int> iteration_count;
 
 
-namespace boost
+namespace metaopt
 {
    template <class T>
    std::size_t

@@ -149,16 +149,18 @@ bool ReactionDirections::computeSolutionVals(SolutionPtr sol) const {
 	assert(!isDestroyed());
 	typedef std::pair<ReactionPtr, ReactionDirVars> DirVar;
 
+	ScipModelPtr model = getModel();
+	const PrecisionPtr& prec = model->getPrecision();
+
 	foreach(DirVar v, _dirs) {
 		ReactionPtr rxn = v.first;
-		ScipModelPtr model = getModel();
 		// fetch the value of the potential difference
 		double val = SCIPgetSolVal(model->getScip(), sol.get(), _potDiff->getPotDiff(rxn));
 		double flux = SCIPgetSolVal(model->getScip(), sol.get(), model->getFlux(rxn));
 
 		if(val <= -SCIPfeastol(model->getScip())) {
 			// if it is negative, set direction to 1 (fwd flux)
-			assert(flux > -EPSILON);
+			assert(flux > -prec->getCheckTol());
 			// flux should be positive or zero
 			BOOST_SCIP_CALL( SCIPsetSolVal(model->getScip(), sol.get(), v.second.dir, 1) );
 			BOOST_SCIP_CALL( SCIPsetSolVal(model->getScip(), sol.get(), v.second.slack_flux_fwd, 0) );
@@ -168,7 +170,7 @@ bool ReactionDirections::computeSolutionVals(SolutionPtr sol) const {
 		}
 		else if(val >= SCIPfeastol(model->getScip())){
 			// set to 0 (bwd flux)
-			assert(flux < EPSILON);
+			assert(flux < prec->getCheckTol());
 			// flux should be negative or zero
 			BOOST_SCIP_CALL( SCIPsetSolVal(model->getScip(), sol.get(), v.second.dir, 0) );
 			BOOST_SCIP_CALL( SCIPsetSolVal(model->getScip(), sol.get(), v.second.slack_flux_fwd, -flux) );
@@ -238,11 +240,13 @@ shared_ptr<const unordered_set<ReactionPtr> > ReactionDirections::getFixedDirect
 
 	typedef std::pair<ReactionPtr, ReactionDirVars> RxnDir;
 
+	const PrecisionPtr& prec = getModel()->getPrecision();
+
 	foreach(RxnDir dir, _dirs) {
 		SCIP_VAR* var = dir.second.dir;
 		double lb = SCIPvarGetLbLocal(var);
 		double ub = SCIPvarGetUbLocal(var);
-		if(ub - lb < EPSILON) {
+		if(ub - lb < prec->getCheckTol()) {
 			result->insert(dir.first);
 		}
 	}

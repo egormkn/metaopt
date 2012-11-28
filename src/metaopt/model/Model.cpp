@@ -26,6 +26,7 @@
 #include <vector>
 #include <algorithm>
 
+#include "Precision.h"
 #include "../Properties.h"
 #include "Model.h"
 
@@ -34,8 +35,16 @@ using namespace boost;
 
 namespace metaopt {
 
-Model::Model() {
-	// nothing to do yet
+#define DEFAULT_FLUX_PRECISION 1e-6
+#define DEFAULT_POT_PRECISION 1e-6
+#define DEFAULT_COEF_PRECISION 1e-10
+
+Model::Model() :
+	_flux_precision(new Precision(DEFAULT_FLUX_PRECISION)),
+	_pot_precision(new Precision(DEFAULT_POT_PRECISION)),
+	_coef_precision(new Precision(DEFAULT_COEF_PRECISION))
+{
+	// nothing else to do
 }
 
 Model::~Model() {
@@ -66,10 +75,10 @@ void Model::updateReaction(ReactionPtr reaction) {
 	bool was_objective = _objective.find(reaction) != _objective.end();
 	bool was_internal = _internal.find(reaction) != _internal.end();
 	if(was_fluxforcing) {
-		if(reaction->getLb() < EPSILON && reaction->getUb() > -EPSILON) _fluxforcing.erase(reaction);
+		if(!reaction->isFluxForcing()) _fluxforcing.erase(reaction);
 	}
 	else {
-		if(reaction->getLb() > EPSILON || reaction->getUb() < -EPSILON) _fluxforcing.insert(reaction);
+		if(reaction->isFluxForcing()) _fluxforcing.insert(reaction);
 	}
 	if(was_problematic) {
 		if(!reaction->isProblematic()) _problematic.erase(reaction);
@@ -78,10 +87,10 @@ void Model::updateReaction(ReactionPtr reaction) {
 		if(reaction->isProblematic()) _problematic.insert(reaction);
 	}
 	if(was_objective) {
-		if(reaction->getObj() < EPSILON && reaction->getObj() > -EPSILON) _objective.erase(reaction);
+		if(!reaction->isObjective()) _objective.erase(reaction);
 	}
 	else {
-		if(reaction->getObj() > EPSILON || reaction->getObj() < -EPSILON) _objective.insert(reaction);
+		if(reaction->isObjective()) _objective.insert(reaction);
 	}
 	if(was_internal) {
 		if(reaction->isExchange()) _internal.erase(reaction);
@@ -125,5 +134,27 @@ bool Model::hasReaction(string name) {
 	}
 	return false;
 }
+
+void Model::setFluxPrecision(PrecisionPtr precision) {
+	// directly update reactions and update lists of flux forcing, objective reactions.
+	_flux_precision = precision;
+	foreach(ReactionPtr rxn, getReactions()) {
+		rxn->setFluxPrecision(precision);
+		updateReaction(rxn);
+	}
+}
+
+void Model::setPotPrecision(PrecisionPtr precision) {
+	_pot_precision = precision;
+	// also update prcision values of metabolites
+	foreach(MetabolitePtr met, getMetabolites()) {
+		met->setPotPrecision(precision);
+	}
+}
+
+void Model::setCoefPrecision(PrecisionPtr precision) {
+	_coef_precision = precision;
+}
+
 
 } /* namespace metaopt */

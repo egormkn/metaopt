@@ -34,6 +34,7 @@
 #include <boost/unordered_map.hpp>
 
 #include "Metabolite.h"
+#include "Precision.h"
 #include "metaopt/Uncopyable.h"
 #include "metaopt/Properties.h"
 
@@ -62,7 +63,35 @@ public:
 	Reaction(boost::weak_ptr<Model> model, std::string name);
 	virtual ~Reaction();
 
+	/**
+	 * true if positive and negative flux are possible
+	 */
 	inline bool isReversible() const;
+
+	/**
+	 * true if positive flux is possible
+	 */
+	inline bool canFwd() const;
+
+	/**
+	 * true if only positive flux is possible
+	 */
+	inline bool isFwdForcing() const;
+
+	/**
+	 * true if only negative flux is possible
+	 */
+	inline bool isBwdForcing() const;
+
+	/**
+	 * true if negative flux is possible
+	 */
+	inline bool canBwd() const;
+
+	/**
+	 * true if only zero flux is possible
+	 */
+	inline bool isBlocked() const;
 
 	/** @brief Gets the lower bound on flux through this reaction.
 	 *
@@ -226,10 +255,13 @@ public:
 	 */
 	void setProduct(MetabolitePtr m, double value);
 
-
+	/**
+	 * updates the flux precision (usually only called from Model).
+	 */
+	void setFluxPrecision(PrecisionPtr precision);
 
 	/** returns the owning model */
-	inline const boost::shared_ptr<Model> getOwner() const;
+	const boost::shared_ptr<Model> getOwner() const;
 
 	/** returns a human readable description of this reaction including stoichiometries */
 	std::string toString() const;
@@ -252,6 +284,8 @@ private:
 	bool _exchange;
 	bool _problematic;
 
+	PrecisionPtr _fluxPrecision;
+
 	void notifyChange(); /** notifies the Model of changes performed on this Reaction. */
 };
 
@@ -271,10 +305,6 @@ typedef std::pair<const MetabolitePtr, double> Stoichiometry ;
 /////////////////////////////////////
 // Inline function defs
 /////////////////////////////////////
-
-inline bool Reaction::isReversible() const {
-	return _lb < -EPSILON;
-}
 
 double Reaction::getLb() const {
 	return _lb;
@@ -330,12 +360,38 @@ void Reaction::setProblematic(bool problematic) {
 }
 
 bool Reaction::isObjective() const {
-	return _obj < -EPSILON || _obj > EPSILON;
+	return _obj < -_fluxPrecision->getCheckTol() || _obj > _fluxPrecision->getCheckTol();
 }
 
 bool Reaction::isFluxForcing() const {
-	return _lb > EPSILON || _ub < -EPSILON;
+	return _lb > _fluxPrecision->getCheckTol() || _ub < -_fluxPrecision->getCheckTol();
 }
+
+bool Reaction::isReversible() const {
+	return _lb < -_fluxPrecision->getCheckTol() && _ub > _fluxPrecision->getCheckTol();
+}
+
+bool Reaction::canFwd() const {
+	return _ub > _fluxPrecision->getCheckTol();
+}
+
+bool Reaction::canBwd() const {
+	return _lb < -_fluxPrecision->getCheckTol();
+}
+
+bool Reaction::isFwdForcing() const {
+	return _lb > _fluxPrecision->getCheckTol();
+}
+
+bool Reaction::isBwdForcing() const {
+	return _ub < -_fluxPrecision->getCheckTol();
+}
+
+bool Reaction::isBlocked() const {
+	return _lb > -_fluxPrecision->getCheckTol() && _ub < _fluxPrecision->getCheckTol();
+}
+
+
 
 } /* namespace metaopt */
 

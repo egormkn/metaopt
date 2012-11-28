@@ -37,6 +37,8 @@
 using namespace boost;
 using namespace std;
 
+#define EPSILON 0.0001
+
 namespace metaopt {
 
 PotBoundPropagation2::PotBoundPropagation2(ModelPtr model) :
@@ -85,7 +87,7 @@ void PotBoundPropagation2::init_Queue() {
 	// create incidencies (only meaningful for internal creations)
 	foreach(ReactionPtr r, _model->getInternalReactions()) {
 		//assert(r->getProducts().size() > 0 && r->getReactants().size() > 0);
-		if(r->getUb() > EPSILON) { // reaction can operate in forward direction.
+		if(r->canFwd()) { // reaction can operate in forward direction.
 			foreach(Stoichiometry v, r->getStoichiometries()) {
 				ArcPtr a(new Arc());
 				_arcs.push_back(a);
@@ -119,7 +121,7 @@ void PotBoundPropagation2::init_Queue() {
 				}
 			}
 		}
-		if(r->getLb() < -EPSILON) { // reaction can operate in backward direction
+		if(r->canBwd()) { // reaction can operate in backward direction
 			foreach(Stoichiometry v, r->getStoichiometries()) {
 				ArcPtr a(new Arc());
 				_arcs.push_back(a);
@@ -157,7 +159,7 @@ void PotBoundPropagation2::init_Queue() {
 
 	foreach(ReactionPtr r, _model->getReactions()) {
 		if(r->isExchange()) {
-			if(r->getUb() > EPSILON) { // reaction in forward direction
+			if(r->canFwd()) { // reaction in forward direction
 				foreach(Stoichiometry s, r->getProducts()) {
 					MetBoundPtr met = _maxBounds.at(s.first);
 					met->_bound = s.first->getPotUb();
@@ -177,7 +179,7 @@ void PotBoundPropagation2::init_Queue() {
 					}
 				}
 			}
-			if(r->getLb() < -EPSILON) { // reaction in backward direction
+			if(r->canBwd()) { // reaction in backward direction
 				foreach(Stoichiometry s, r->getReactants()) {
 					MetBoundPtr met = _maxBounds.at(s.first);
 					met->_bound = s.first->getPotUb();

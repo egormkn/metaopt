@@ -32,6 +32,7 @@
 
 #include "metaopt/model/Reaction.h"
 #include "metaopt/model/Metabolite.h"
+#include "metaopt/model/Precision.h"
 #include "metaopt/model/impl/FullModel.h"
 
 using namespace boost;
@@ -49,6 +50,7 @@ using namespace std;
 #define F_POT_C "p_c"
 #define F_INT_RXNS "int_rxns"
 #define F_INT_METS "int_mets"
+#define F_PRECISION "precision"
 
 #define ERROR_MSG(field,msg) BOOST_THROW_EXCEPTION( MatlabLoaderError() << field_name(field) << matlab_error_message(msg))
 
@@ -80,11 +82,21 @@ void MatlabLoader::load(const mxArray* m) {
 	_pot_c = mxGetField(m,0, F_POT_C);
 	_int_rxns = mxGetField(m,0, F_INT_RXNS);
 	_int_mets = mxGetField(m,0, F_INT_METS);
+	_precision = mxGetField(m, 0, F_PRECISION);
 
 	// test if data is has proper format
 	testFields();
 	testTypes();
 	testDimensions();
+
+	// set precision
+	if(_precision != NULL) {
+		PrecisionPtr prec( new Precision(mxGetScalar(_precision)));
+		// use same precision for all
+		_model->setCoefPrecision(prec);
+		_model->setPotPrecision(prec);
+		_model->setFluxPrecision(prec);
+	}
 
 	// create metabolites
 	int num_species = mxGetM(_S); // rows = # species
@@ -264,6 +276,14 @@ void MatlabLoader::testTypes() {
 	}
 	else if(_int_mets == NULL) {
 		_int_mets = _mets;
+	}
+	if(_precision != NULL && (!mxIsNumeric(_precision) || mxGetNumberOfElements(_precision) != 1 || mxGetScalar(_precision) <= 0)) {
+#ifdef STRICT
+		ERROR_MSG(F_INT_RXNS, "The precision must be given as a positive numerical scalar.");
+#else
+		cout << "The precision must be given as a positive numerical scalar." << endl;
+		_precision = NULL;
+#endif
 	}
 }
 

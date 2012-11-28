@@ -88,12 +88,26 @@ double setObj(DirectedReaction d, double obj) {
 double computeReducedFlux(ModelPtr model, ModelFactory& factory, DirectedReaction source, DirectedReaction target, DirectedReaction fluxForcing, double y_1, double y_2) {
 #ifndef NDEBUG
 	foreach(ReactionPtr rxn, model->getReactions()) {
-		assert(-EPSILON < rxn->getObj() && rxn->getObj() < EPSILON);
+		assert(!rxn->isObjective());
 	}
 	foreach(MetabolitePtr met, model->getMetabolites()) {
-		assert(-EPSILON < met->getPotObj() && met->getPotObj() < EPSILON);
+		assert(!met->isObjective());
 	}
 #endif
+
+	// we are dealing with fluxes, and will add constraints to fluxes
+	// so we should start with more precision than actually desired.
+
+	/* we run three consecutive optimization steps
+	 *
+	 * 1. Computation of max_t_y_2         - rangePrecision
+	 * 2. Computation of lambda_t, lambda  - lambdaPrecision
+	 * 3. Computation of maxFlux           - targetPrecision
+	 */
+
+	PrecisionPtr targetPrecision = model->getFluxPrecision();
+	PrecisionPtr lambdaPrecision = targetPrecision->getSlavePrecision();
+	model->setFluxPrecision(lambdaPrecision->getSlavePrecision()); // set it to rangePrecision
 
 	// compute \lambda^t(y_2)
 	setObj(target,1);
@@ -105,8 +119,12 @@ double computeReducedFlux(ModelPtr model, ModelFactory& factory, DirectedReactio
 	setObj(target,0);
 
 	// compute \lambda^r_t(y_2)
+	// for this, we use a constraint that we computed in the previous optimization step,
+	// so we now have to reduce the precision to lambda precision
+	model->setFluxPrecision(lambdaPrecision);
 	setObj(fluxForcing,1);
-	double old_target_lb = setLb(target, max_t_y_2-EPSILON/100);
+	//double old_target_lb = setLb(target, max_t_y_2-EPSILON/100);
+	double old_target_lb = setLb(target, max_t_y_2);
 	ScipModelPtr scip2 = factory.build(model);
 	scip2->solve();
 	double lambda_t;
@@ -126,7 +144,7 @@ double computeReducedFlux(ModelPtr model, ModelFactory& factory, DirectedReactio
 	setLb(target, old_target_lb);
 
 	double lambda = 0;
-	if(lambda_t > EPSILON) {
+	if(lambda_t > lambdaPrecision->getCheckTol()) {
 		// compute \lambda^r(y_1)
 		setUb(source, y_1);
 		scip = factory.build(model);
@@ -143,10 +161,11 @@ double computeReducedFlux(ModelPtr model, ModelFactory& factory, DirectedReactio
 	double k = min(lambda_t, lambda);
 
 	double maxFlux = INFINITY;
-	if(k > EPSILON) {
+	if(k > lambdaPrecision->getCheckTol()) {
 		// compute actual flux reduction
 		setObj(target,1);
 		double old_fluxFocing_lb = setLb(fluxForcing, k);
+		model->setFluxPrecision(targetPrecision);
 		scip = factory.build(model);
 		scip->solve();
 		if(scip->isOptimal()) {
@@ -176,6 +195,11 @@ void computeReducedFluxes(ModelPtr model, ModelFactory& factory, DirectedReactio
 		met->setPotObj(0);
 	}
 
+	/*
+	 * Compute theoretical maximal flux.
+	 * This is only used to find the reactions which should be outputted.
+	 * But it is not used to constrain the feasible space, so we don't have to solve it with additional precision.
+	 */
 	double oldub = setUb(source, y_1);
 	setObj(target,1);
 	ScipModelPtr scip = factory.build(model);
@@ -184,17 +208,21 @@ void computeReducedFluxes(ModelPtr model, ModelFactory& factory, DirectedReactio
 	setUb(source, oldub);
 	setObj(target, 0);
 
+	/**
+	 * Compute the reduced fluxes for the reactions.
+	 */
+	const PrecisionPtr& modelPrec = model->getFluxPrecision();
 	// do the computation
 	int i = 0;
 	foreach(ReactionPtr rxn, model->getReactions()) {
 		DirectedReaction d(rxn, true);
 		double red = computeReducedFlux(model, factory, source, target, d, y_1, y_2);
-		if(red + EPSILON <= full) {
+		if(red + modelPrec->getCheckTol() <= full) {
 			reduced[d] = red;
 		}
 		d = DirectedReaction(rxn, false);
 		red = computeReducedFlux(model, factory, source, target, d, y_1, y_2);
-		if(red + EPSILON <= full) {
+		if(red + modelPrec->getCheckTol() <= full) {
 			reduced[d] = red;
 		}
 		cout << endl << endl;

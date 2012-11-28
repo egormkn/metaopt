@@ -42,13 +42,12 @@ typedef pair<ReactionPtr, int> VarAssign;
 LPFlux::LPFlux(ModelPtr model, bool exchange) {
 	_model = model;
 	BOOST_SCIP_CALL( init_lp(exchange) );
+	setPrecision(model->getFluxPrecision());
 }
 
 SCIP_RETCODE LPFlux::init_lp(bool exchange) {
 	_lpi = NULL;
 	SCIP_CALL( SCIPlpiCreate(&_lpi, NULL, "LPFlux", SCIP_OBJSEN_MAXIMIZE) );
-	SCIPlpiSetRealpar(_lpi, SCIP_LPPAR_FEASTOL, 1e-10);
-	SCIPlpiSetRealpar(_lpi, SCIP_LPPAR_DUALFEASTOL, 1e-10);
 	SCIPlpiSetIntpar(_lpi, SCIP_LPPAR_PRESOLVING, 0);
 
 	// create metabolite -> row_index map
@@ -135,6 +134,17 @@ SCIP_RETCODE LPFlux::free_lp() {
 	SCIP_CALL( SCIPlpiFree(&_lpi) );
 	return SCIP_OKAY;
 }
+
+void LPFlux::setPrecision(PrecisionPtr precision) {
+	_precision = precision;
+	SCIPlpiSetRealpar(_lpi, SCIP_LPPAR_FEASTOL, precision->getPrimalFeasTol());
+	SCIPlpiSetRealpar(_lpi, SCIP_LPPAR_DUALFEASTOL, precision->getDualFeasTol());
+}
+
+const PrecisionPtr& LPFlux::getPrecision() {
+	return _precision;
+}
+
 
 void LPFlux::setLb(ReactionPtr r, double lb) {
 	try {
@@ -283,6 +293,7 @@ void LPFlux::setBounds(AbstractScipFluxModelPtr other) {
 void LPFlux::setDirectionBounds(LPFluxPtr flux) {
 	// the data may be stored in a different order, so we cannot simply do a batch copy, but have to translate the indices.
 	// oind stores the desired permutation
+	const PrecisionPtr& fluxPrec = flux->getPrecision();
 	vector<double>& oflux = flux->_primsol;
 	int oind[_num_reactions];
 	foreach(VarAssign v, _reactions) {
@@ -293,22 +304,23 @@ void LPFlux::setDirectionBounds(LPFluxPtr flux) {
 	int ind[_num_reactions];
 	for(int i = 0; i < _num_reactions; i++) {
 		ind[i] = i;
-		lb[i] = oflux[oind[i]] < -EPSILON ? -1 : 0;
-		ub[i] = oflux[oind[i]] >  EPSILON ?  1 : 0;
+		lb[i] = oflux[oind[i]] < -fluxPrec->getCheckTol() ? -1 : 0;
+		ub[i] = oflux[oind[i]] >  fluxPrec->getCheckTol() ?  1 : 0;
 	}
 	BOOST_SCIP_CALL( SCIPlpiChgBounds(_lpi, _num_reactions, ind, lb, ub) );
 }
 
 void LPFlux::setDirectionBounds(AbstractScipFluxModelPtr flux) {
 	// Here, we have no other option than to iterate through all reactions and do a seperate function call to get the bounds
+	const PrecisionPtr& fluxPrec = flux->getPrecision();
 	double lb[_num_reactions];
 	double ub[_num_reactions];
 	int ind[_num_reactions];
 	int i = 0;
 	foreach(VarAssign v, _reactions) {
 		ind[i] = v.second;
-		lb[i] = flux->getCurrentFlux(v.first) < -EPSILON ? -1 : 0;
-		ub[i] = flux->getCurrentFlux(v.first) >  EPSILON ?  1 : 0;
+		lb[i] = flux->getCurrentFlux(v.first) < -fluxPrec->getCheckTol() ? -1 : 0;
+		ub[i] = flux->getCurrentFlux(v.first) >  fluxPrec->getCheckTol() ?  1 : 0;
 		i++;
 	}
 	BOOST_SCIP_CALL( SCIPlpiChgBounds(_lpi, _num_reactions, ind, lb, ub) );
@@ -316,14 +328,15 @@ void LPFlux::setDirectionBounds(AbstractScipFluxModelPtr flux) {
 
 void LPFlux::setDirectionBounds(SolutionPtr sol, AbstractScipFluxModelPtr flux) {
 	// Here, we have no other option than to iterate through all reactions and do a seperate function call to get the bounds
+	const PrecisionPtr& fluxPrec = flux->getPrecision();
 	double lb[_num_reactions];
 	double ub[_num_reactions];
 	int ind[_num_reactions];
 	int i = 0;
 	foreach(VarAssign v, _reactions) {
 		ind[i] = v.second;
-		lb[i] = flux->getFlux(sol, v.first) < -EPSILON ? -1 : 0;
-		ub[i] = flux->getFlux(sol, v.first) >  EPSILON ?  1 : 0;
+		lb[i] = flux->getFlux(sol, v.first) < -fluxPrec->getCheckTol() ? -1 : 0;
+		ub[i] = flux->getFlux(sol, v.first) >  fluxPrec->getCheckTol() ?  1 : 0;
 		i++;
 	}
 	BOOST_SCIP_CALL( SCIPlpiChgBounds(_lpi, _num_reactions, ind, lb, ub) );
@@ -332,6 +345,7 @@ void LPFlux::setDirectionBounds(SolutionPtr sol, AbstractScipFluxModelPtr flux) 
 void LPFlux::setDirectionBoundsInfty(LPFluxPtr flux) {
 	// the data may be stored in a different order, so we cannot simply do a batch copy, but have to translate the indices.
 	// oind stores the desired permutation
+	const PrecisionPtr& fluxPrec = flux->getPrecision();
 	vector<double>& oflux = flux->_primsol;
 	int oind[_num_reactions];
 	foreach(VarAssign v, _reactions) {
@@ -342,13 +356,14 @@ void LPFlux::setDirectionBoundsInfty(LPFluxPtr flux) {
 	int ind[_num_reactions];
 	for(int i = 0; i < _num_reactions; i++) {
 		ind[i] = i;
-		lb[i] = oflux[oind[i]] < -EPSILON ? -INFINITY : 0;
-		ub[i] = oflux[oind[i]] >  EPSILON ?  INFINITY : 0;
+		lb[i] = oflux[oind[i]] < -fluxPrec->getCheckTol() ? -INFINITY : 0;
+		ub[i] = oflux[oind[i]] >  fluxPrec->getCheckTol() ?  INFINITY : 0;
 	}
 	BOOST_SCIP_CALL( SCIPlpiChgBounds(_lpi, _num_reactions, ind, lb, ub) );
 }
 
 void LPFlux::setDirectionBoundsInfty(AbstractScipFluxModelPtr flux) {
+	const PrecisionPtr& fluxPrec = flux->getPrecision();
 	// Here, we have no other option than to iterate through all reactions and do a seperate function call to get the bounds
 	double lb[_num_reactions];
 	double ub[_num_reactions];
@@ -356,14 +371,15 @@ void LPFlux::setDirectionBoundsInfty(AbstractScipFluxModelPtr flux) {
 	int i = 0;
 	foreach(VarAssign v, _reactions) {
 		ind[i] = v.second;
-		lb[i] = flux->getCurrentFlux(v.first) < -EPSILON ? -INFINITY : 0;
-		ub[i] = flux->getCurrentFlux(v.first) >  EPSILON ?  INFINITY : 0;
+		lb[i] = flux->getCurrentFlux(v.first) < -fluxPrec->getCheckTol() ? -INFINITY : 0;
+		ub[i] = flux->getCurrentFlux(v.first) >  fluxPrec->getCheckTol() ?  INFINITY : 0;
 		i++;
 	}
 	BOOST_SCIP_CALL( SCIPlpiChgBounds(_lpi, _num_reactions, ind, lb, ub) );
 }
 
 void LPFlux::setDirectionBoundsInfty(SolutionPtr sol, AbstractScipFluxModelPtr flux) {
+	const PrecisionPtr& fluxPrec = flux->getPrecision();
 	// Here, we have no other option than to iterate through all reactions and do a seperate function call to get the bounds
 	double lb[_num_reactions];
 	double ub[_num_reactions];
@@ -371,15 +387,16 @@ void LPFlux::setDirectionBoundsInfty(SolutionPtr sol, AbstractScipFluxModelPtr f
 	int i = 0;
 	foreach(VarAssign v, _reactions) {
 		ind[i] = v.second;
-		assert(flux->getCurrentFluxLb(v.first)-EPSILON < flux->getFlux(sol, v.first) && flux->getCurrentFluxUb(v.first)+EPSILON > flux->getFlux(sol, v.first));
-		lb[i] = flux->getFlux(sol, v.first) < -EPSILON ? -INFINITY : 0;
-		ub[i] = flux->getFlux(sol, v.first) >  EPSILON ?  INFINITY : 0;
+		assert(flux->getCurrentFluxLb(v.first)-fluxPrec->getCheckTol() < flux->getFlux(sol, v.first) && flux->getCurrentFluxUb(v.first)+fluxPrec->getCheckTol() > flux->getFlux(sol, v.first));
+		lb[i] = flux->getFlux(sol, v.first) < -fluxPrec->getCheckTol() ? -INFINITY : 0;
+		ub[i] = flux->getFlux(sol, v.first) >  fluxPrec->getCheckTol() ?  INFINITY : 0;
 		i++;
 	}
 	BOOST_SCIP_CALL( SCIPlpiChgBounds(_lpi, _num_reactions, ind, lb, ub) );
 }
 
 void LPFlux::setDirectionObj(LPFluxPtr flux) {
+	const PrecisionPtr& fluxPrec = flux->getPrecision();
 	// the data may be stored in a different order, so we cannot simply do a batch copy, but have to translate the indices.
 	// oind stores the desired permutation
 	vector<double>& oflux = flux->_primsol;
@@ -392,14 +409,15 @@ void LPFlux::setDirectionObj(LPFluxPtr flux) {
 	for(int i = 0; i < _num_reactions; i++) {
 		ind[i] = i;
 		double val = oflux[oind[i]];
-		if(val < -EPSILON) obj[i] = -1;
-		else if(val > EPSILON) obj[i] = 1;
+		if(val < -fluxPrec->getCheckTol()) obj[i] = -1;
+		else if(val > fluxPrec->getCheckTol()) obj[i] = 1;
 		else obj[i] = 0;
 	}
 	BOOST_SCIP_CALL( SCIPlpiChgObj(_lpi, _num_reactions, ind, obj) );
 }
 
 void LPFlux::setDirectionObj(AbstractScipFluxModelPtr flux) {
+	const PrecisionPtr& fluxPrec = flux->getPrecision();
 	// Here, we have no other option than to iterate through all reactions and do a seperate function call to get the bounds
 	double obj[_num_reactions];
 	int ind[_num_reactions];
@@ -407,8 +425,8 @@ void LPFlux::setDirectionObj(AbstractScipFluxModelPtr flux) {
 	foreach(VarAssign v, _reactions) {
 		ind[i] = v.second;
 		double val = flux->getCurrentFlux(v.first);
-		if(val < -EPSILON) obj[i] = -1;
-		else if(val > EPSILON) obj[i] = 1;
+		if(val < -fluxPrec->getCheckTol()) obj[i] = -1;
+		else if(val > fluxPrec->getCheckTol()) obj[i] = 1;
 		else obj[i] = 0;
 		i++;
 	}
@@ -416,6 +434,7 @@ void LPFlux::setDirectionObj(AbstractScipFluxModelPtr flux) {
 }
 
 void LPFlux::setDirectionObj(SolutionPtr sol, AbstractScipFluxModelPtr flux) {
+	const PrecisionPtr& fluxPrec = flux->getPrecision();
 	// Here, we have no other option than to iterate through all reactions and do a seperate function call to get the bounds
 	double obj[_num_reactions];
 	int ind[_num_reactions];
@@ -423,8 +442,8 @@ void LPFlux::setDirectionObj(SolutionPtr sol, AbstractScipFluxModelPtr flux) {
 	foreach(VarAssign v, _reactions) {
 		ind[i] = v.second;
 		double val = flux->getFlux(sol, v.first);
-		if(val < -EPSILON) obj[i] = -1;
-		else if(val > EPSILON) obj[i] = 1;
+		if(val < -fluxPrec->getCheckTol()) obj[i] = -1;
+		else if(val > fluxPrec->getCheckTol()) obj[i] = 1;
 		else obj[i] = 0;
 		i++;
 	}
@@ -596,18 +615,19 @@ void LPFlux::subtract(LPFluxPtr flux, double scale) {
 }
 
 double LPFlux::getSubScale(LPFluxPtr source) {
+	const PrecisionPtr& fluxPrec = source->getPrecision();
 	double scale = 10000000;
 	bool found = false;
 	foreach(VarAssign v, _reactions) {
 		double val = _primsol[v.second];
 		double subVal = source->getFlux(v.first);
-		if(val > EPSILON && subVal > EPSILON ) {
+		if(val > _precision->getCheckTol() && subVal > fluxPrec->getCheckTol() ) {
 			if(scale > val/subVal) {
 				scale = val/subVal;
 				found = true;
 			}
 		}
-		else if(val < -EPSILON && subVal < -EPSILON ) {
+		else if(val < -_precision->getCheckTol() && subVal < -fluxPrec->getCheckTol() ) {
 			if(scale > val/subVal) {
 				scale = val/subVal;
 				found = true;
@@ -657,7 +677,7 @@ void LPFlux::print() {
 
 		foreach(ReactionPtr r, _model->getReactions()) {
 			double f = getFlux(r);
-			if(f > EPSILON || f < -EPSILON) cout << r->getName() << ": " << f << endl;
+			if(f > _precision->getCheckTol() || f < -_precision->getCheckTol()) cout << r->getName() << ": " << f << endl;
 		}
 	}
 }
@@ -732,7 +752,7 @@ vector<PotSpaceConstraintPtr> LPFlux::getActivePotConstraints() {
 
 	foreach(PSCEntry e, _extraConstraints) {
 		// potSpaceConstraints only allow reverse flux
-		if(_primsol[e.second] < -EPSILON) {
+		if(_primsol[e.second] < -_precision->getCheckTol()) {
 			out.push_back(e.first);
 		}
 	}

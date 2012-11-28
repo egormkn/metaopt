@@ -125,15 +125,16 @@ public:
  */
 bool isLooplessFluxAttainable(LPFluxPtr sol, LPFluxPtr helper) {
 	ModelPtr model = sol->getModel();
+	const PrecisionPtr& solPrec = sol->getPrecision();
 	helper->setDirectionBounds(sol);
 	helper->setZeroObj();
 	foreach(ReactionPtr r, model->getObjectiveReactions()) {
 		if(!r->isExchange()) {
 			double val = sol->getFlux(r);
-			if(val > EPSILON) {
+			if(val > solPrec->getCheckTol()) {
 				helper->setObj(r, 1);
 			}
-			else if(val < -EPSILON) {
+			else if(val < -solPrec->getCheckTol()) {
 				helper->setObj(r, -1);
 			}
 		}
@@ -141,10 +142,10 @@ bool isLooplessFluxAttainable(LPFluxPtr sol, LPFluxPtr helper) {
 	foreach(ReactionPtr r, model->getFluxForcingReactions()) {
 		if(!r->isExchange()) {
 			double val = sol->getFlux(r);
-			if(val > EPSILON) {
+			if(val > solPrec->getCheckTol()) {
 				helper->setObj(r, 1);
 			}
-			else if(val < -EPSILON) {
+			else if(val < -solPrec->getCheckTol()) {
 				helper->setObj(r, -1);
 			}
 		}
@@ -152,10 +153,10 @@ bool isLooplessFluxAttainable(LPFluxPtr sol, LPFluxPtr helper) {
 	foreach(ReactionPtr r, model->getProblematicReactions()) {
 		if(!r->isExchange()) {
 			double val = sol->getFlux(r);
-			if(val > EPSILON) {
+			if(val > solPrec->getCheckTol()) {
 				helper->setObj(r, 1);
 			}
-			else if(val < -EPSILON) {
+			else if(val < -solPrec->getCheckTol()) {
 				helper->setObj(r, -1);
 			}
 		}
@@ -167,7 +168,7 @@ bool isLooplessFluxAttainable(LPFluxPtr sol, LPFluxPtr helper) {
 #ifndef SILENT
 	std::cout << "test: " << helper->getObjVal() << std::endl;
 #endif
-	return helper->getObjVal() < EPSILON;
+	return helper->getObjVal() < helper->getPrecision()->getCheckTol();
 }
 
 /**
@@ -177,6 +178,8 @@ bool isThermoFluxAttainable(LPFluxPtr sol, LPFluxPtr helper, LPPotentialsPtr pot
 	// make sure that subtracting cycles does not violate flux bounds or objective value
 	assert(isLooplessFluxAttainable(sol, helper));
 	ModelPtr model = sol->getModel();
+	const PrecisionPtr& solPrec = sol->getPrecision();
+	const PrecisionPtr& helperPrec = helper->getPrecision();
 #ifndef NDEBUG
 	int debugi = 0;
 #endif
@@ -185,10 +188,10 @@ bool isThermoFluxAttainable(LPFluxPtr sol, LPFluxPtr helper, LPPotentialsPtr pot
 		helper->setZeroObj();
 		foreach(ReactionPtr r, model->getReactions()) {
 			double val = sol->getFlux(r);
-			if(val > EPSILON) {
+			if(val > solPrec->getCheckTol()) {
 				helper->setObj(r, 1);
 			}
-			else if(val < -EPSILON) {
+			else if(val < -solPrec->getCheckTol()) {
 				helper->setObj(r, -1);
 			}
 		}
@@ -196,7 +199,7 @@ bool isThermoFluxAttainable(LPFluxPtr sol, LPFluxPtr helper, LPPotentialsPtr pot
 		if(!helper->isFeasible()) { // something strange, abort
 			return false;
 		}
-		if(helper->getObjVal() > EPSILON) {
+		if(helper->getObjVal() > helperPrec->getCheckTol()) {
 			double scale = sol->getSubScale(helper);
 			if(scale < -0.5) return false;
 			sol->subtract(helper, scale);
@@ -205,7 +208,7 @@ bool isThermoFluxAttainable(LPFluxPtr sol, LPFluxPtr helper, LPPotentialsPtr pot
 		debugi++;
 		if(debugi % 1000 == 0) std::cout << "FVA.cpp " << __LINE__ << " caught endless loop" << std::endl;
 #endif
-	} while(helper->getObjVal() > EPSILON);
+	} while(helper->getObjVal() > helperPrec->getCheckTol());
 	// now we computed a guess of a thermodynamically feasible flow, now we have to check
 	potTest->setDirections(sol);
 	bool result;
@@ -265,6 +268,11 @@ void tfva(ModelPtr model, FVASettingsPtr settings, unordered_map<ReactionPtr,dou
 	LPFluxPtr helper(new LPFlux(model, false));
 	helper->setObjSense(true);
 
+	// helper needs more precision, since it is called iteratively to remove loops
+	helper->setPrecision(model->getFluxPrecision()->getSlavePrecision());
+	// for all the other cases we just use model precision, i.e.
+	PrecisionPtr prec = model->getFluxPrecision();
+
 	LPPotentialsPtr potTest;
 	if(!simple) {
 		potTest = LPPotentialsPtr(new LPPotentials(model));
@@ -299,7 +307,7 @@ void tfva(ModelPtr model, FVASettingsPtr settings, unordered_map<ReactionPtr,dou
 		}
 #endif
 
-		if(max_flux->isFeasible() && min_flux->isFeasible() && max_flux->getObjVal() - min_flux->getObjVal() < EPSILON) {
+		if(max_flux->isFeasible() && min_flux->isFeasible() && max_flux->getObjVal() - min_flux->getObjVal() < prec->getCheckTol()) {
 			// both fluxes are feasible and the same, hence they also must be optimal
 			max[a] = max_flux->getObjVal();
 			min[a] = min_flux->getObjVal();
@@ -318,7 +326,7 @@ void tfva(ModelPtr model, FVASettingsPtr settings, unordered_map<ReactionPtr,dou
 			}
 			else {
 				ScipModelPtr scip = factory.build(model);
-				if(settings->timeout > EPSILON) {
+				if(settings->timeout > 1) { // a timeout of less than a second makes no sense
 					BOOST_SCIP_CALL( SCIPsetRealParam(scip->getScip(), "limits/time", settings->timeout) );
 				}
 				scip->setObjectiveSense(true);
@@ -333,7 +341,7 @@ void tfva(ModelPtr model, FVASettingsPtr settings, unordered_map<ReactionPtr,dou
 						SCIPlpiGetDualfarkas(max_flux->getLPI(), dualfarkas);
 						foreach(MetabolitePtr met, model->getMetabolites()) {
 							double d = dualfarkas[max_flux->getIndex(met)];
-							if(d < -EPSILON || d > EPSILON) {
+							if(d < -prec->getDualFeasTol() || d > prec->getDualFeasTol()) {
 								cout << met->getName() << " = " << d << endl;
 							}
 						}
@@ -361,7 +369,7 @@ void tfva(ModelPtr model, FVASettingsPtr settings, unordered_map<ReactionPtr,dou
 			}
 			else {
 				ScipModelPtr scip = factory.build(model);
-				if(settings->timeout > EPSILON) {
+				if(settings->timeout > 1) { // a timeout of less than a second makes no sense
 					BOOST_SCIP_CALL( SCIPsetRealParam(scip->getScip(), "limits/time", settings->timeout) );
 				}
 				scip->setObjectiveSense(false);
@@ -375,7 +383,7 @@ void tfva(ModelPtr model, FVASettingsPtr settings, unordered_map<ReactionPtr,dou
 						SCIPlpiGetDualfarkas(min_flux->getLPI(), dualfarkas);
 						foreach(MetabolitePtr met, model->getMetabolites()) {
 							double d = dualfarkas[min_flux->getIndex(met)];
-							if(d < -EPSILON || d > EPSILON) {
+							if(d < -prec->getDualFeasTol() || d > prec->getDualFeasTol()) {
 								cout << met->getName() << " = " << d << endl;
 							}
 						}
@@ -392,10 +400,20 @@ void tfva(ModelPtr model, FVASettingsPtr settings, unordered_map<ReactionPtr,dou
 				a->setLb(opt); // we computed a lower bound, so use it for future computations
 			}
 
-			max_flux->setUb(a, max[a]);
-			min_flux->setUb(a, max[a]);
-			max_flux->setLb(a, min[a]);
-			min_flux->setLb(a, min[a]);
+			/*
+			 * Actually, we are now adding constraints and not decrease the precision.
+			 * This is ugly, but we can't reduce the precision for each reaction we computed bounds for.
+			 * As a little hack to cope with rounding issues, where the maximal flux value is actually less than the minimal computed value,
+			 * we take the maximum resp. the minimum of the two.
+			 */
+			double maxf = max[a];
+			double minf = min[a];
+			double maxflux = maxf > minf ? maxf : minf;
+			double minflux = maxf > minf ? minf : maxf;
+			max_flux->setUb(a, maxflux);
+			min_flux->setUb(a, maxflux);
+			max_flux->setLb(a, minflux);
+			min_flux->setLb(a, minflux);
 			max_flux->solveDual();
 			min_flux->solveDual();
 		}
@@ -412,7 +430,7 @@ void tfva(ModelPtr model, FVASettingsPtr settings, unordered_map<ReactionPtr,dou
 		 */
 		runningTime = (double) (clock() - start) / CLOCKS_PER_SEC;
 
-		if(settings->timeout > EPSILON && runningTime > settings->timeout) {
+		if(settings->timeout > 1 && runningTime > settings->timeout) {  // a timeout of less than a second makes no sense
 			cout << endl;
 			cout << "aborted by timeout of " << settings->timeout << " seconds" << endl;
 			BOOST_THROW_EXCEPTION( TimeoutError() );
