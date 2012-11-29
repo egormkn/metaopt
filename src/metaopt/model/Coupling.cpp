@@ -28,12 +28,6 @@
 #include "Coupling.h"
 #include <iostream>
 #include <utility>                   // for std::pair
-#include <algorithm>                 // for std::for_each
-#include <boost/graph/graph_traits.hpp>
-#include <boost/graph/transitive_closure.hpp>
-#include <boost/graph/graph_traits.hpp>
-#include <boost/graph/adjacency_list.hpp>
-#include <boost/graph/graph_utility.hpp>
 
 
 namespace metaopt {
@@ -42,38 +36,90 @@ using namespace std;
 using namespace boost;
 
 Coupling::Coupling() {
-	// nothing to do
+	israw = true;
 }
 
-Coupling::Coupling(const Coupling &c) : _G(c._G), _vertices(c._vertices) {
-	// nothing else to do
+Coupling::Coupling(const Coupling &c) {
 	israw = true;
+	// only copy nodes, and force the other stuff to be recomputed
+	typedef pair<DirectedReaction, NodePtr> NodeEntry;
+
+	// create the nodes
+	foreach(NodeEntry e, c._nodes) {
+		NodePtr& n = _nodes[e.first];
+		n.reset(new Node(e.first));
+	}
+	// add the links
+	foreach(NodeEntry e, c._nodes) {
+		const NodePtr& n = _nodes[e.first];
+		foreach(Node* k, n->_to) {
+			n->_to.insert(_nodes[k->_reaction].get());
+		}
+		foreach(Node* k, n->_from) {
+			n->_from.insert(_nodes[k->_reaction].get());
+		}
+		// color and finish time we don't have to set, since they are set in the algorithm when needed
+	}
+
+	// components get computed, so don't copy
 }
 
 Coupling::~Coupling() {
 	// nothing to do
 }
 
-typedef unordered_multimap<DirectedReaction,DirectedReaction>::iterator citerator;
+//typedef unordered_multimap<DirectedReaction,DirectedReaction>::iterator citerator;
+
+std::size_t Coupling::hash_value(Node* p ) {
+	return reinterpret_cast<std::size_t>(p);
+}
+
+std::size_t Coupling::hash_value(StrongComponent* p ) {
+	return reinterpret_cast<std::size_t>(p);
+}
+
+Coupling::Node::Node(DirectedReaction& d) : _reaction(d) {}
 
 void Coupling::addCoupled(DirectedReaction a, DirectedReaction b) {
-	vertex_t va, vb;
-	if(_vertices.find(a) == _vertices.end()) {
-		va = add_vertex(_G);
-		_vertices[a] = va;
+
+	// use the property that unordered_map allocates new objects if it doesn't find them
+	NodePtr& na = _nodes[a];
+	NodePtr& nb = _nodes[b];
+
+	// create nodes if necessary
+	if(na.use_count() == 0) {
+		na.reset(new Node(a));
 	}
-	else {
-		va = _vertices[a];
+	if(nb.use_count() == 0) {
+		nb.reset(new Node(b));
 	}
-	if(_vertices.find(b) == _vertices.end()) {
-		vb = add_vertex(_G);
-		_vertices[b] = vb;
-	}
-	else {
-		vb = _vertices[b];
-	}
-	add_edge(va, vb, _G);
+
+	na->_to.insert(nb.get());
+	nb->_from.insert(na.get());
+
 	israw = true;
+}
+
+void Coupling::dfs(Node* node, unsigned int &time) {
+	node->_color = GREY;
+	foreach(Node* child, node->_to) {
+		if(child->_color == WHITE) {
+			dfs(child, time);
+		}
+	}
+	node->_color = BLACK;
+	node->_finishtime = time++;
+}
+
+void Coupling::dfs2(Node* node, const StrongComponentPtr & comp) {
+	node->_color = GREY;
+	_components[node->_reaction] = comp; // store this connected component to belong to the node
+	foreach(Node* child, node->_from) {
+		if(child->_color == WHITE) {
+			dfs2(child, comp);
+		}
+	}
+	node->_color = BLACK;
 }
 
 void Coupling::computeClosure() {
@@ -81,30 +127,74 @@ void Coupling::computeClosure() {
 	cout << "starting compute closure... ";
 	cout.flush();
 #endif
-	_TC.clear();
-	_to_tc_vec = std::vector<tc_vertex_t>(num_vertices(_G));;
-	/*_g_to_tc.clear();
 
-	struct map {
-		unordered_map<vertex_t, tc_vertex_t>& _tomap;
+	/*
+	 * We compute the strong components (correspond to sets of fully coupled reactions).
+	 * As a side result, we also get a topological ordering which we use to compute the transitive couplings.
+	 */
 
-		map(unordered_map<vertex_t, tc_vertex_t>& tomap) : _tomap(tomap) {}
+	// reset components
+	_components.clear();
 
-		tc_vertex_t& operator[](vertex_t v) {
-			return _tomap[v];
+	typedef pair<DirectedReaction, NodePtr> NodeEntry;
+	// run first dfs
+	// first reset nodes (turn them all white)
+	foreach(NodeEntry e, _nodes) {
+		e.second->_color = WHITE;
+	}
+	unsigned int time = 0; // we start with zero, so that we can use the finish times as indicies
+	foreach(NodeEntry e, _nodes) {
+		if(e.second->_color == WHITE) {
+			dfs(e.second.get(), time);
 		}
-	};
+	}
+	assert(time == _nodes.size());
 
-	map m(_g_to_tc);*/
+	// run second dfs
+	// the second dfs has to process the nodes in order of decreasing finish time
+	// so we create an ordered list of the nodes
+	vector<Node*> ordered;
+	ordered.resize(_nodes.size(), NULL);
+	// reset nodes (turn them all white)
+	// and put them in their correct position
+	foreach(NodeEntry e, _nodes) {
+		e.second->_color = WHITE;
+		assert(e.second->_finishtime >= 0);
+		assert(e.second->_finishtime < _nodes.size());
+		ordered[e.second->_finishtime] = e.second.get();
+	}
+	vector<StrongComponentPtr> comps; // stores topologically ordered strong components
+	foreach(NodeEntry e, _nodes) {
+		if(e.second->_color == WHITE) {
+			StrongComponentPtr comp(new StrongComponent());
+			dfs2(e.second.get(), comp);
+			comps.push_back(comp);
+		}
+	}
+	num_components = comps.size(); // store number of components for statistical purposes
 
-	typedef boost::property_map<graph_t, boost::vertex_index_t>::const_type VertexIndexMap;
-	VertexIndexMap index_map = get(vertex_index, _G);
+	// iterate through all nodes and transfer directed couplings to strong components
+	foreach(NodeEntry e, _nodes) {
+		const StrongComponentPtr& s = _components[e.first];
+		foreach(Node* n, e.second->_to) {
+			const StrongComponentPtr& t = _components[n->_reaction];
+			s->_coupledTo.insert(t.get());
+		}
+	}
+	// now we have a topologically ordered list of components
+	// we can now use a dynamic programming variant to add the partial couplings.
+	// to do so, we iterate through the list in reverse order
+	for(int i = comps.size()-1; i >= 0; i--) {
+		const StrongComponentPtr& s = comps[i];
+		unordered_set<StrongComponent*> to = s->_coupledTo; // make a copy, so we can modify the original while iterating
+		// since we iterate through the components in topological order,
+		// we already know the transitive closure for couplings from each t in to
+		// hence, this simple update is sufficient
+		foreach(StrongComponent* t, to) {
+			s->_coupledTo.insert(t->_coupledTo.begin(), t->_coupledTo.end());
+		}
+	}
 
-	iterator_property_map < tc_vertex_t *, VertexIndexMap, tc_vertex_t, tc_vertex_t&> g_to_tc(&_to_tc_vec[0], index_map);
-
-
-	transitive_closure(_G, _TC, g_to_tc, get(vertex_index, _G));
-	//transitive_closure(_G, _TC);
 #ifndef SILENT
 	cout << "finished" << endl;
 #endif
@@ -114,29 +204,11 @@ void Coupling::computeClosure() {
 
 bool Coupling::isCoupled(DirectedReaction a, DirectedReaction b) {
 	assert(!israw);
-	if(_vertices.find(a) == _vertices.end()) return false;
-	if(_vertices.find(b) == _vertices.end()) return false;
 
-	typedef boost::property_map<graph_t, boost::vertex_index_t>::const_type VertexIndexMap;
-	VertexIndexMap index_map = get(vertex_index, _G);
+	const StrongComponentPtr& sa = _components[a];
+	const StrongComponentPtr& sb = _components[b];
 
-	iterator_property_map < tc_vertex_t *, VertexIndexMap, tc_vertex_t, tc_vertex_t&> g_to_tc(&_to_tc_vec[0], index_map);
-
-	try {
-		tc_vertex_t va = g_to_tc[_vertices.at(a)];
-		tc_vertex_t vb = g_to_tc[_vertices.at(b)];
-		bool res = is_adjacent(_TC, va, vb);
-		return res;
-	}
-	catch(std::exception& ex) {
-		cout << diagnostic_information(ex) << endl;
-		/*typedef pair<DirectedReaction, vertex_t> elem;
-		foreach(elem d, _vertices) {
-			assert(g_to_tc.find(d.second) != g_to_tc.end());
-		}*/
-		assert(false);
-	}
-	return false;
+	return(sa->_coupledTo.find(sb.get()) != sa->_coupledTo.end());
 }
 
 shared_ptr<vector<CoverReaction> > Coupling::computeCover(boost::unordered_set<DirectedReaction>& reactions) {
@@ -151,113 +223,76 @@ shared_ptr<vector<CoverReaction> > Coupling::computeCover(boost::unordered_set<D
 	}
 #else
 
-	boost::unordered_set<DirectedReaction> unanalyzed(reactions);
-
-	// now we have to analyze the aggregated coupling information
-	unordered_set<DirectedReaction> maxima;
-	foreach(DirectedReaction rxn, reactions) {
-		// canMax indicates if it can be the selected maximum
-		bool canMax = true;
-
-#if 1
-		foreach(DirectedReaction d, reactions) {
-			if(isCoupled(d,rxn)) {
-				if(isCoupled(rxn,d)) {
-					if(maxima.find(d) != maxima.end()) {
-						canMax = false; // rxn may be a max, but we already found an equivalent one
-					}
-				}
-				else {
-					canMax = false;
-				}
-			}
-		}
-
-#else
-		boost::unordered_set<DirectedReaction>& bwd = _bwd_couplings[rxn];
-		boost::unordered_set<DirectedReaction>& fwd = _fwd_couplings[rxn];
-		foreach(DirectedReaction f, bwd) {
-			if(canMax && reactions.find(f) != reactions.end()) {
-				// f is interesting
-				if(fwd.find(f) == reactions.end()) {
-					// rxn does not cover f, hence rxn is not a maximal element
-					canMax = false;
-				}
-				else {
-					if(maxima.find(f) != maxima.end()) {
-						canMax = false; // rxn may be a max, but we already found an equivalent one
-					}
-				}
-			}
-		}
-#endif
-		if(canMax) {
-			maxima.insert(rxn);
-		}
+	// we have a directed acyclic graph of the components;
+	// hence, we just have to find components that point to no components of the set
+	// use a hashmap to store the components, since it directly eliminates duplicates
+	unordered_set<StrongComponent*> comps; // use pointers, because for those we have a hash function
+	foreach(const DirectedReaction& d, reactions) {
+		comps.insert(_components[d].get());
 	}
-
-
-	// we will misuse the list analyzed now to mark which reactions are still uncovered.
-	assert(unanalyzed.size() == reactions.size()); // analyzed must contain every element of reactions
-
-#if 0
-	cout << "maxima: ";
-	foreach(DirectedReaction d, maxima) {
-		cout << d._rxn->getName() << " ";
-	}
-	cout << endl;
-#endif
-#if 0
-	foreach(DirectedReaction d, reactions) {
-		cout << d._rxn->getName() << ": ";
-		pair<citerator, citerator> res = targetCoupled.equal_range(d);
-		for(citerator j = res.first; j != res.second; j++) {
-			cout << j->second._rxn->getName() << " ";
-		}
-		cout << " ( ";
-		res = couplings.equal_range(d);
-		for(citerator j = res.first; j != res.second; j++) {
-			cout << j->second._rxn->getName() << " ";
-		}
-		cout << " ) " ;
-		cout << endl;
-	}
-#endif
 
 	shared_ptr<vector<CoverReaction> > cover(new vector<CoverReaction>());
-	foreach(DirectedReaction d, maxima) {
-		CoverReaction c(d);
-		unanalyzed.erase(d);
-		for(unordered_set<DirectedReaction>::iterator i = unanalyzed.begin(); i != unanalyzed.end();) {
-			if(isCoupled(d,*i)) {
-				c.covered->push_back(*i);
-				i = unanalyzed.erase(i);
-			}
-			else {
-				i++;
-			}
-		}
-#if 0
-		boost::unordered_set<DirectedReaction>& fwd = _fwd_couplings[d];
-		unanalyzed.erase(d);
-		foreach(DirectedReaction f, fwd) {
-			if(unanalyzed.find(f) != unanalyzed.end()) {
-				c.covered->push_back(f);
-				unanalyzed.erase(f);
-			}
-		}
-#endif
-		cover->push_back(c);
-	}
-	assert(unanalyzed.empty());
 
+	foreach(StrongComponent* c, comps) {
+		bool isMax = true;
+		foreach(StrongComponent* t, c->_coupledTo) {
+			if(comps.find(t) != comps.end()) {
+				// we found a component to which c is coupled, hence it is not maximal
+				isMax = false;
+				break;
+			}
+		}
+		if(isMax) {
+			const DirectedReaction* m = NULL;
+			shared_ptr<vector<DirectedReaction> > covered;
+			foreach(const DirectedReaction& d, reactions) {
+				const StrongComponentPtr& cd = _components[d];
+				if(cd.get() == c) {
+					if(m == NULL) {
+						m = &d; // ok, since reactions will continue to live and d is a reference
+					}
+					else {
+						covered->push_back(d); // reaction is covered
+					}
+				}
+				else {
+					// we have to check if the reaction is covered
+					if(cd->_coupledTo.find(c) != cd->_coupledTo.end()) {
+						// it is coupled
+						covered->push_back(d);
+					}
+				}
+			}
+			assert(m != NULL);
+			CoverReaction cr(*m);
+			cr.covered = covered;
+			cover->push_back(cr);
+		}
+	}
 #endif
+
 	return cover;
 }
 
 string Coupling::getStat() {
 	stringstream ss;
-	ss << string("number of raw couplings: ") << num_edges(_G) << " number of aggregated couplings: " << num_edges(_TC);
+	int num_raw = 0;
+
+	typedef pair<DirectedReaction, NodePtr> NodeEntry;
+	// run first dfs
+	// first reset nodes (turn them all white)
+	foreach(NodeEntry e, _nodes) {
+		num_raw += e.second->_to.size();
+	}
+
+	if(israw) {
+		ss << string("number of raw couplings: ");
+		return ss.str();
+	}
+	else {
+		// don't compute number of aggregated couplings, because that is too much overhead
+		ss << string("number of raw couplings: ") << num_raw << " number of strong components: " << num_components;
+	}
 	return ss.str();
 }
 

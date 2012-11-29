@@ -43,7 +43,7 @@ void ThermoInfeasibleSetPool::add(ThermoInfeasibleSetPtr tis) {
 	if(infeasibleSets.size() < NUMBER_INFEASIBLE_SETS || worst >= tis->priority) {
 		// we add the new element
 		ThermoInfeasibleSetPtr toInsert = tis;
-		for(int i = 0; i < infeasibleSets.size(); i++) {
+		for(unsigned int i = 0; i < infeasibleSets.size(); i++) {
 			if(infeasibleSets[i]->priority > toInsert->priority) {
 				ThermoInfeasibleSetPtr old = infeasibleSets[i];
 				infeasibleSets[i] = toInsert;

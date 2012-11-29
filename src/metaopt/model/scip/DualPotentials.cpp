@@ -409,11 +409,11 @@ void DualPotentials::setExtraPotConstraints(unordered_set<PotSpaceConstraintPtr>
 	}
 	BOOST_SCIP_CALL( SCIPlpiDelColset(_lpi, dstat) );
 #ifndef NDEBUG
-	for(int i = 0; i < _reactions.size(); i++) {
-		assert(dstat[i] == i); // reactions should keep indices
+	for(unsigned int i = 0; i < _reactions.size(); i++) {
+		assert(dstat[i] == (int) i); // reactions should keep indices
 	}
 #endif
-	int end = EXTRA + _extraConstraints.size();
+	unsigned int end = EXTRA + _extraConstraints.size();
 	foreach(PotSpaceConstraintPtr p, psc) {
 		unordered_map<PotSpaceConstraintPtr, int>::iterator iter = _extraConstraints.find(p);
 		if(iter != _extraConstraints.end()) {

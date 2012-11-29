@@ -30,16 +30,10 @@
 #include <boost/unordered_set.hpp>
 #include <boost/unordered_map.hpp>
 
-#include <boost/graph/graph_traits.hpp>
-#include <boost/graph/adjacency_list.hpp>
 
 #include "metaopt/model/Reaction.h"
 #include "metaopt/model/DirectedReaction.h"
 #include "metaopt/Properties.h"
-
-#ifdef BOOST_NO_TEMPLATE_PARTIAL_SPECIALIZATION
-#error The transitive closure algorithm uses partial specialization.
-#endif
 
 namespace metaopt {
 
@@ -47,7 +41,7 @@ struct CoverReaction {
 	DirectedReaction reaction;
 	boost::shared_ptr<std::vector<DirectedReaction> > covered;
 
-	CoverReaction(DirectedReaction& r) : reaction(r), covered(new std::vector<DirectedReaction>()) {}
+	CoverReaction(const DirectedReaction& r) : reaction(r), covered(new std::vector<DirectedReaction>()) {}
 };
 
 typedef shared_ptr<CoverReaction> CoverReactionPtr;
@@ -109,24 +103,65 @@ public:
 
 private:
 
-	// type for input graph
-	typedef boost::adjacency_list < boost::vecS, boost::vecS, boost::directedS > graph_t;
-	typedef boost::graph_traits < graph_t >::vertex_descriptor vertex_t;
-	graph_t _G;
+	// new implementation
 
-	// type for transitive closure graph
-	typedef boost::adjacency_list <boost::vecS, boost::vecS, boost::directedS> tc_graph_t;
-	typedef boost::graph_traits < tc_graph_t >::vertex_descriptor tc_vertex_t;
-	tc_graph_t _TC;
+	enum Color {
+		WHITE,
+		GREY,
+		BLACK
+	};
 
-	std::vector<tc_vertex_t> _to_tc_vec;
+	struct Node {
+		// adjacency list for a DirectedReaction
+		const DirectedReaction _reaction;
+		// use raw pointers, because the alternative would be weak pointers and thats too much hassle!
+		boost::unordered_set<Node*> _to; // nodes n with this coupled to n
+		boost::unordered_set<Node*> _from; // nodes n with n coupled to this
+		Color _color;
+		unsigned int _finishtime;
 
+		Node(DirectedReaction& d);
+	};
 
-	boost::unordered_map<DirectedReaction, vertex_t> _vertices;
+	std::size_t hash_value(Node* p );
 
-	//boost::unordered_map<vertex_t, tc_vertex_t> _g_to_tc;
+	typedef boost::shared_ptr<Node> NodePtr;
 
+	boost::unordered_map<DirectedReaction, NodePtr> _nodes;
+
+	struct StrongComponent {
+		// stores list of strong components this is coupled to
+		boost::unordered_set<StrongComponent*> _coupledTo;
+	};
+
+	std::size_t hash_value(StrongComponent* p );
+
+	typedef boost::shared_ptr<StrongComponent> StrongComponentPtr;
+
+	boost::unordered_map<DirectedReaction, StrongComponentPtr> _components;
+
+	int num_components; // for statistical purposes only
+
+	// indicates if closure was already computed
 	bool israw;
+
+	/**
+	 * Runs depth first search starting from the given node and stores finishing times in nodes.
+	 * Only searches nodes reachable from node.
+	 *
+	 * This is the dfs run in the first round.
+	 *
+	 * @param node starting node
+	 * @param next finsih time to be assigned (gets updated by algorithm)
+	 */
+	void dfs(Node* node, unsigned int &time);
+
+	/**
+	 * This is the dfs run in the second round.
+	 *
+	 * It operates on the reverse arcs and stores the found nodes in the given strong component.
+	 */
+	void dfs2(Node* node, const StrongComponentPtr & comp);
 };
 
 typedef boost::shared_ptr<Coupling> CouplingPtr;

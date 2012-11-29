@@ -173,7 +173,6 @@ void LPFlux::setUb(ReactionPtr r, double ub) {
 void LPFlux::setObj(ReactionPtr r, double obj) {
 	try {
 		int ind = _reactions.at(r);
-		double olb;
 		BOOST_SCIP_CALL( SCIPlpiChgObj(_lpi, 1, &ind, &obj));
 	}
 	catch(std::exception &ex) {

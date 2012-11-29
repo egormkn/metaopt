@@ -115,7 +115,6 @@ double computeReducedFlux(ModelPtr model, ModelFactory& factory, DirectedReactio
 	ScipModelPtr scip = factory.build(model);
 	scip->solve();
 	double max_t_y_2 = scip->getObjectiveValue();
-	double foo = scip->getCurrentFlux(target._rxn);
 	setObj(target,0);
 
 	// compute \lambda^r_t(y_2)
