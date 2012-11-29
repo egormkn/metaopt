@@ -179,6 +179,9 @@ void Reaction::setFluxPrecision(PrecisionPtr precision) {
 	_fluxPrecision = precision;
 }
 
+std::size_t hash_value(ReactionPtr const & rxn ) {
+	   return reinterpret_cast<std::size_t>(rxn.get());
+}
 
 
 } /* namespace metaopt */

@@ -181,6 +181,8 @@ typedef boost::shared_ptr<Metabolite> MetabolitePtr;
 /** If an error is thrown by a method of this Metabolite, the name of this Metabolite is added using this tag */
 typedef boost::error_info<struct tag_metabolite_name,std::string> metabolite_name;
 
+std::size_t hash_value(MetabolitePtr const & met );
+
 /////////////////////////////////////
 // Inline function defs
 /////////////////////////////////////

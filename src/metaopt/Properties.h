@@ -52,15 +52,35 @@ public:
 typedef boost::error_info<struct tag_iteration_count,int> iteration_count;
 
 
+#if 0
+/**
+ * Implement hashing support for MetabolitePtr and ReactionPtr
+ */
 namespace metaopt
 {
+#if 0 //BOOST_VERSION < 104700
+   // somewhere between version 1.46 and 1.47 boost starts to have a definition for hash_value(shared_ptr<T>)
+   // if it does not, we have to define it
    template <class T>
    std::size_t
    hash_value(boost::shared_ptr<T> const & _ptr)
    {
       return reinterpret_cast<std::size_t>( _ptr.get() );
    }
+
+#else
+   // otherwise the hash_function simply calls the native pointer hash function
+   // so we have to define that
+   std::size_t hash_value(MetabolitePtr const & met ) {
+	   return reinterpret_cast<std::size_t>(met.get());
+   }
+
+   std::size_t hash_value(ReactionPtr const & rxn ) {
+	   return reinterpret_cast<std::size_t>(rxn.get());
+   }
+#endif
 }
+#endif
 
 //#define _GLIBCXX_DEBUG
 

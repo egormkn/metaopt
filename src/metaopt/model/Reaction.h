@@ -301,6 +301,8 @@ typedef boost::error_info<struct tag_reaction_name,std::string> reaction_name;
 /** Typedef for easy use of foreach iteration through stoichiometry data */
 typedef std::pair<const MetabolitePtr, double> Stoichiometry ;
 
+std::size_t hash_value(ReactionPtr const & rxn );
+
 
 /////////////////////////////////////
 // Inline function defs

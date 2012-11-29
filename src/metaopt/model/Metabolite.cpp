@@ -134,4 +134,9 @@ void Metabolite::setPotPrecision(PrecisionPtr precision) {
 	_potPrecision = precision;
 }
 
+std::size_t hash_value(MetabolitePtr const & met ) {
+	   return reinterpret_cast<std::size_t>(met.get());
+}
+
+
 } /* namespace metaopt */
