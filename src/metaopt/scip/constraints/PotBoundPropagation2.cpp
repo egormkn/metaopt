@@ -203,6 +203,11 @@ void PotBoundPropagation2::init_Queue() {
 	}
 }
 
+std::size_t PotBoundPropagation2::hash_value(MetBoundPtr const & mb ) {
+	return reinterpret_cast<std::size_t>(mb.get());
+}
+
+
 PotBoundPropagation2::Arc::Arc()
 	: _active(true) {
 	// nothing else

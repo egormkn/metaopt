@@ -48,6 +48,7 @@ Metabolite::Metabolite(weak_ptr<Model> model, std::string name) {
 	_ub = INFINITY;
 	_obj = 0;
 	_boundary = false;
+	_potPrecision = model.lock()->getPotPrecision();
 }
 
 Metabolite::~Metabolite() {

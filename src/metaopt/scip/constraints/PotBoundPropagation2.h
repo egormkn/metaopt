@@ -105,6 +105,8 @@ private:
 
 	typedef boost::shared_ptr<MetBound> MetBoundPtr;
 
+	std::size_t hash_value(MetBoundPtr const & mb );
+
 	struct Arc {
 		MetBoundPtr _target;
 		ReactionPtr _creator;

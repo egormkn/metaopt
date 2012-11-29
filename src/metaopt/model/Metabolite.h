@@ -231,7 +231,7 @@ inline const char* Metabolite::getCName() const {
 }
 
 inline bool Metabolite::isObjective() const {
-	return(_obj < _potPrecision->getCheckTol() || _obj > _potPrecision->getCheckTol());
+	return(_obj < -_potPrecision->getCheckTol() || _obj > _potPrecision->getCheckTol());
 }
 
 } /* namespace metaopt */

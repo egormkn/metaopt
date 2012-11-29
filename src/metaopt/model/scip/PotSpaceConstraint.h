@@ -47,6 +47,7 @@ struct PotSpaceConstraint {
 
 typedef boost::shared_ptr<PotSpaceConstraint> PotSpaceConstraintPtr;
 
+std::size_t hash_value(PotSpaceConstraintPtr const & psc );
 
 } /* namespace metaopt */
 #endif /* POTSPACECONSTRAINT_H_ */

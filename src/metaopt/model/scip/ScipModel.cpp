@@ -104,7 +104,7 @@ ScipModel::~ScipModel() {
 
 
 void ScipModel::setPrecision(PrecisionPtr precision) {
-	assert(SCIPgetStage(_scip) == SCIP_STAGE_INIT);
+	assert(SCIPgetStage(_scip) == SCIP_STAGE_PROBLEM);
 	_precision = precision;
 	BOOST_SCIP_CALL( SCIPsetRealParam(_scip, "numerics/epsilon", _precision->getPrimalFeasTol()*1e-3) ); // absolute values smaller than this are considered zero by the solver
 	BOOST_SCIP_CALL( SCIPsetRealParam(_scip, "numerics/sumepsilon", _precision->getPrimalFeasTol()) ); // absolute values of sums smaller than this are considered zero by the solver
@@ -119,7 +119,7 @@ const PrecisionPtr& ScipModel::getPrecision() const {
 }
 
 void ScipModel::setPotPrecision(PrecisionPtr precision) {
-	assert(SCIPgetStage(_scip) == SCIP_STAGE_INIT);
+	assert(SCIPgetStage(_scip) == SCIP_STAGE_PROBLEM);
 	_potprecision = precision;
 	// don't change scip, this is only important for implicit potential variables
 }

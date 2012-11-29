@@ -1006,6 +1006,12 @@ SCIP_RETCODE ThermoConstraintHandler::scip_lock(
 	return SCIP_OKAY;
 }
 
+std::size_t hash_value(SCIP_VAR* s ) {
+	return reinterpret_cast<std::size_t>(s);
+}
+
+
+
 SCIP_RETCODE ThermoConstraintHandler::scip_exitpre(
 		SCIP* 			scipscip,
 		SCIP_CONSHDLR*  conshdlr,

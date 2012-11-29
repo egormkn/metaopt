@@ -160,12 +160,15 @@ double computeReducedFlux(ModelPtr model, ModelFactory& factory, DirectedReactio
 
 	double k = min(lambda_t, lambda);
 
+	// for last optimization, return to target precision
+	// even if we don't do the last optimization step, we still have to rest to the original precision
+	model->setFluxPrecision(targetPrecision);
+
 	double maxFlux = INFINITY;
 	if(k > lambdaPrecision->getCheckTol()) {
 		// compute actual flux reduction
 		setObj(target,1);
 		double old_fluxFocing_lb = setLb(fluxForcing, k);
-		model->setFluxPrecision(targetPrecision);
 		scip = factory.build(model);
 		scip->solve();
 		if(scip->isOptimal()) {
@@ -211,7 +214,7 @@ void computeReducedFluxes(ModelPtr model, ModelFactory& factory, DirectedReactio
 	/**
 	 * Compute the reduced fluxes for the reactions.
 	 */
-	const PrecisionPtr& modelPrec = model->getFluxPrecision();
+	PrecisionPtr modelPrec = model->getFluxPrecision();
 	// do the computation
 	int i = 0;
 	foreach(ReactionPtr rxn, model->getReactions()) {

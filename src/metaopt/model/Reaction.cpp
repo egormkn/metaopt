@@ -44,6 +44,7 @@ Reaction::Reaction(weak_ptr<Model> model, std::string name) {
 	_obj = 0;
 	_exchange = false;
 	_problematic = false;
+	_fluxPrecision = model.lock()->getFluxPrecision();
 }
 
 Reaction::~Reaction() {

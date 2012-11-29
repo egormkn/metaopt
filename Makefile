@@ -44,7 +44,7 @@ else
 	SRC_METAOPT_MODEL_MATLAB=MatlabLoader.cpp
 endif
 SRC_METAOPT_MODEL_MATLAB_DIR=matlab
-SRC_METAOPT_MODEL_SCIP=ScipModel.cpp LPFlux.cpp ModelAddOn.cpp Solution.cpp LPPotentials.cpp DualPotentials.cpp ReducedScipFluxModel.cpp AbstractScipFluxModel.cpp ISSupply.cpp
+SRC_METAOPT_MODEL_SCIP=ScipModel.cpp LPFlux.cpp ModelAddOn.cpp Solution.cpp LPPotentials.cpp DualPotentials.cpp ReducedScipFluxModel.cpp AbstractScipFluxModel.cpp ISSupply.cpp PotSpaceConstraint.cpp
 SRC_METAOPT_MODEL_SCIP_DIR=scip
 SRC_METAOPT_MODEL_SCIP_ADDON=PotentialDifferences.cpp ReactionDirections.cpp
 SRC_METAOPT_MODEL_SCIP_ADDON_DIR=addon
