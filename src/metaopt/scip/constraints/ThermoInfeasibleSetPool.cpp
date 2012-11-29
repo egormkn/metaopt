@@ -48,11 +48,25 @@ void ThermoInfeasibleSetPool::add(ThermoInfeasibleSetPtr tis) {
 				ThermoInfeasibleSetPtr old = infeasibleSets[i];
 				infeasibleSets[i] = toInsert;
 				toInsert = old;
+#if 0
 				if(toInsert->set == tis->set) {
 					// we don't need the same element twice, so just let it drop out
 					// the check is performed here, to allow an improving update of priority
 					return;
 				}
+#else
+				// since the direct code doesn't want to compile...
+				bool same = toInsert->set.size() == tis->set.size();
+				foreach(const DirectedReaction& d, toInsert->set) {
+					if(tis->set.find(d) == tis->set.end()) {
+						same = false;
+						break;
+					}
+				}
+				if(same) {
+					return;
+				}
+#endif
 			}
 		}
 		if(infeasibleSets.size() < NUMBER_INFEASIBLE_SETS) {
