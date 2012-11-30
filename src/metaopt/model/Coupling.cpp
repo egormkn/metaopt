@@ -164,10 +164,12 @@ void Coupling::computeClosure() {
 		ordered[e.second->_finishtime] = e.second.get();
 	}
 	vector<StrongComponentPtr> comps; // stores topologically ordered strong components
-	foreach(NodeEntry e, _nodes) {
-		if(e.second->_color == WHITE) {
+	for(int i = ordered.size()-1; i >= 0; i--) {
+		Node* n = ordered[i];
+		assert(n != NULL);
+		if(n->_color == WHITE) {
 			StrongComponentPtr comp(new StrongComponent());
-			dfs2(e.second.get(), comp);
+			dfs2(n, comp);
 			comps.push_back(comp);
 		}
 	}
@@ -223,15 +225,25 @@ shared_ptr<vector<CoverReaction> > Coupling::computeCover(boost::unordered_set<D
 	}
 #else
 
+	shared_ptr<vector<CoverReaction> > cover(new vector<CoverReaction>());
+
 	// we have a directed acyclic graph of the components;
 	// hence, we just have to find components that point to no components of the set
 	// use a hashmap to store the components, since it directly eliminates duplicates
 	unordered_set<StrongComponent*> comps; // use pointers, because for those we have a hash function
 	foreach(const DirectedReaction& d, reactions) {
-		comps.insert(_components[d].get());
+		unordered_map<DirectedReaction, StrongComponentPtr>::iterator iter = _components.find(d);
+		if(iter != _components.end()) {
+			StrongComponentPtr s = iter->second;
+			assert(s.use_count() > 0);
+			comps.insert(s.get());
+		}
+		else {
+			// this really can happen
+			// for example if the reaction is uncoupled to every other reaction
+			cover->push_back(CoverReaction(d));
+		}
 	}
-
-	shared_ptr<vector<CoverReaction> > cover(new vector<CoverReaction>());
 
 	foreach(StrongComponent* c, comps) {
 		bool isMax = true;

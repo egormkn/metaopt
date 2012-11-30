@@ -406,7 +406,7 @@ void tfva(ModelPtr model, FVASettingsPtr settings, unordered_map<ReactionPtr,dou
 			 * As a little hack to cope with rounding issues, where the maximal flux value is actually less than the minimal computed value,
 			 * we take the maximum resp. the minimum of the two.
 			 */
-			double maxf = max[a];
+			/*double maxf = max[a];
 			double minf = min[a];
 			double maxflux = maxf > minf ? maxf : minf;
 			double minflux = maxf > minf ? minf : maxf;
@@ -415,7 +415,7 @@ void tfva(ModelPtr model, FVASettingsPtr settings, unordered_map<ReactionPtr,dou
 			max_flux->setLb(a, minflux);
 			min_flux->setLb(a, minflux);
 			max_flux->solveDual();
-			min_flux->solveDual();
+			min_flux->solveDual();*/
 		}
 		/*
 		 * reset objective function
