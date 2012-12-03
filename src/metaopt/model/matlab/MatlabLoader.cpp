@@ -95,7 +95,7 @@ void MatlabLoader::load(const mxArray* m) {
 		// use same precision for all
 		_model->setCoefPrecision(prec);
 		_model->setPotPrecision(prec);
-		_model->setFluxPrecision(prec);
+		_model->setFluxPrecision(prec->getDualSlavePrecision());
 	}
 
 	// create metabolites

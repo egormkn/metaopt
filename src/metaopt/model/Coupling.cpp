@@ -28,6 +28,7 @@
 #include "Coupling.h"
 #include <iostream>
 #include <utility>                   // for std::pair
+#include <list>
 
 
 namespace metaopt {
@@ -180,7 +181,7 @@ void Coupling::computeClosure() {
 		const StrongComponentPtr& s = _components[e.first];
 		foreach(Node* n, e.second->_to) {
 			const StrongComponentPtr& t = _components[n->_reaction];
-			s->_coupledTo.insert(t.get());
+			if(t != s) s->_coupledTo.insert(t.get()); // only add couplings to different components
 		}
 	}
 	// now we have a topologically ordered list of components
@@ -210,13 +211,13 @@ bool Coupling::isCoupled(DirectedReaction a, DirectedReaction b) {
 	const StrongComponentPtr& sa = _components[a];
 	const StrongComponentPtr& sb = _components[b];
 
-	return(sa->_coupledTo.find(sb.get()) != sa->_coupledTo.end());
+	return(sa == sb || sa->_coupledTo.find(sb.get()) != sa->_coupledTo.end());
 }
 
 shared_ptr<vector<CoverReaction> > Coupling::computeCover(boost::unordered_set<DirectedReaction>& reactions) {
 	assert(!israw);
 
-#define NOTCOMPUTE 1
+#define NOTCOMPUTE 0
 #if NOTCOMPUTE
 	shared_ptr<vector<CoverReaction> > cover(new vector<CoverReaction>());
 	foreach(const DirectedReaction& d, reactions) {
@@ -227,21 +228,26 @@ shared_ptr<vector<CoverReaction> > Coupling::computeCover(boost::unordered_set<D
 
 	shared_ptr<vector<CoverReaction> > cover(new vector<CoverReaction>());
 
+	list<DirectedReaction> rxns(reactions.begin(), reactions.end());
+
 	// we have a directed acyclic graph of the components;
 	// hence, we just have to find components that point to no components of the set
 	// use a hashmap to store the components, since it directly eliminates duplicates
 	unordered_set<StrongComponent*> comps; // use pointers, because for those we have a hash function
-	foreach(const DirectedReaction& d, reactions) {
+	for(list<DirectedReaction>::iterator i = rxns.begin(); i != rxns.end();) {
+		DirectedReaction d = *i;
 		unordered_map<DirectedReaction, StrongComponentPtr>::iterator iter = _components.find(d);
 		if(iter != _components.end()) {
 			StrongComponentPtr s = iter->second;
 			assert(s.use_count() > 0);
 			comps.insert(s.get());
+			i++;
 		}
 		else {
 			// this really can happen
 			// for example if the reaction is uncoupled to every other reaction
 			cover->push_back(CoverReaction(d));
+			i = rxns.erase(i); // returns iterator to element after erased element
 		}
 	}
 
@@ -255,16 +261,19 @@ shared_ptr<vector<CoverReaction> > Coupling::computeCover(boost::unordered_set<D
 			}
 		}
 		if(isMax) {
-			const DirectedReaction* m = NULL;
-			shared_ptr<vector<DirectedReaction> > covered;
-			foreach(const DirectedReaction& d, reactions) {
+			shared_ptr<DirectedReaction> m;
+			shared_ptr<vector<DirectedReaction> > covered(new vector<DirectedReaction>());
+			for(list<DirectedReaction>::iterator i = rxns.begin(); i != rxns.end();) {
+				DirectedReaction d = *i;
 				const StrongComponentPtr& cd = _components[d];
 				if(cd.get() == c) {
-					if(m == NULL) {
-						m = &d; // ok, since reactions will continue to live and d is a reference
+					if(m.use_count() == 0) {
+						m.reset(new DirectedReaction(d));
+						i = rxns.erase(i);
 					}
 					else {
 						covered->push_back(d); // reaction is covered
+						i = rxns.erase(i);
 					}
 				}
 				else {
@@ -272,15 +281,35 @@ shared_ptr<vector<CoverReaction> > Coupling::computeCover(boost::unordered_set<D
 					if(cd->_coupledTo.find(c) != cd->_coupledTo.end()) {
 						// it is coupled
 						covered->push_back(d);
+						i = rxns.erase(i);
+					}
+					else {
+						i++;
 					}
 				}
 			}
-			assert(m != NULL);
+			assert(m.use_count() != 0);
 			CoverReaction cr(*m);
 			cr.covered = covered;
 			cover->push_back(cr);
 		}
 	}
+#ifndef NDEBUG
+	if(!rxns.empty()) {
+		foreach(const DirectedReaction& d, rxns) {
+			cout << "retained: " << d._rxn->getName() << endl;
+		}
+
+		foreach(const CoverReaction& cr, *cover) {
+			cout << cr.reaction._rxn->getName() << " ( ";
+			foreach(const DirectedReaction& d, *(cr.covered)) {
+				cout << d._rxn->getName() << " ";
+			}
+			cout << ")" << endl;
+		}
+	}
+#endif
+	assert(rxns.empty());
 #endif
 
 	return cover;
