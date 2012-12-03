@@ -24,7 +24,9 @@
  */
 
 #include <iostream>
+#include <fstream>
 #include <time.h>
+#include <math.h>
 #include "scip/scip.h"
 
 #include "FVA.h"
@@ -186,7 +188,7 @@ bool isThermoFluxAttainable(LPFluxPtr sol, LPFluxPtr helper, LPPotentialsPtr pot
 	do {
 		helper->setDirectionBounds(sol);
 		helper->setZeroObj();
-		foreach(ReactionPtr r, model->getReactions()) {
+		foreach(ReactionPtr r, model->getInternalReactions()) {
 			double val = sol->getFlux(r);
 			if(val > solPrec->getCheckTol()) {
 				helper->setObj(r, 1);
@@ -218,6 +220,8 @@ bool isThermoFluxAttainable(LPFluxPtr sol, LPFluxPtr helper, LPPotentialsPtr pot
 	else return result;
 }
 
+int foo = 0;
+
 void tfva(ModelPtr model, FVASettingsPtr settings, unordered_map<ReactionPtr,double >& min , unordered_map<ReactionPtr,double >& max ) {
 	/*
 	 * Depending on the kind of thermodynamic information given there are different kinds of speedups possible.
@@ -231,15 +235,19 @@ void tfva(ModelPtr model, FVASettingsPtr settings, unordered_map<ReactionPtr,dou
 	bool simple = true;
 
 	foreach(MetabolitePtr met, model->getMetabolites()) {
-		if(isinf(met->getPotLb()) != -1) {
+		if(isinf(met->getPotLb()) == 0) {
 			simple = false;
 		}
-		if(isinf(met->getPotUb()) != 1) {
+		if(isinf(met->getPotUb()) == 0) {
 			simple = false;
 		}
 	}
 
 	if(simple) std::cout << "tfva problem has simple structure " << std::endl;
+
+	// increase dual model flux precision, since we use computation results to add constraints
+	PrecisionPtr orig_precision = model->getFluxPrecision();
+	model->setFluxPrecision(orig_precision->getDualSlavePrecision());
 
 	FVAThermoModelFactory factory;
 	factory.coupling = settings->coupling;
@@ -269,7 +277,7 @@ void tfva(ModelPtr model, FVASettingsPtr settings, unordered_map<ReactionPtr,dou
 	helper->setObjSense(true);
 
 	// helper needs more precision, since it is called iteratively to remove loops
-	helper->setPrecision(model->getFluxPrecision()->getSlavePrecision());
+	helper->setPrecision(model->getFluxPrecision()->getPrimalSlavePrecision());
 	// for all the other cases we just use model precision, i.e.
 	PrecisionPtr prec = model->getFluxPrecision();
 
@@ -280,6 +288,29 @@ void tfva(ModelPtr model, FVASettingsPtr settings, unordered_map<ReactionPtr,dou
 
 	max_flux->setObjSense(true);
 	min_flux->setObjSense(false);
+
+#if 0
+	stringstream ss;
+	ss << "debug" << ++foo <<".lp";
+
+	SCIPlpiWriteLP(min_flux->getLPI(), ss.str().c_str());
+
+	ss.clear();
+	ss << "debug" << foo << ".map";
+
+	ofstream mapf(ss.str().c_str());
+	mapf << "Reactions" << endl;
+	foreach(ReactionPtr a, model->getReactions()) {
+		mapf << a->getName() << " " << min_flux->getIndex(a) << endl;
+	}
+	mapf << "Metabolites" << endl;
+	foreach(MetabolitePtr a, model->getMetabolites()) {
+		if(!a->hasBoundaryCondition()) {
+			mapf << a->getName() << " " << min_flux->getIndex(a) << endl;
+		}
+	}
+	mapf.close();
+#endif
 
 	int i = 1;
 	int num_rxns = settings->reactions.size();
@@ -402,20 +433,21 @@ void tfva(ModelPtr model, FVASettingsPtr settings, unordered_map<ReactionPtr,dou
 
 			/*
 			 * Actually, we are now adding constraints and not decrease the precision.
-			 * This is ugly, but we can't reduce the precision for each reaction we computed bounds for.
-			 * As a little hack to cope with rounding issues, where the maximal flux value is actually less than the minimal computed value,
-			 * we take the maximum resp. the minimum of the two.
+			 * This ok, since we solve with high dual precision.
+			 * This means, the error that we do is rather in primal infeasibilities than in dual infeasibilities,
+			 * i.e. the bounds that we compute tend to be a bit weaker.
+			 * In particular it is unlikely that they are overtight and produce infeasibilities.
 			 */
-			/*double maxf = max[a];
-			double minf = min[a];
-			double maxflux = maxf > minf ? maxf : minf;
-			double minflux = maxf > minf ? minf : maxf;
+			double maxflux = max[a];
+			double minflux = min[a];
+			//double maxflux = maxf > minf ? maxf : minf;
+			//double minflux = maxf > minf ? minf : maxf;
 			max_flux->setUb(a, maxflux);
 			min_flux->setUb(a, maxflux);
 			max_flux->setLb(a, minflux);
 			min_flux->setLb(a, minflux);
 			max_flux->solveDual();
-			min_flux->solveDual();*/
+			min_flux->solveDual();
 		}
 		/*
 		 * reset objective function
@@ -439,6 +471,9 @@ void tfva(ModelPtr model, FVASettingsPtr settings, unordered_map<ReactionPtr,dou
 		cout << "finished iteration " << i << " of " << num_rxns << endl;
 		i++;
 	}
+
+	// reset precision
+	model->setFluxPrecision(orig_precision);
 }
 
 

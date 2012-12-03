@@ -106,8 +106,8 @@ double computeReducedFlux(ModelPtr model, ModelFactory& factory, DirectedReactio
 	 */
 
 	PrecisionPtr targetPrecision = model->getFluxPrecision();
-	PrecisionPtr lambdaPrecision = targetPrecision->getSlavePrecision();
-	model->setFluxPrecision(lambdaPrecision->getSlavePrecision()); // set it to rangePrecision
+	PrecisionPtr lambdaPrecision = targetPrecision->getDualSlavePrecision();
+	model->setFluxPrecision(lambdaPrecision); // it should be sufficient to increase dual precision once
 
 	// compute \lambda^t(y_2)
 	setObj(target,1);

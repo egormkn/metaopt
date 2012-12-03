@@ -49,7 +49,7 @@ CycleDeletionHeur::CycleDeletionHeur(ScipModelPtr scip) :
 	_tflux->setPrecision(scip->getPrecision()); // _tflux eventually produces a solution for the original problem, so it should have the same precision
 	// _tflux doesn't need an Objsense, since we do not use it to solve optimization problems.
 	_cycle = LPFluxPtr(new LPFlux(scip->getModel(), false));
-	_cycle->setPrecision(scip->getPrecision()->getSlavePrecision()); // solve _cycle with slave precision, because we will subtract it several times and errors may accumulate
+	_cycle->setPrecision(scip->getPrecision()->getPrimalSlavePrecision()); // solve _cycle with slave precision, because we will subtract it several times and errors may accumulate
 	_cycle->setObjSense(true);
 
 	_potentials = LPPotentialsPtr(new LPPotentials(scip->getModel()));

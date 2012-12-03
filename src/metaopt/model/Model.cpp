@@ -35,12 +35,14 @@ using namespace boost;
 
 namespace metaopt {
 
-#define DEFAULT_FLUX_PRECISION 1e-6
+#define DEFAULT_PRIMAL_FLUX_PRECISION 1e-6
+// somehow it seems that a high dual precision for computing fluxes is important
+#define DEFAULT_DUAL_FLUX_PRECISION 1e-8
 #define DEFAULT_POT_PRECISION 1e-6
 #define DEFAULT_COEF_PRECISION 1e-10
 
 Model::Model() :
-	_flux_precision(new Precision(DEFAULT_FLUX_PRECISION)),
+	_flux_precision(new Precision(DEFAULT_PRIMAL_FLUX_PRECISION, DEFAULT_DUAL_FLUX_PRECISION)),
 	_pot_precision(new Precision(DEFAULT_POT_PRECISION)),
 	_coef_precision(new Precision(DEFAULT_COEF_PRECISION))
 {

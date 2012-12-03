@@ -115,7 +115,7 @@ ThermoConstraintHandler::ThermoConstraintHandler(ScipModelPtr model) :
 
 	_cycle_test = LPFluxPtr( new LPFlux(_model, false));
 	_cycle_test->setObjSense(true); // maximize
-	_cycle_test->setPrecision(model->getPrecision()->getSlavePrecision()); // we use cycle_test to remove unimportant cycles. Since we subtract it several times, errors may accumulate
+	_cycle_test->setPrecision(model->getPrecision()->getPrimalSlavePrecision()); // we use cycle_test to remove unimportant cycles. Since we subtract it several times, errors may accumulate
 
 	_flux_simpl = LPFluxPtr( new LPFlux(_model, true));
 	_flux_simpl->setPrecision(model->getPrecision()); // we simplify the current flux solution. We should do this in the same range of precision
