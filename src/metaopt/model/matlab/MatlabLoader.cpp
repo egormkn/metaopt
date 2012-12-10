@@ -51,6 +51,7 @@ using namespace std;
 #define F_INT_RXNS "int_rxns"
 #define F_INT_METS "int_mets"
 #define F_PRECISION "precision"
+#define F_DUAL_PRECISION "dual_precision"
 
 #define ERROR_MSG(field,msg) BOOST_THROW_EXCEPTION( MatlabLoaderError() << field_name(field) << matlab_error_message(msg))
 
@@ -83,6 +84,7 @@ void MatlabLoader::load(const mxArray* m) {
 	_int_rxns = mxGetField(m,0, F_INT_RXNS);
 	_int_mets = mxGetField(m,0, F_INT_METS);
 	_precision = mxGetField(m, 0, F_PRECISION);
+	_dprecision = mxGetField(m, 0, F_DUAL_PRECISION);
 
 	// test if data is has proper format
 	testFields();
@@ -91,7 +93,13 @@ void MatlabLoader::load(const mxArray* m) {
 
 	// set precision
 	if(_precision != NULL) {
-		PrecisionPtr prec( new Precision(mxGetScalar(_precision)));
+		PrecisionPtr prec;
+		if(_dprecision != NULL) {
+			prec.reset(new Precision(mxGetScalar(_precision), mxGetScalar(_dprecision)));
+		}
+		else {
+			prec.reset(new Precision(mxGetScalar(_precision)));
+		}
 		// use same precision for all
 		_model->setCoefPrecision(prec);
 		_model->setPotPrecision(prec);
@@ -282,6 +290,14 @@ void MatlabLoader::testTypes() {
 		ERROR_MSG(F_INT_RXNS, "The precision must be given as a positive numerical scalar.");
 #else
 		cout << "The precision must be given as a positive numerical scalar." << endl;
+		_precision = NULL;
+#endif
+	}
+	if(_dprecision != NULL && (!mxIsNumeric(_dprecision) || mxGetNumberOfElements(_dprecision) != 1 || mxGetScalar(_precision) <= 0)) {
+#ifdef STRICT
+		ERROR_MSG(F_INT_RXNS, "The dual precision must be given as a positive numerical scalar.");
+#else
+		cout << "The dual precision must be given as a positive numerical scalar." << endl;
 		_precision = NULL;
 #endif
 	}

@@ -95,6 +95,7 @@ private:
 	mxArray* _int_rxns;  ///< list of internal reactions (that have to satisfy thermodynamics)
 	mxArray* _int_mets;	///< list of internal metabolites (that have well defined potential)
 	mxArray* _precision; /// scalar giving the precision with which the model should be analyzed
+	mxArray* _dprecision; /// scalar giving the dual precision with which the model should be analyzed
 
 	/** map of metabolite indices to created objects */
 	std::vector<MetabolitePtr> _metabolites;
