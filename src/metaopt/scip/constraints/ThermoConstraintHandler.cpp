@@ -184,6 +184,9 @@ SCIP_RESULT ThermoConstraintHandler::enforceObjectiveCycles(SolutionPtr& sol) {
 				if(_cycle_find->isFeasible()) {
 					return branchCycle(sol);
 				}
+				else if(!_cycle_find->isInfeasible()) {
+					cout << "thermo handler: also not infeasible" << endl;
+				}
 #if 0
 				_cycle_find->loadState();
 #endif
@@ -194,6 +197,9 @@ SCIP_RESULT ThermoConstraintHandler::enforceObjectiveCycles(SolutionPtr& sol) {
 				_cycle_find->solveDual();
 				if(_cycle_find->isFeasible()) {
 					return branchCycle(sol);
+				}
+				else if(!_cycle_find->isInfeasible()) {
+					cout << "thermo handler: also not infeasible" << endl;
 				}
 #if 0
 				_cycle_find->loadState();
@@ -218,6 +224,18 @@ SCIP_RESULT ThermoConstraintHandler::branchCycle(SolutionPtr& sol) {
 
 	ThermoInfeasibleSetPtr tis(new ThermoInfeasibleSet());
 
+#ifndef NDEBUG
+		foreach(ReactionPtr rxn, _model->getInternalReactions()) {
+			double val = _cycle_find->getFlux(rxn);
+			double lb = model->getCurrentFluxLb(rxn);
+			double ub = model->getCurrentFluxUb(rxn);
+			if(val > cyclePrec->getPrimalFeasTol()/100 || val < -cyclePrec->getPrimalFeasTol()/100) {
+				cout << rxn->getName() << " [" << lb << " < " << val << " < " << ub << "] ";
+			}
+		}
+		cout << endl;
+#endif
+
 #if THERMOCONS_USE_AGGR_RXN
 	foreach(ReactionPtr rxn, _reduced->getReactions()) {
 		if(fixedDirs->find(_toOriginalRxn[rxn]) == fixedDirs->end()) { // not fixed
@@ -227,7 +245,7 @@ SCIP_RESULT ThermoConstraintHandler::branchCycle(SolutionPtr& sol) {
 			lb = _reducedScip->getCurrentFluxLb(rxn);
 			ub = _reducedScip->getCurrentFluxUb(rxn);
 #else
-	foreach(ReactionPtr rxn, _model->getReactions()) {
+	foreach(ReactionPtr rxn, _model->getInternalReactions()) {
 		double val = _cycle_find->getFlux(rxn);
 
 		// build the tis (add rxns. that carry flux irrespective if the branching makes sense)
@@ -346,7 +364,7 @@ SCIP_RESULT ThermoConstraintHandler::enforceNonSimple(SolutionPtr& sol) {
 #if THERMOCONS_USE_AGGR_RXN
 		foreach(ReactionPtr rxn, _reduced->getFluxForcingReactions()) {
 #else
-			foreach(ReactionPtr rxn, _model->getFluxForcingReactions()) {
+		foreach(ReactionPtr rxn, _model->getFluxForcingReactions()) {
 #endif
 			//foreach(ReactionPtr rxn, _reduced->getProblematicReactions()) {
 			if(!rxn->isExchange()) {
@@ -357,7 +375,7 @@ SCIP_RESULT ThermoConstraintHandler::enforceNonSimple(SolutionPtr& sol) {
 #if THERMOCONS_USE_AGGR_RXN
 		foreach(ReactionPtr rxn, _reduced->getProblematicReactions()) {
 #else
-			foreach(ReactionPtr rxn, _model->getProblematicReactions()) {
+		foreach(ReactionPtr rxn, _model->getProblematicReactions()) {
 #endif
 			if(!rxn->isExchange()) {
 				_cycle_test->setLb(rxn,0);
@@ -407,7 +425,7 @@ SCIP_RESULT ThermoConstraintHandler::branchIS(SolutionPtr& sol) {
 	_is_find->setDirections(_flux_simpl, fixedDirs);
 #endif
 
-	cout << "general is" << endl;
+	//cout << "general is" << endl;
 
 	_is_find->optimize();
 
@@ -417,6 +435,16 @@ SCIP_RESULT ThermoConstraintHandler::branchIS(SolutionPtr& sol) {
 	else {
 		// we found an infeasible set we have to get rid by branching
 		shared_ptr<unordered_set<ReactionPtr> > is = _is_find->getIS();
+
+#ifndef NDEBUG
+		foreach(ReactionPtr rxn, *is) {
+			double val = _flux_simpl->getFlux(rxn);
+			double lb = model->getCurrentFluxLb(rxn);
+			double ub = model->getCurrentFluxUb(rxn);
+			cout << rxn->getName() << " [" << lb << " < " << val << " < " << ub << ", " << _is_find->getAlpha(rxn) << "] ";
+		}
+		cout << endl;
+#endif
 
 #if 0
 		LPFlux debugFlux(_model, true);
@@ -714,10 +742,14 @@ SCIP_RESULT ThermoConstraintHandler::enforceLastResort(SolutionPtr& sol) {
  * main method for enforcing this constraint
  */
 SCIP_RETCODE ThermoConstraintHandler::enforce(SCIP_CONS** conss, int nconss, SCIP_SOL* sol, SCIP_RESULT* result) {
+#if 0
+	// we can actually also run the handler if we have not an optimal LP solution.
+	// For example, pseudo-solutions are fine also.
 	if(!getScip()->hasCurrentFlux()) {
 		* result = SCIP_DIDNOTRUN;
 		return SCIP_OKAY;
 	}
+#endif
 	// default is feasible, unless we find something that contradicts this
 	*result = SCIP_FEASIBLE;
 	try {
@@ -1120,6 +1152,7 @@ SCIP_RETCODE ThermoConstraintHandler::scip_exitpre(
 		_coupling = CouplingPtr(new Coupling()); // if not supplied with external coupling information, start from scratch
 	}
 
+#if 1
 #ifndef FINDBUG
 	// this map maps the transformed variables to their original reaction
 	unordered_map<SCIP_VAR*, ReactionPtr> toOriginal;
@@ -1162,7 +1195,13 @@ SCIP_RETCODE ThermoConstraintHandler::scip_exitpre(
 				unordered_map<SCIP_VAR*, ReactionPtr>::iterator iter = toOriginal.find(var);
 				if(iter != toOriginal.end()) {
 					ReactionPtr other = iter->second;
-					if(constant > -prec->getCheckTol()) { // also include the case where constant == 0
+					if(constant > -prec->getPrimalFeasTol() / 100) { // also include the case where constant == 0, but be very restrictive, because false positive are very bad
+//#ifndef NDEBUG
+//						if(constant <= -prec->getPrimalFeasTol() / 10) {
+//							cout << -prec->getPrimalFeasTol() / 10 << " < " << constant << " > " << -prec->getCheckTol() << " failed" << endl;
+//						}
+//#endif
+//						assert(constant > -prec->getPrimalFeasTol() / 10);
 						if(scalar > 0) { // TODO: numerical troubles?
 							// positive flux on other implies positive flux on rxn
 							_coupling->addCoupled(DirectedReaction(other, true), DirectedReaction(rxn, true));
@@ -1177,7 +1216,13 @@ SCIP_RETCODE ThermoConstraintHandler::scip_exitpre(
 
 						}
 					}
-					if(constant < prec->getCheckTol()) { // also include the case where constant == 0
+					if(constant < prec->getPrimalFeasTol() / 100) { // also include the case where constant == 0, but be very restrictive, because false positive are very bad
+//#ifndef NDEBUG
+//						if(constant >= prec->getPrimalFeasTol() / 10) {
+//							cout << prec->getPrimalFeasTol() / 10 << " > " << constant << " < " << prec->getCheckTol() << " failed" << endl;
+//						}
+//#endif
+//						assert(constant < prec->getPrimalFeasTol() / 10);
 						if(scalar > 0) { // TODO: numerical troubles?
 							// negative flux on other implies negative flux on rxn
 							_coupling->addCoupled(DirectedReaction(other, false), DirectedReaction(rxn, false));
@@ -1196,6 +1241,7 @@ SCIP_RETCODE ThermoConstraintHandler::scip_exitpre(
 			}
 		}
 	}
+#endif
 #endif
 	_coupling->computeClosure();
 

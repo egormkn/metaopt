@@ -229,6 +229,8 @@ void tfva(ModelPtr model, FVASettingsPtr settings, unordered_map<ReactionPtr,dou
 	 * In the other case, we basically have to run the cycle elimination heur
 	 */
 
+#define REDUCE_DOMAIN 0
+
 	clock_t start = clock();
 	double runningTime = 0;
 
@@ -244,6 +246,9 @@ void tfva(ModelPtr model, FVASettingsPtr settings, unordered_map<ReactionPtr,dou
 	}
 
 	if(simple) std::cout << "tfva problem has simple structure " << std::endl;
+
+	// TODO: Sometimes it is important that the results computed by FVA are not only valid bounds but also feasible.
+	// in those cases we should check the computed solution for feasibility and if necessary make it feasible.
 
 	// increase dual model flux precision, since we use computation results to add constraints
 	PrecisionPtr orig_precision = model->getFluxPrecision();
@@ -386,7 +391,9 @@ void tfva(ModelPtr model, FVASettingsPtr settings, unordered_map<ReactionPtr,dou
 				assert(scip->isOptimal());
 				double opt = scip->getObjectiveValue();
 				max[a] = opt;
+#if REDUCE_DOMAIN
 				a->setUb(opt); // we computed an upper bound, so use it for future computations
+#endif
 			}
 
 			/*
@@ -428,7 +435,9 @@ void tfva(ModelPtr model, FVASettingsPtr settings, unordered_map<ReactionPtr,dou
 				assert(scip->isOptimal());
 				double opt = scip->getObjectiveValue();
 				min[a] = opt;
+#if REDUCE_DOMAIN
 				a->setLb(opt); // we computed a lower bound, so use it for future computations
+#endif
 			}
 
 			/*

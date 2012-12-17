@@ -646,6 +646,10 @@ bool LPFlux::isFeasible() {
 	return SCIPlpiIsPrimalFeasible(_lpi);
 }
 
+bool LPFlux::isInfeasible() {
+	return SCIPlpiIsPrimalInfeasible(_lpi);
+}
+
 double LPFlux::getObjVal() {
 	double objval;
 	BOOST_SCIP_CALL( SCIPlpiGetObjval(_lpi, &objval) );

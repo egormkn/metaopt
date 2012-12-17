@@ -111,7 +111,7 @@ void ScipModel::setPrecision(PrecisionPtr precision) {
 	BOOST_SCIP_CALL( SCIPsetRealParam(_scip, "numerics/feastol", _precision->getPrimalFeasTol()) ); // feasibility tolerance for constraints
 	BOOST_SCIP_CALL( SCIPsetRealParam(_scip, "numerics/lpfeastol", _precision->getPrimalFeasTol()) ); // primal feasibility tolerance of LP solver
 	BOOST_SCIP_CALL( SCIPsetRealParam(_scip, "numerics/dualfeastol", _precision->getDualFeasTol()) ); // feasibility tolerance for reduced costs in LP solution
-	BOOST_SCIP_CALL( SCIPsetRealParam(_scip, "numerics/barrierconvtol", _precision->getPrimalFeasTol()*1e-4) ); // LP convergence tolerance used in barrier algorithm (probably not used)
+	BOOST_SCIP_CALL( SCIPsetRealParam(_scip, "numerics/barrierconvtol", max(1e-16,_precision->getPrimalFeasTol()*1e-4)) ); // LP convergence tolerance used in barrier algorithm (probably not used), cannot set to values less than 1e-17
 }
 
 const PrecisionPtr& ScipModel::getPrecision() const {

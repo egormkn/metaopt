@@ -235,6 +235,12 @@ public:
 	bool isFeasible();
 
 	/**
+	 * Is the current LP sol. infeasible?
+	 * Remark this is not the opposite of isfeasible, because the LP may not be solved.
+	 */
+	bool isInfeasible();
+
+	/**
 	 * Returns current objective value.
 	 * Attention: Does not start a solve, if the solution is not optimal.
 	 */

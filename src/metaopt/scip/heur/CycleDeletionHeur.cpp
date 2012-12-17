@@ -108,6 +108,9 @@ SCIP_RETCODE CycleDeletionHeur::scip_exec(SCIP* scip, SCIP_HEUR* heur, SCIP_HEUR
 			*result=SCIP_FOUNDSOL;
 		}
 		else {
+#ifndef NDEBUG
+			cout << "heur: tried a solution that unfortunately was not feasible" << endl;
+#endif
 			*result = SCIP_DIDNOTFIND;
 		}
 		return SCIP_OKAY;
