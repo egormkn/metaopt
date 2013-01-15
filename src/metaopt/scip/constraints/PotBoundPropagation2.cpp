@@ -302,7 +302,9 @@ void PotBoundPropagation2::check() {
 				reachable = true;
 			}
 		}
-		assert(!reachable || a->_target->_bound > a->update_value()-EPSILON);
+		double b = a->_target->_bound;
+		double up_val = a->update_value();
+		assert(!reachable || b > up_val-EPSILON*abs(up_val));
 	}
 #endif
 }
@@ -625,6 +627,7 @@ void PotBoundPropagation2::updateStepHard(ScipModelPtr scip) {
 }
 
 bool PotBoundPropagation2::updateStepFlow() {
+#if USE_WRONG_UPDATE
 	// compute X set
 	unordered_set<MetBoundPtr> X;
 #if 1
@@ -778,6 +781,39 @@ bool PotBoundPropagation2::updateStepFlow() {
 		}
 		return updated;
 	}
+#else
+	unordered_map<MetBoundPtr, double> updated;
+
+	bool update_performed = false;
+
+	foreach(ArcPtr a, _arcs) {
+		bool reachable = false;
+		for(int i = 0; i < a->_input.size(); i++) {
+			double bound = a->_input[i].first->_bound;
+			if(~isinf(bound) || bound > 0) {
+				reachable = true;
+			}
+		}
+		if(reachable) {
+			double old = -INFINITY;
+			if(updated.find(a->_target) != updated.end()) {
+				old = updated[a->_target];;
+			}
+			updated[a->_target] = max(old, a->update_value());
+		}
+	}
+
+	typedef pair<MetBoundPtr, double> UpdateEntry;
+
+	foreach(UpdateEntry e, updated) {
+		if(e.first->_bound > e.second) {
+			cout << "updating " << e.first->_met->getName() << (e.first->_isMinBound?" (min)":" (max)") << " to " << e.second << " was " << e.first->_bound << endl;
+			e.first->_bound = e.second;
+			update_performed = true;
+		}
+	}
+	return update_performed;
+#endif
 }
 
 void PotBoundPropagation2::update(ScipModelPtr scip) {
@@ -802,6 +838,7 @@ void PotBoundPropagation2::update() {
 	bool updated = true;
 	while(updated) {
 		updated = updateStepFlow(); // updateStepFlow may not give best update and may require repetitive calls
+		check();
 	}
 }
 
