@@ -45,14 +45,14 @@ PotBoundPropagation2::PotBoundPropagation2(ModelPtr model) :
 	_model(model)
 {
 	init_Queue();
-	//int i = 0;
-#if 0
+	int j = 0;
+#if 1
 	while(!_queue.empty()) {
 		ArcEvent a = _queue.top();
 		_queue.pop();
 		update(a.arc);
-		//i++;
-		//if(i > 100) return;
+		j++;
+		//if(j > 100) return;
 	}
 #else
 	foreach(MetabolitePtr m, _model->getMetabolites()) {
@@ -209,7 +209,7 @@ std::size_t PotBoundPropagation2::hash_value(MetBoundPtr const & mb ) {
 
 
 PotBoundPropagation2::Arc::Arc()
-	: _active(true) {
+	: _active(true), _num_used(0) {
 	// nothing else
 }
 
@@ -267,18 +267,44 @@ PotBoundPropagation2::ArcPtr PotBoundPropagation2::getReversed(const ArcPtr a) c
 void PotBoundPropagation2::update(ArcPtr a) {
 	if(a->_target->_bound + EPSILON < a->update_value()) {
 		// only in this case we have to do updates
-		cout << a->_creator->getName() << " updating " << a->_target->_met->getName() << (a->_target->_isMinBound? " (min)" : " (max)") << " from " << a->_target->_bound << " to " << a->update_value() << " of at most " << a->_target->getMax() << " using " << a->unknown_inputs() << " unknown metabolite bounds" << endl;
-		a->_target->_bound = a->update_value();
+		double updateval;
+		if(isinf(a->_target->_bound)) {
+			updateval = a->update_value();
+		}
+		else {
+			// if this arc is used often for updates, increase update steps
+			updateval = a->_target->_bound + ldexp(a->update_value() - a->_target->_bound, max(a->_num_used-10,0));
+			updateval = min(a->_target->getMax(), updateval);
+		}
+		cout << a->_num_used << " " << a->_creator->getName() << " updating " << a->_target->_met->getName() << (a->_target->_isMinBound? " (min)" : " (max)") << " from " << a->_target->_bound << " to " << updateval << " ("<< a->update_value() << ") of at most " << a->_target->getMax() << " using " << a->unknown_inputs() << " unknown metabolite bounds" << endl;
+		a->_target->_bound = updateval;
 		a->_target->_last_update = a;
+		a->_num_used++;
 		// propagate
 		foreach(ArcPtr b, _incidence[a->_target]) {
 			ArcEvent be(b);
-			if(be.gain_val < b->_target->getMax() - b->_target->_bound) {
+			//if(be.gain_val < b->_target->getMax() - b->_target->_bound) {
+			if(b->update_value() > b->_target->_bound) {
 				// only add to queue if the update may have an effect
 				_queue.push(be);
 			}
 		}
 	}
+}
+
+void PotBoundPropagation2::check() {
+#ifndef NDEBUG
+	foreach(ArcPtr a, _arcs) {
+		bool reachable = false;
+		for(int i = 0; i < a->_input.size(); i++) {
+			double bound = a->_input[i].first->_bound;
+			if(~isinf(bound) || bound > 0) {
+				reachable = true;
+			}
+		}
+		assert(!reachable || a->_target->_bound > a->update_value()-EPSILON);
+	}
+#endif
 }
 
 void PotBoundPropagation2::print() {
@@ -683,6 +709,7 @@ bool PotBoundPropagation2::updateStepFlow() {
 					lhs += a->_input[j].second * met->_bound;
 				}
 			}
+			assert(!isinf(lhs));
 			BOOST_SCIP_CALL( SCIPlpiAddRows(lpi, 1, &lhs, &rhs, NULL, ind.size(), &beg, ind.data(), coef.data()) );
 		}
 	}

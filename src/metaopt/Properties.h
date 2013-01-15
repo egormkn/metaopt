@@ -31,7 +31,7 @@
 
 #define LPSOLVER_SOPLEX
 
-#define VERSION "2.0.3"
+#define VERSION "2.0.4"
 
 
 #ifdef __CDT_PARSER__

@@ -316,8 +316,8 @@ void MatlabLoader::testDimensions() {
 
 	unsigned int num_int_species = mxGetNumberOfElements(_int_mets);
 	if(_pot_ub != NULL && mxGetNumberOfElements(_pot_ub) != num_int_species) ERROR_MSG(F_POT_UB, "You must give exactly as many upper bounds on potentials as there are (internal) metabolites");
-	if(_pot_c != NULL && mxGetNumberOfElements(_pot_lb) != num_int_species) ERROR_MSG(F_POT_LB, "You must give exactly as many lower bounds on potentials as there are (internal) metabolites");
-	if(_pot_lb != NULL && mxGetNumberOfElements(_pot_c) != num_int_species) ERROR_MSG(F_POT_C, "You must give exactly as many objective coefficients on potentials as there are (internal) metabolites");
+	if(_pot_lb != NULL && mxGetNumberOfElements(_pot_lb) != num_int_species) ERROR_MSG(F_POT_LB, "You must give exactly as many lower bounds on potentials as there are (internal) metabolites");
+	if(_pot_c != NULL && mxGetNumberOfElements(_pot_c) != num_int_species) ERROR_MSG(F_POT_C, "You must give exactly as many objective coefficients on potentials as there are (internal) metabolites");
 }
 
 ModelPtr MatlabLoader::getModel() const {

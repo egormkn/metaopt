@@ -29,6 +29,7 @@
 #include <boost/unordered_map.hpp>
 #include <vector>
 #include <queue>
+#include <cmath>
 #include "metaopt/model/Model.h"
 #include "metaopt/model/scip/ScipModel.h"
 #include "objscip/objscip.h"
@@ -41,7 +42,15 @@ public:
 	PotBoundPropagation2(ModelPtr model);
 	virtual ~PotBoundPropagation2();
 
+	/**
+	 * prints updated values
+	 */
 	void print();
+
+	/**
+	 * checks if the computed bounds are really a correct bound.
+	 */
+	void check();
 
 	/**
 	 * updates the computed bound to be a good mu-bound.
@@ -111,6 +120,7 @@ private:
 		MetBoundPtr _target;
 		ReactionPtr _creator;
 		bool _fwdcreator; // is set to true, iff the arc was created by the forward part of the _creator
+		int _num_used;
 
 		//TODO:
 		bool _active; // indicates, if this arc can be active
@@ -134,10 +144,15 @@ private:
 
 		ArcEvent(ArcPtr a) : arc(a) {
 			unknown_inputs = a->unknown_inputs();
-			gain_val = a->_target->getMax() - a->update_value();
+			gain_val = a->_target->getMax() - a->update_value(); // Why not use the current value of the bound?
+			//gain_val = a->_target->getMax() - ldexp(a->update_value(),a->_num_used);
+			//gain_val = ldexp(a->update_value() - a->_target->_bound, a->_num_used);
 			first = isinf(a->_target->_bound);
 		}
 
+		/**
+		 * returns true, if the other event should be executed earlier
+		 */
 		bool operator<(const ArcEvent a) const {
 			int diff_inputs = unknown_inputs - a.unknown_inputs;
 			if(diff_inputs > 0) {
@@ -153,9 +168,16 @@ private:
 				return false;
 			}
 			else {
-				// there are no better arcs that update infinity values,
-				// so we can do the biggest update, since entries that are still infinity, stay infinity
-				return gain_val < a.gain_val;
+				// biggest update corresponds to smallest gain_val
+				if(unknown_inputs == 0) {
+					// do the biggest update (we have to do it anyway)
+					return gain_val > a.gain_val;
+				}
+				else {
+					// do the smallest update (we may still improve)
+					return gain_val < a.gain_val;
+				}
+
 			}
 		}
 	};
