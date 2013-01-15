@@ -209,7 +209,7 @@ std::size_t PotBoundPropagation2::hash_value(MetBoundPtr const & mb ) {
 
 
 PotBoundPropagation2::Arc::Arc()
-	: _active(true), _num_used(0) {
+	: _num_used(0), _active(true) {
 	// nothing else
 }
 
@@ -797,17 +797,33 @@ bool PotBoundPropagation2::updateStepFlow() {
 		if(reachable) {
 			double old = -INFINITY;
 			if(updated.find(a->_target) != updated.end()) {
-				old = updated[a->_target];;
+				old = updated[a->_target];
 			}
 			updated[a->_target] = max(old, a->update_value());
 		}
 	}
+#ifndef NDEBUG
+	foreach(ArcPtr a, _arcs) {
+		bool reachable = false;
+		for(int i = 0; i < a->_input.size(); i++) {
+			double bound = a->_input[i].first->_bound;
+			if(~isinf(bound) || bound > 0) {
+				reachable = true;
+			}
+		}
+		if(reachable) {
+			assert(updated.find(a->_target) != updated.end());
+			assert(updated[a->_target] > a->update_value()-EPSILON);
+		}
+	}
+#endif
 
 	typedef pair<MetBoundPtr, double> UpdateEntry;
 
 	foreach(UpdateEntry e, updated) {
 		if(e.first->_bound > e.second) {
 			cout << "updating " << e.first->_met->getName() << (e.first->_isMinBound?" (min)":" (max)") << " to " << e.second << " was " << e.first->_bound << endl;
+			assert(e.second <= e.first->getMax());
 			e.first->_bound = e.second;
 			update_performed = true;
 		}
