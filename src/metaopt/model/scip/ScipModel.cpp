@@ -106,8 +106,8 @@ ScipModel::~ScipModel() {
 void ScipModel::setPrecision(PrecisionPtr precision) {
 	assert(SCIPgetStage(_scip) == SCIP_STAGE_PROBLEM);
 	_precision = precision;
-	BOOST_SCIP_CALL( SCIPsetRealParam(_scip, "numerics/epsilon", _precision->getPrimalFeasTol()*1e-3) ); // absolute values smaller than this are considered zero by the solver
-	BOOST_SCIP_CALL( SCIPsetRealParam(_scip, "numerics/sumepsilon", _precision->getPrimalFeasTol()) ); // absolute values of sums smaller than this are considered zero by the solver
+	BOOST_SCIP_CALL( SCIPsetRealParam(_scip, "numerics/epsilon", max(1e-12,_precision->getPrimalFeasTol())*1e-3) ); // absolute values smaller than this are considered zero by the solver
+	BOOST_SCIP_CALL( SCIPsetRealParam(_scip, "numerics/sumepsilon", max(1e-12,_precision->getPrimalFeasTol())) ); // absolute values of sums smaller than this are considered zero by the solver
 	BOOST_SCIP_CALL( SCIPsetRealParam(_scip, "numerics/feastol", _precision->getPrimalFeasTol()) ); // feasibility tolerance for constraints
 	BOOST_SCIP_CALL( SCIPsetRealParam(_scip, "numerics/lpfeastol", _precision->getPrimalFeasTol()) ); // primal feasibility tolerance of LP solver
 	BOOST_SCIP_CALL( SCIPsetRealParam(_scip, "numerics/dualfeastol", _precision->getDualFeasTol()) ); // feasibility tolerance for reduced costs in LP solution

@@ -399,7 +399,7 @@ SCIP_RESULT ThermoConstraintHandler::enforceNonSimple(SolutionPtr& sol) {
 		}
 #ifndef NDEBUG
 		debugi++;
-		if(debugi % 100 == 0) std::cout << "CycleDeletionHeur.cpp " << __LINE__ << " caught endless loop" << std::endl;
+		if(debugi % 100 == 0) std::cout << "ThermoConstraintHandler.cpp " << __LINE__ << " caught endless loop" << std::endl;
 #endif
 	}
 	while(hasFlux);

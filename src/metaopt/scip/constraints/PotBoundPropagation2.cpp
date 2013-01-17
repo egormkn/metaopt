@@ -226,7 +226,7 @@ int PotBoundPropagation2::Arc::unknown_inputs() const {
 double PotBoundPropagation2::Arc::update_value() const {
 	double res = 0;
 	for(unsigned int i = 0; i < _input.size(); i++) {
-		int val;
+		double val;
 		if(isinf(_input[i].first->_bound)) {
 			val = _input[i].first->getMax();
 		}
@@ -304,7 +304,15 @@ void PotBoundPropagation2::check() {
 		}
 		double b = a->_target->_bound;
 		double up_val = a->update_value();
-		assert(!reachable || b > up_val-EPSILON*abs(up_val));
+		if(reachable && b <= up_val-EPSILON*abs(up_val)) {
+			cout << "bound = " << b << " < " << "update = " << up_val << endl;
+			cout << "target: " << a->_target->_met->getName() << (a->_target->_isMinBound?"(min)":"(max)") << endl;
+			for(int i = 0; i < a->_input.size(); i++) {
+				cout << a->_input[i].second << "*" << a->_input[i].first->_bound<< " of " << a->_input[i].first->_met->getName() << (a->_input[i].first->_isMinBound?" min":" max") << " ";
+			}
+			cout << endl;
+			assert(false);
+		}
 	}
 #endif
 }
@@ -353,27 +361,49 @@ void PotBoundPropagation2::print() {
 }
 
 shared_ptr<vector<pair<ReactionPtr,bool> > > PotBoundPropagation2::getBlockedReactions() {
+#define COMPARE_BLOCKED 1
 	shared_ptr<vector<pair<ReactionPtr,bool> > > result(new vector<pair<ReactionPtr, bool> >());
 	foreach(ReactionPtr r, _model->getReactions()) {
 		if(!r->isExchange()) {
 			double val_fwd = 0;
 			double val_bwd = 0;
+
+#if COMPARE_BLOCKED
+			double val_fwd_trivial = 0;
+			double val_bwd_trivial = 0;
+#endif
 			foreach(Stoichiometry s, r->getProducts()) {
 				val_fwd += s.second * _minBounds.at(s.first)->orig_value();
 				val_bwd -= s.second * _maxBounds.at(s.first)->orig_value();
+#if COMPARE_BLOCKED
+				val_fwd_trivial += s.second * s.first->getPotLb();
+				val_bwd_trivial -= s.second * s.first->getPotUb();
+#endif
 			}
 			foreach(Stoichiometry s, r->getReactants()) {
 				val_fwd -= s.second * _maxBounds.at(s.first)->orig_value(); // coefficients are all positive
 				val_bwd += s.second * _minBounds.at(s.first)->orig_value(); // coefficients are all positive
+#if COMPARE_BLOCKED
+				val_fwd_trivial -= s.second * s.first->getPotUb();
+				val_bwd_trivial += s.second * s.first->getPotLb();
+#endif
 			}
 			//cout << r->getName() << ": " << val_fwd << " / " << val_bwd << endl;
 			if(val_fwd > -EPSILON) {
+#if COMPARE_BLOCKED
+				cout << "blocked reaction fwd: " << r->getName() << " by " << val_fwd << " trivial: "<< val_fwd_trivial << endl;
+#else
 				cout << "blocked reaction fwd: " << r->getName() << " by " << val_fwd << endl;
+#endif
 				pair<ReactionPtr, bool> p(r,true);
 				result->push_back(p);
 			}
 			if(val_bwd > -EPSILON) {
+#if COMPARE_BLOCKED
+				cout << "blocked reaction bwd: " << r->getName() << " by " << val_bwd << " trivial: " << val_bwd_trivial << endl;
+#else
 				cout << "blocked reaction bwd: " << r->getName() << " by " << val_bwd << endl;
+#endif
 				pair<ReactionPtr, bool> p(r,false);
 				result->push_back(p);
 			}
@@ -799,6 +829,13 @@ bool PotBoundPropagation2::updateStepFlow() {
 			if(updated.find(a->_target) != updated.end()) {
 				old = updated[a->_target];
 			}
+			/*
+			cout << "target: " << a->_target->_met->getName() << (a->_target->_isMinBound?"(min)":"(max)") << " was=" << a->_target->_bound << " old="<<old << " new=";
+			for(int i = 0; i < a->_input.size(); i++) {
+				cout << a->_input[i].second << "*" << a->_input[i].first->_bound<< " of " << a->_input[i].first->_met->getName() << (a->_input[i].first->_isMinBound?" min":" max") << " ";
+			}
+			cout << endl;
+			*/
 			updated[a->_target] = max(old, a->update_value());
 		}
 	}
@@ -813,7 +850,7 @@ bool PotBoundPropagation2::updateStepFlow() {
 		}
 		if(reachable) {
 			assert(updated.find(a->_target) != updated.end());
-			assert(updated[a->_target] > a->update_value()-EPSILON);
+			assert(updated[a->_target] > a->update_value()-EPSILON || (isinf(updated[a->_target]) && updated[a->_target] > 0));
 		}
 	}
 #endif

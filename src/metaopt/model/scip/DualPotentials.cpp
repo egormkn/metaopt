@@ -437,7 +437,7 @@ void DualPotentials::setExtraPotConstraints(unordered_set<PotSpaceConstraintPtr>
 		}
 	}
 	assert(end == EXTRA + _extraConstraints.size());
-	SCIPlpiClearState(_lpi); // hmm... very ugly
+	//SCIPlpiClearState(_lpi); // hmm... very ugly
 	_primsol.resize(end, 0);
 }
 
