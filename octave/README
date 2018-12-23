@@ -1,0 +1,15 @@
+README
+======
+
+There are basically two ways to couple C++ code to matlab
+1. Build a mex file and do a direct library call
+* fast, no dirty tricks
+* but: all the libraries that are used must have the same version as matlab
+** this gets really problematic for projects that use many libs
+2. build a stand alone app and simply execute that application
+* data transfer has to be done by writing files
+** slow
+* a new process is started
+** no library dependencies
+
+Here, I chose 2, because the library problems of 1 are just too incomprehensible.
