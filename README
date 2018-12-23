@@ -1,0 +1,69 @@
+fast-tfva 2.0
+=============
+fast-tfva is a tool for fast thermodynamic constrained flux-variability analysis. It is written as a C++ plugin script for Matlab.
+Copyright (C) 2012  Arne Müller <arne.mueller@fu-berlin.de>
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
+A Remark on Version 2.0
+=======================
+fast-tfva 2.0 is a complete rewrite. It is
+* does not necessarily depend on libSBML
+* easier to install
+* easier to extend
+  * constraints on metabolite concentrations are supported
+  * additional constraints can easily be added when using the C++ library
+
+Installation of fast-tfva
+=========================
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+This instruction is designed for Linux and may also work for other UNIX-type systems. For Windows you will probably have to adjust some configura
+tions. (If you have an install instruction for Windows, please send them to me!)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+Fast-tfva 2.0 uses:
+* SCIP Optimization Suite - http://scip.zib.de
+
+Optionally you can link in
+* libSBML - http://sbml.org/Software/libSBML
+* Matlab
+
+Without SCIP, you won't be able to run fast-tfva. SCIP is open-source. See its webpage for lincensing-details.
+
+On university computers it is usually the case that the user does not have root access. Hence, the installation procedure is designed to work also with non-root access.
+
+After you have installed all the third-party dependencies (see third_party/README for instructions), you simply have to call make to build the fast tfva.
+
+If you have no matlab dependencies installed, call
+make MATLAB=off
+
+If you have no sbml dependencies installed, call
+make SBML=off
+
+Those two options can also be intercombined. Per default, usage of Matlab and SBML is activated.
+
+
+Testing of fast-tfva
+====================
+
+If you compiled fast-tfva with Matlab support, you can run a test case (tfva on E coli iAF1260) by calling
+
+make test
+
+======================
+DONE - CONGRATULATIONS
+======================
+
+If you have problems with installing fast-tfva, you can send me an email: arne.mueller@fu-berlin.de
