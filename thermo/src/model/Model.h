@@ -32,8 +32,8 @@
 #include "Reaction.h"
 #include "Metabolite.h"
 #include "Precision.h"
-#include "metaopt/Uncopyable.h"
-#include "metaopt/Properties.h"
+#include "Uncopyable.h"
+#include "Properties.h"
 
 namespace metaopt {
 

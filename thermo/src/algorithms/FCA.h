@@ -26,9 +26,9 @@
 #ifndef FCA_H_
 #define FCA_H_
 
-#include "metaopt/model/Model.h"
-#include "metaopt/model/Coupling.h"
-#include "metaopt/Properties.h"
+#include "model/Model.h"
+#include "model/Coupling.h"
+#include "Properties.h"
 
 namespace metaopt {
 

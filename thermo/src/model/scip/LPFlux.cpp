@@ -23,14 +23,14 @@
  *      Author: arnem
  */
 
-#include "metaopt/Properties.h"
+#include "Properties.h"
 
 #include <map>
 #include <vector>
 #include <iostream>
 #include "LPFlux.h"
 #include "objscip/objscip.h"
-#include "metaopt/scip/ScipError.h"
+#include "scip/ScipError.h"
 
 using namespace std;
 using namespace boost;

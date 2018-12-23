@@ -30,10 +30,10 @@
 #include <iostream>
 #include <sstream>
 
-#include "metaopt/model/Reaction.h"
-#include "metaopt/model/Metabolite.h"
-#include "metaopt/model/Precision.h"
-#include "metaopt/model/impl/FullModel.h"
+#include "model/Reaction.h"
+#include "model/Metabolite.h"
+#include "model/Precision.h"
+#include "model/impl/FullModel.h"
 
 using namespace boost;
 using namespace std;
@@ -69,7 +69,7 @@ MatlabLoader::~MatlabLoader() {
 }
 
 void MatlabLoader::load(const mxArray* m) {
-	_model = shared_ptr<FullModel>(new FullModel());
+	_model = boost::shared_ptr<FullModel>(new FullModel());
 	// model given by stoichiometric matrix etc.
 	_S = mxGetField(m, 0, F_S);
 	_ub = mxGetField(m, 0, F_UB);

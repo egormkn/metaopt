@@ -25,7 +25,7 @@
 
 #include <vector>
 #include "LPPotentials.h"
-#include "metaopt/Properties.h"
+#include "Properties.h"
 
 using namespace std;
 

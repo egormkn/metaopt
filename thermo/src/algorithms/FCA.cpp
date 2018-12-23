@@ -27,7 +27,7 @@
 
 #include <iostream>
 
-#include "metaopt/algorithms/FVA.h"
+#include "algorithms/FVA.h"
 
 // the condition of metabolic networks can be very bad. In particular here, we need some extra factor.
 #define SCALE_FACTOR 10000

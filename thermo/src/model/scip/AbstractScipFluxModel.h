@@ -26,10 +26,10 @@
 #ifndef ABSTRACTSCIPFLUXMODEL_H_
 #define ABSTRACTSCIPFLUXMODEL_H_
 
-#include "metaopt/model/Model.h"
-#include "metaopt/model/scip/Solution.h"
-#include "metaopt/model/Precision.h"
-#include "metaopt/Properties.h"
+#include "model/Model.h"
+#include "model/scip/Solution.h"
+#include "model/Precision.h"
+#include "Properties.h"
 
 namespace metaopt {
 

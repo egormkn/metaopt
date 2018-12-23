@@ -41,7 +41,7 @@ using namespace boost;
 
 namespace metaopt {
 
-Metabolite::Metabolite(weak_ptr<Model> model, std::string name) {
+Metabolite::Metabolite(boost::weak_ptr<Model> model, std::string name) {
 	_model = model;
 	_name = name;
 	_lb = -INFINITY;
@@ -88,7 +88,7 @@ const boost::shared_ptr<Model> Metabolite::getOwner() const {
 
 boost::shared_ptr<std::vector<ReactionPtr> > Metabolite::getProducers() const {
 	boost::shared_ptr<std::vector<ReactionPtr> > out(new vector<ReactionPtr>());
-	foreach(weak_ptr<Reaction> r, _producers) {
+	foreach(boost::weak_ptr<Reaction> r, _producers) {
 		ReactionPtr sr = r.lock();
 		out->push_back(sr);
 	}
@@ -96,7 +96,7 @@ boost::shared_ptr<std::vector<ReactionPtr> > Metabolite::getProducers() const {
 }
 boost::shared_ptr<std::vector<ReactionPtr> > Metabolite::getConsumers() const {
 	boost::shared_ptr<std::vector<ReactionPtr> > out(new vector<ReactionPtr>());
-	foreach(weak_ptr<Reaction> r, _consumers) {
+	foreach(boost::weak_ptr<Reaction> r, _consumers) {
 		ReactionPtr sr = r.lock();
 		out->push_back(sr);
 	}
@@ -104,9 +104,9 @@ boost::shared_ptr<std::vector<ReactionPtr> > Metabolite::getConsumers() const {
 }
 
 struct WeakFind {
-	const weak_ptr<Reaction> wr;
+	const boost::weak_ptr<Reaction> wr;
 
-	bool operator()(const weak_ptr<Reaction> o) {
+	bool operator()(const boost::weak_ptr<Reaction> o) {
 		bool out = !(wr < o) && !(o < wr);
 		return out;
 	}

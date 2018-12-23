@@ -19,7 +19,7 @@
 /*
  * Solution.h
  *
- * Defines a shared_ptr wrapper for SCIP_SOL* Objekte
+ * Defines a boost::shared_ptr wrapper for SCIP_SOL* Objekte
  *
  *  Created on: 18.04.2012
  *      Author: arnem
@@ -31,8 +31,8 @@
 #include "scip/scip.h"
 #include <boost/shared_ptr.hpp>
 
-#include "metaopt/Uncopyable.h"
-#include "metaopt/Properties.h"
+#include "Uncopyable.h"
+#include "Properties.h"
 
 namespace metaopt {
 

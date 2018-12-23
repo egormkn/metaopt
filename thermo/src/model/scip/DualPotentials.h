@@ -28,10 +28,10 @@
 
 #include "ScipModel.h"
 #include "LPFlux.h"
-#include "metaopt/Uncopyable.h"
-#include "metaopt/model/scip/PotSpaceConstraint.h"
-#include "metaopt/model/Precision.h"
-#include "metaopt/Properties.h"
+#include "Uncopyable.h"
+#include "model/scip/PotSpaceConstraint.h"
+#include "model/Precision.h"
+#include "Properties.h"
 
 namespace metaopt {
 

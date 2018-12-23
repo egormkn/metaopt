@@ -27,9 +27,9 @@
 #include "objscip/objscip.h"
 #include "objscip/objscipdefplugins.h"
 
-#include "metaopt/scip/ScipError.h"
+#include "scip/ScipError.h"
 #include "ModelAddOn.h"
-#include "metaopt/Properties.h"
+#include "Properties.h"
 
 using namespace boost;
 using namespace std;
@@ -402,10 +402,10 @@ void ScipModel::setBlockedFlux(SCIP_NODE* node, ReactionPtr rxn, bool fwd) {
 	}
 }
 
-shared_ptr<unordered_set<ReactionPtr> > ScipModel::getFixedDirections() {
-	shared_ptr<unordered_set<ReactionPtr> > result(new unordered_set<ReactionPtr>());
+boost::shared_ptr<unordered_set<ReactionPtr> > ScipModel::getFixedDirections() {
+	boost::shared_ptr<unordered_set<ReactionPtr> > result(new unordered_set<ReactionPtr>());
 	for(vector<ModelAddOnPtr>::iterator iter = _addons.begin(); iter != _addons.end(); iter++) {
-		shared_ptr<const unordered_set<ReactionPtr> > fixed = (*iter)->getFixedDirections();
+		boost::shared_ptr<const unordered_set<ReactionPtr> > fixed = (*iter)->getFixedDirections();
 		result->insert(fixed->begin(), fixed->end());
 	}
 

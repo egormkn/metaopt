@@ -29,10 +29,10 @@
 #include <boost/unordered_map.hpp>
 #include <vector>
 #include <queue>
-#include "metaopt/model/Model.h"
-#include "metaopt/model/scip/ScipModel.h"
+#include "model/Model.h"
+#include "model/scip/ScipModel.h"
 #include "objscip/objscip.h"
-#include "metaopt/Properties.h"
+#include "Properties.h"
 
 namespace metaopt {
 

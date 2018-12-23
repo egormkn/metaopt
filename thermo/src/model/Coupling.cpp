@@ -23,7 +23,7 @@
  *      Author: arnem
  */
 
-#include "metaopt/Properties.h"
+#include "Properties.h"
 
 #include "Coupling.h"
 #include <iostream>
@@ -214,19 +214,19 @@ bool Coupling::isCoupled(DirectedReaction a, DirectedReaction b) {
 	return(sa == sb || sa->_coupledTo.find(sb.get()) != sa->_coupledTo.end());
 }
 
-shared_ptr<vector<CoverReaction> > Coupling::computeCover(boost::unordered_set<DirectedReaction>& reactions) {
+boost::shared_ptr<vector<CoverReaction> > Coupling::computeCover(boost::unordered_set<DirectedReaction>& reactions) {
 	assert(!israw);
 
 #define NOTCOMPUTE 0
 #if NOTCOMPUTE
-	shared_ptr<vector<CoverReaction> > cover(new vector<CoverReaction>());
+	boost::shared_ptr<vector<CoverReaction> > cover(new vector<CoverReaction>());
 	foreach(const DirectedReaction& d, reactions) {
 		CoverReaction c(d);
 		cover->push_back(c);
 	}
 #else
 
-	shared_ptr<vector<CoverReaction> > cover(new vector<CoverReaction>());
+	boost::shared_ptr<vector<CoverReaction> > cover(new vector<CoverReaction>());
 
 	list<DirectedReaction> rxns(reactions.begin(), reactions.end());
 
@@ -261,8 +261,8 @@ shared_ptr<vector<CoverReaction> > Coupling::computeCover(boost::unordered_set<D
 			}
 		}
 		if(isMax) {
-			shared_ptr<DirectedReaction> m;
-			shared_ptr<vector<DirectedReaction> > covered(new vector<DirectedReaction>());
+			boost::shared_ptr<DirectedReaction> m;
+			boost::shared_ptr<vector<DirectedReaction> > covered(new vector<DirectedReaction>());
 			for(list<DirectedReaction>::iterator i = rxns.begin(); i != rxns.end();) {
 				DirectedReaction d = *i;
 				const StrongComponentPtr& cd = _components[d];

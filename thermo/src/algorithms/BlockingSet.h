@@ -9,9 +9,9 @@
 #define BLOCKINGSET_H_
 
 #include <vector>
-#include "metaopt/model/scip/LPFlux.h"
-#include "metaopt/model/DirectedReaction.h"
-#include "metaopt/Properties.h"
+#include "model/scip/LPFlux.h"
+#include "model/DirectedReaction.h"
+#include "Properties.h"
 
 namespace metaopt {
 

@@ -22,8 +22,8 @@
 
 #include <string>
 
-#include "metaopt/model/Reaction.h"
-#include "metaopt/Properties.h"
+#include "model/Reaction.h"
+#include "Properties.h"
 
 using namespace std;
 using namespace boost;

@@ -27,18 +27,18 @@
 #define THERMOCONSTRAINTHANDLER_H_
 
 #include "objscip/objconshdlr.h"
-#include "metaopt/model/impl/FullModel.h"
-#include "metaopt/model/scip/ReducedScipFluxModel.h"
-#include "metaopt/model/scip/ScipModel.h"
-#include "metaopt/model/scip/DualPotentials.h"
-#include "metaopt/model/scip/LPPotentials.h"
-#include "metaopt/Uncopyable.h"
-#include "metaopt/scip/constraints/PotBoundPropagation2.h"
-#include "metaopt/model/Coupling.h"
-#include "metaopt/model/scip/ISSupply.h"
-#include "metaopt/model/scip/PotSpaceConstraint.h"
-#include "metaopt/scip/constraints/ThermoInfeasibleSetPool.h"
-#include "metaopt/Properties.h"
+#include "model/impl/FullModel.h"
+#include "model/scip/ReducedScipFluxModel.h"
+#include "model/scip/ScipModel.h"
+#include "model/scip/DualPotentials.h"
+#include "model/scip/LPPotentials.h"
+#include "Uncopyable.h"
+#include "scip/constraints/PotBoundPropagation2.h"
+#include "model/Coupling.h"
+#include "model/scip/ISSupply.h"
+#include "model/scip/PotSpaceConstraint.h"
+#include "scip/constraints/ThermoInfeasibleSetPool.h"
+#include "Properties.h"
 
 // set to 1 to use aggregated reactions instead of the original reactions (not correctly implemented yet)
 #define THERMOCONS_USE_AGGR_RXN 0
@@ -114,7 +114,6 @@ public:
 	 */
 	SCIP_RESULT propagate();
 
-
 	/// Constraint enforcing method of constraint handler for LP solutions.
 	virtual SCIP_RETCODE scip_enfolp(
 			SCIP*              scip,               /**< SCIP data structure */
@@ -148,7 +147,8 @@ public:
 			SCIP_Bool          checkintegrality,   /**< has integrality to be checked? */
 			SCIP_Bool          checklprows,        /**< have current LP rows to be checked? */
 			SCIP_Bool          printreason,        /**< should the reason for the violation be printed? */
-			SCIP_RESULT*       result              /**< pointer to store the result of the feasibility checking call */
+            SCIP_Bool completely,
+            SCIP_RESULT*       result              /**< pointer to store the result of the feasibility checking call */
 	);
 
 	virtual SCIP_RETCODE scip_prop(
@@ -157,9 +157,10 @@ public:
 			SCIP_CONS **  		conss,
 			int  				nconss,
 			int  				nusefulconss,
+			int nmarkedconss,           // New SCIP api
+			SCIP_PROPTIMING proptiming, // New SCIP api
 			SCIP_RESULT *  		result
 	);
-
 
 	/// Variable rounding lock method of constraint handler.
 	virtual SCIP_RETCODE scip_lock(
@@ -167,9 +168,10 @@ public:
 			SCIP_CONSHDLR*     conshdlr,           /**< the constraint handler itself */
 			SCIP_CONS*         cons,               /**< the constraint that should lock rounding of its variables, or NULL if the
 			 *   constraint handler does not need constraints */
+			SCIP_LOCKTYPE locktype,                // New argument in SCIP API
 			int                nlockspos,          /**< no. of times, the roundings should be locked for the constraint */
 			int                nlocksneg           /**< no. of times, the roundings should be locked for the constraint's negation */
-	);
+	); // Old SCIP API, see below
 
 	/// Initializes helper variables necessary for solve. Uses presolving improvements.
 	virtual SCIP_RETCODE scip_exitpre(

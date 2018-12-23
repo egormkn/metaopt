@@ -26,13 +26,13 @@
 #ifndef SBMLLOADER_H_
 #define SBMLLOADER_H_
 
-#include "metaopt/Properties.h"
-#include "metaopt/model/Model.h"
-#include "metaopt/model/Metabolite.h"
+#include "Properties.h"
+#include "model/Model.h"
+#include "model/Metabolite.h"
 #include "sbml/SBMLTypes.h"
 #include <boost/unordered_map.hpp>
-#include "metaopt/model/impl/FullModel.h"
-#include "metaopt/Uncopyable.h"
+#include "model/impl/FullModel.h"
+#include "Uncopyable.h"
 
 namespace metaopt {
 

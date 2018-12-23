@@ -59,7 +59,7 @@ typedef boost::error_info<struct tag_iteration_count,int> iteration_count;
 namespace metaopt
 {
 #if 0 //BOOST_VERSION < 104700
-   // somewhere between version 1.46 and 1.47 boost starts to have a definition for hash_value(shared_ptr<T>)
+   // somewhere between version 1.46 and 1.47 boost starts to have a definition for hash_value(boost::shared_ptr<T>)
    // if it does not, we have to define it
    template <class T>
    std::size_t

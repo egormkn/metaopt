@@ -27,12 +27,12 @@
 #include <boost/foreach.hpp>
 
 #include "SteadyStateConstraint.h"
-#include "metaopt/model/Metabolite.h"
-#include "metaopt/model/Reaction.h"
+#include "model/Metabolite.h"
+#include "model/Reaction.h"
 #include "objscip/objscip.h"
 #include "objscip/objscipdefplugins.h"
-#include "metaopt/Properties.h"
-#include "metaopt/scip/ScipError.h"
+#include "Properties.h"
+#include "scip/ScipError.h"
 
 using namespace boost;
 using namespace std;

@@ -36,7 +36,7 @@ using namespace std;
 
 namespace metaopt {
 
-Reaction::Reaction(weak_ptr<Model> model, std::string name) {
+Reaction::Reaction(boost::weak_ptr<Model> model, std::string name) {
 	_model = model;
 	_name = name;
 	_lb = 0;

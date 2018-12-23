@@ -30,11 +30,11 @@
 #include "scip/scip.h"
 
 #include "FVA.h"
-#include "metaopt/Properties.h"
-#include "metaopt/model/scip/LPPotentials.h"
-#include "metaopt/scip/constraints/SteadyStateConstraint.h"
-#include "metaopt/scip/constraints/ThermoConstraintHandler.h"
-#include "metaopt/scip/heur/CycleDeletionHeur.h"
+#include "Properties.h"
+#include "model/scip/LPPotentials.h"
+#include "scip/constraints/SteadyStateConstraint.h"
+#include "scip/constraints/ThermoConstraintHandler.h"
+#include "scip/heur/CycleDeletionHeur.h"
 
 using namespace boost;
 

@@ -26,12 +26,12 @@
 #ifndef THERMOINFEASIBLESETPOOL_H_
 #define THERMOINFEASIBLESETPOOL_H_
 
-#include "metaopt/model/scip/ScipModel.h"
-#include "metaopt/model/Coupling.h"
-#include "metaopt/model/DirectedReaction.h"
-#include "metaopt/model/scip/ISSupply.h"
+#include "model/scip/ScipModel.h"
+#include "model/Coupling.h"
+#include "model/DirectedReaction.h"
+#include "model/scip/ISSupply.h"
 
-#include "metaopt/Properties.h"
+#include "Properties.h"
 
 namespace metaopt {
 

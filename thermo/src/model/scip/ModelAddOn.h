@@ -27,11 +27,11 @@
 #define MODELADDON_H_
 
 #include <boost/enable_shared_from_this.hpp>
-#include "metaopt/model/scip/ScipModel.h"
+#include "model/scip/ScipModel.h"
 #include "Solution.h"
-#include "metaopt/scip/ScipError.h"
-#include "metaopt/Uncopyable.h"
-#include "metaopt/Properties.h"
+#include "scip/ScipError.h"
+#include "Uncopyable.h"
+#include "Properties.h"
 
 namespace metaopt {
 
@@ -76,7 +76,7 @@ public:
 	 * Helper method for ScipModel destruction process.
 	 * This method should only be called from the destructor of ScipModel.
 	 * It processes the destruction of this ModelAddOn that still requires data of ScipModel.
-	 * A reference to ScipModel is supplied, since weak_ptrs are already expired during destruction.
+	 * A reference to ScipModel is supplied, since boost::weak_ptrs are already expired during destruction.
 	 * After this method has been called, the indicator destroyed is set.
 	 *
 	 * Important: If this addon has dependencies on other addons, these dependencies must be destroyed, too.

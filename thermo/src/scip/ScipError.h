@@ -22,7 +22,7 @@
 #include <boost/throw_exception.hpp>
 #include <boost/exception/errinfo_at_line.hpp>
 #include "scip/scip.h"
-#include "metaopt/Properties.h"
+#include "Properties.h"
 
 #define ERROR_DEBUG
 

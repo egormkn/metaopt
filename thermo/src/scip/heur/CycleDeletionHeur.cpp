@@ -25,9 +25,9 @@
 
 #include <iostream>
 #include "CycleDeletionHeur.h"
-#include "metaopt/model/scip/Solution.h"
-#include "metaopt/Properties.h"
-#include "metaopt/scip/ScipError.h"
+#include "model/scip/Solution.h"
+#include "Properties.h"
+#include "scip/ScipError.h"
 
 using namespace scip;
 using namespace boost;
@@ -60,7 +60,7 @@ CycleDeletionHeur::~CycleDeletionHeur() {
 	// nothing to do
 }
 
-SCIP_RETCODE CycleDeletionHeur::scip_exec(SCIP* scip, SCIP_HEUR* heur, SCIP_HEURTIMING timing, SCIP_RESULT* result) {
+SCIP_RETCODE CycleDeletionHeur::scip_exec(SCIP* scip, SCIP_HEUR* heur, SCIP_HEURTIMING timing, SCIP_Bool nodeinfeasible, SCIP_RESULT* result) {
 	if(!isDifficult()) {
 		//std::cout << "running heur" << std::endl;
 		SCIP_SOL* raw_sol;
@@ -102,6 +102,7 @@ SCIP_RETCODE CycleDeletionHeur::scip_exec(SCIP* scip, SCIP_HEUR* heur, SCIP_HEUR
 			TRUE,
 			TRUE,
 			TRUE,
+			TRUE,  // TODO: Check, new API. Maybe this should be false :D
 			&stored ));
 
 		if(stored) {

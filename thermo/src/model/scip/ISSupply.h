@@ -29,9 +29,9 @@
 #include <boost/shared_ptr.hpp>
 #include <boost/unordered_set.hpp>
 #include <vector>
-#include "metaopt/model/Reaction.h"
-#include "metaopt/model/scip/PotSpaceConstraint.h"
-#include "metaopt/Properties.h"
+#include "model/Reaction.h"
+#include "model/scip/PotSpaceConstraint.h"
+#include "Properties.h"
 
 namespace metaopt {
 

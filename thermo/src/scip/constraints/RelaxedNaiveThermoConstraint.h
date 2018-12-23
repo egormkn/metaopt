@@ -26,9 +26,9 @@
 #ifndef RELAXEDNAIVETHERMOCONSTRAINT_H_
 #define RELAXEDNAIVETHERMOCONSTRAINT_H_
 
-#include "metaopt/model/scip/addon/PotentialDifferences.h"
-#include "metaopt/model/scip/addon/ReactionDirections.h"
-#include "metaopt/Properties.h"
+#include "model/scip/addon/PotentialDifferences.h"
+#include "model/scip/addon/ReactionDirections.h"
+#include "Properties.h"
 
 namespace metaopt {
 

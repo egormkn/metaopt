@@ -24,7 +24,7 @@
  */
 
 #include "SBMLLoader.h"
-#include "metaopt/model/Model.h"
+#include "model/Model.h"
 #include <string>
 #include <boost/unordered_map.hpp>
 #include <metaopt/model/impl/FullModel.h>
@@ -70,7 +70,7 @@ void SBMLLoader::buildReaction(const libsbml::Reaction* r) {
 }
 
 void SBMLLoader::load(const libsbml::Model* m) {
-	_model = shared_ptr<FullModel>(new FullModel());
+	_model = boost::shared_ptr<FullModel>(new FullModel());
 	int num_met = m->getNumSpecies();
 	for(int i = 0; i < num_met; i++) {
 		const libsbml::Species* s = m->getSpecies(i);

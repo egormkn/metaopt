@@ -26,9 +26,9 @@
 #ifndef FULLMODEL_H_
 #define FULLMODEL_H_
 
-#include "metaopt/Properties.h"
-#include "metaopt/model/Model.h"
-#include "metaopt/Uncopyable.h"
+#include "Properties.h"
+#include "model/Model.h"
+#include "Uncopyable.h"
 
 namespace metaopt {
 

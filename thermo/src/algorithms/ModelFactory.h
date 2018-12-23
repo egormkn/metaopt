@@ -26,8 +26,8 @@
 #ifndef MODELFACTORY_H_
 #define MODELFACTORY_H_
 
-#include "metaopt/model/scip/ScipModel.h"
-#include "metaopt/Properties.h"
+#include "model/scip/ScipModel.h"
+#include "Properties.h"
 
 namespace metaopt {
 

@@ -27,11 +27,11 @@
 #define CYCLEDELETIONHEUR_H_
 
 #include "objscip/objscip.h"
-#include "metaopt/model/scip/ScipModel.h"
-#include "metaopt/model/scip/LPFlux.h"
-#include "metaopt/model/scip/LPPotentials.h"
-#include "metaopt/Uncopyable.h"
-#include "metaopt/Properties.h"
+#include "model/scip/ScipModel.h"
+#include "model/scip/LPFlux.h"
+#include "model/scip/LPPotentials.h"
+#include "Uncopyable.h"
+#include "Properties.h"
 
 namespace metaopt {
 
@@ -47,6 +47,7 @@ public:
 		SCIP*              	scip,               /**< SCIP data structure */
 		SCIP_HEUR*   	 	heur,
 		SCIP_HEURTIMING    	heurtiming,
+		SCIP_Bool           nodeinfeasible,
 		SCIP_RESULT *    	result
 		);
 

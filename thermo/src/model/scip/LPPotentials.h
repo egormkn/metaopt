@@ -28,9 +28,9 @@
 
 #include "ScipModel.h"
 #include "LPFlux.h"
-#include "metaopt/model/Precision.h"
-#include "metaopt/Uncopyable.h"
-#include "metaopt/Properties.h"
+#include "model/Precision.h"
+#include "Uncopyable.h"
+#include "Properties.h"
 
 namespace metaopt {
 

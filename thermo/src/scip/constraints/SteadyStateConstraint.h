@@ -26,8 +26,8 @@
 #ifndef STEADYSTATECONSTRAINT_H_
 #define STEADYSTATECONSTRAINT_H_
 
-#include "metaopt/model/scip/ScipModel.h"
-#include "metaopt/Properties.h"
+#include "model/scip/ScipModel.h"
+#include "Properties.h"
 
 namespace metaopt {
 

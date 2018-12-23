@@ -25,7 +25,7 @@
 
 #include "scip/scip.h"
 #include "scip/scipdefplugins.h"
-#include "metaopt/scip/ScipError.h"
+#include "scip/ScipError.h"
 
 #include "ReactionDirections.h"
 
@@ -234,9 +234,9 @@ void ReactionDirections::setDirection(SCIP_NODE* node, ReactionPtr rxn, bool fwd
 	}
 }
 
-shared_ptr<const unordered_set<ReactionPtr> > ReactionDirections::getFixedDirections() {
+boost::shared_ptr<const unordered_set<ReactionPtr> > ReactionDirections::getFixedDirections() {
 	assert(!isDestroyed());
-	shared_ptr<unordered_set<ReactionPtr> > result( new unordered_set<ReactionPtr>() );
+	boost::shared_ptr<unordered_set<ReactionPtr> > result( new unordered_set<ReactionPtr>() );
 
 	typedef std::pair<ReactionPtr, ReactionDirVars> RxnDir;
 

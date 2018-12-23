@@ -30,13 +30,13 @@
 #include <vector>
 #include "objscip/objscip.h"
 
-#include "metaopt/model/Model.h"
-#include "metaopt/model/scip/AbstractScipFluxModel.h"
+#include "model/Model.h"
+#include "model/scip/AbstractScipFluxModel.h"
 #include "Solution.h"
-#include "metaopt/scip/ScipError.h"
-#include "metaopt/model/Precision.h"
-#include "metaopt/Uncopyable.h"
-#include "metaopt/Properties.h"
+#include "scip/ScipError.h"
+#include "model/Precision.h"
+#include "Uncopyable.h"
+#include "Properties.h"
 
 namespace metaopt {
 

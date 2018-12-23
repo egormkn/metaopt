@@ -33,9 +33,9 @@
 #include <boost/exception/error_info.hpp>
 #include <boost/foreach.hpp>
 #include <vector>
-#include "metaopt/model/Precision.h"
-#include "metaopt/Uncopyable.h"
-#include "metaopt/Properties.h"
+#include "model/Precision.h"
+#include "Uncopyable.h"
+#include "Properties.h"
 
 namespace metaopt {
 

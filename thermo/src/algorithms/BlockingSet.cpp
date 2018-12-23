@@ -10,8 +10,8 @@
 #include <vector>
 #include <iostream>
 #include <boost/unordered_map.hpp>
-#include "metaopt/model/scip/LPFlux.h"
-#include "metaopt/Properties.h"
+#include "model/scip/LPFlux.h"
+#include "Properties.h"
 
 using namespace std;
 using namespace boost;
@@ -30,7 +30,7 @@ struct BlockingSetScore {
 	BlockingSetScore() : score(0) {}
 };
 
-shared_ptr<vector<DirectedReaction> > findBlockingSet(LPFluxPtr flux, LPFluxPtr model) {
+boost::shared_ptr<vector<DirectedReaction> > findBlockingSet(LPFluxPtr flux, LPFluxPtr model) {
 	ModelPtr m = flux->getModel();
 	assert(m == model->getModel());
 
@@ -57,7 +57,7 @@ shared_ptr<vector<DirectedReaction> > findBlockingSet(LPFluxPtr flux, LPFluxPtr 
 
 	unordered_map<DirectedReaction, BlockingSetScore> scores;
 	vector<unordered_set<DirectedReaction> > cycles;
-	shared_ptr<vector<DirectedReaction> > blocked(new vector<DirectedReaction>);
+	boost::shared_ptr<vector<DirectedReaction> > blocked(new vector<DirectedReaction>);
 
 	// block reactions until no cycle is found
 	bool foundCycle = true;
@@ -160,7 +160,7 @@ shared_ptr<vector<DirectedReaction> > findBlockingSet(LPFluxPtr flux, LPFluxPtr 
 
 // new, hopefully more clever implementation
 
-shared_ptr<vector<DirectedReaction> > findBlockingSet(LPFluxPtr test, LPFluxPtr flux) {
+boost::shared_ptr<vector<DirectedReaction> > findBlockingSet(LPFluxPtr test, LPFluxPtr flux) {
 	// preconditions:
 	// test is already solved to optimality
 	assert(test->isOptimal());
@@ -168,9 +168,9 @@ shared_ptr<vector<DirectedReaction> > findBlockingSet(LPFluxPtr test, LPFluxPtr 
 	const PrecisionPtr& testPrec = test->getPrecision();
 	const PrecisionPtr& fluxPrec = flux->getPrecision();
 
-	shared_ptr<vector<DirectedReaction> > block(new vector<DirectedReaction>);
+	boost::shared_ptr<vector<DirectedReaction> > block(new vector<DirectedReaction>);
 
-	foreach(ReactionPtr rxn, flux->getModel()->getInternalReactions()) {
+	BOOST_FOREACH(ReactionPtr rxn, flux->getModel()->getInternalReactions()) {
 		int stat = test->getColumnStatus(rxn);
 		if(stat == SCIP_BASESTAT_LOWER && test->getLb(rxn) < -testPrec->getCheckTol() && flux->getFlux(rxn) > -fluxPrec->getCheckTol()) {
 			// cout << rxn->getName() << " redcost=" << test->getReducedCost(rxn) << endl;
@@ -197,7 +197,7 @@ shared_ptr<vector<DirectedReaction> > findBlockingSet(LPFluxPtr test, LPFluxPtr 
 	return block;
 }
 
-shared_ptr<vector<DirectedReaction> > findBlockingSet(LPFluxPtr flux) {
+boost::shared_ptr<vector<DirectedReaction> > findBlockingSet(LPFluxPtr flux) {
 	ModelPtr model = flux->getModel();
 	double sense = flux->isMaximize() ? 1 : -1;
 
@@ -229,7 +229,7 @@ shared_ptr<vector<DirectedReaction> > findBlockingSet(LPFluxPtr flux) {
 	// reset the objective
 	test->setZeroObj();
 
-	shared_ptr<vector<DirectedReaction> > block(new vector<DirectedReaction>);
+	boost::shared_ptr<vector<DirectedReaction> > block(new vector<DirectedReaction>);
 
 	/*
 	 * Strategy:
@@ -261,7 +261,7 @@ shared_ptr<vector<DirectedReaction> > findBlockingSet(LPFluxPtr flux) {
 					else {
 						// we are not allowed to block the beast itself
 						// so compute a blocking set
-						shared_ptr<vector<DirectedReaction> > b = findBlockingSet(test, flux);
+						boost::shared_ptr<vector<DirectedReaction> > b = findBlockingSet(test, flux);
 						foreach(DirectedReaction& d, *b) {
 							block->push_back(d);
 							if(d._fwd) test->setUb(d._rxn, 0);
@@ -287,7 +287,7 @@ shared_ptr<vector<DirectedReaction> > findBlockingSet(LPFluxPtr flux) {
 					else {
 						// we are not allowed to block the beast itself
 						// so compute a blocking set
-						shared_ptr<vector<DirectedReaction> > b = findBlockingSet(test, flux);
+						boost::shared_ptr<vector<DirectedReaction> > b = findBlockingSet(test, flux);
 						foreach(DirectedReaction& d, *b) {
 							block->push_back(d);
 							if(d._fwd) test->setUb(d._rxn, 0);
@@ -316,7 +316,7 @@ shared_ptr<vector<DirectedReaction> > findBlockingSet(LPFluxPtr flux) {
 			}
 			test->solvePrimal();
 			// we always have to compute the blocking set
-			shared_ptr<vector<DirectedReaction> > b = findBlockingSet(test, flux);
+			boost::shared_ptr<vector<DirectedReaction> > b = findBlockingSet(test, flux);
 			// and enforce it
 			foreach(DirectedReaction& d, *b) {
 				block->push_back(d);
@@ -343,7 +343,7 @@ shared_ptr<vector<DirectedReaction> > findBlockingSet(LPFluxPtr flux) {
 			}
 			test->solvePrimal();
 			// we always have to compute the blocking set
-			shared_ptr<vector<DirectedReaction> > b = findBlockingSet(test, flux);
+			boost::shared_ptr<vector<DirectedReaction> > b = findBlockingSet(test, flux);
 			// and enforce it
 			foreach(DirectedReaction& d, *b) {
 				block->push_back(d);

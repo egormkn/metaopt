@@ -26,11 +26,11 @@
 #include <boost/unordered_set.hpp>
 #include <iostream>
 #include "PotBoundPropagation2.h"
-#include "metaopt/model/Reaction.h"
-#include "metaopt/Properties.h"
+#include "model/Reaction.h"
+#include "Properties.h"
 
 #include "objscip/objscip.h"
-#include "metaopt/scip/ScipError.h"
+#include "scip/ScipError.h"
 
 #define PRINT_UPDATE
 
@@ -324,8 +324,8 @@ void PotBoundPropagation2::print() {
 	}
 }
 
-shared_ptr<vector<pair<ReactionPtr,bool> > > PotBoundPropagation2::getBlockedReactions() {
-	shared_ptr<vector<pair<ReactionPtr,bool> > > result(new vector<pair<ReactionPtr, bool> >());
+boost::shared_ptr<vector<pair<ReactionPtr,bool> > > PotBoundPropagation2::getBlockedReactions() {
+	boost::shared_ptr<vector<pair<ReactionPtr,bool> > > result(new vector<pair<ReactionPtr, bool> >());
 	foreach(ReactionPtr r, _model->getReactions()) {
 		if(!r->isExchange()) {
 			double val_fwd = 0;
@@ -396,7 +396,7 @@ void PotBoundPropagation2::updateStepHard(ScipModelPtr scip) {
 	}
 
 	// create constraints of fixed reaction directions
-	shared_ptr<unordered_set<ReactionPtr> > dirs = scip->getFixedDirections();
+	boost::shared_ptr<unordered_set<ReactionPtr> > dirs = scip->getFixedDirections();
 	cout << "fixed dirs: ";
 	foreach(ReactionPtr rxn, *dirs) {
 		cout << rxn->getName() << " ";
@@ -533,7 +533,7 @@ void PotBoundPropagation2::updateStepHard(ScipModelPtr scip) {
 	}
 
 	// create constraints of fixed reaction directions
-	shared_ptr<unordered_set<ReactionPtr> > dirs = scip->getFixedDirections();
+	boost::shared_ptr<unordered_set<ReactionPtr> > dirs = scip->getFixedDirections();
 	cout << "fixed dirs: ";
 	foreach(ReactionPtr rxn, *dirs) {
 		if(!rxn->isExchange()) {

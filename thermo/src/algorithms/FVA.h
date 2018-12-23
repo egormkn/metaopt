@@ -29,12 +29,12 @@
 #include <boost/unordered_map.hpp>
 #include <utility>
 
-#include "metaopt/model/Model.h"
-#include "metaopt/model/scip/LPFlux.h"
+#include "model/Model.h"
+#include "model/scip/LPFlux.h"
 
-#include "metaopt/algorithms/ModelFactory.h"
-#include "metaopt/model/Coupling.h"
-#include "metaopt/Properties.h"
+#include "algorithms/ModelFactory.h"
+#include "model/Coupling.h"
+#include "Properties.h"
 
 namespace metaopt {
 

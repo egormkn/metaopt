@@ -31,9 +31,9 @@
 #include <boost/unordered_map.hpp>
 
 
-#include "metaopt/model/Reaction.h"
-#include "metaopt/model/DirectedReaction.h"
-#include "metaopt/Properties.h"
+#include "model/Reaction.h"
+#include "model/DirectedReaction.h"
+#include "Properties.h"
 
 namespace metaopt {
 
@@ -44,7 +44,7 @@ struct CoverReaction {
 	CoverReaction(const DirectedReaction& r) : reaction(r), covered(new std::vector<DirectedReaction>()) {}
 };
 
-typedef shared_ptr<CoverReaction> CoverReactionPtr;
+typedef boost::shared_ptr<CoverReaction> CoverReactionPtr;
 
 /**
  * This class manages directed flux coupling information on reactions.

@@ -27,11 +27,11 @@
 #define FLUXFORCING_H_
 
 #include <boost/unordered_map.hpp>
-#include "metaopt/model/DirectedReaction.h"
-#include "metaopt/model/Model.h"
-#include "metaopt/model/scip/ScipModel.h"
-#include "metaopt/algorithms/ModelFactory.h"
-#include "metaopt/Properties.h"
+#include "model/DirectedReaction.h"
+#include "model/Model.h"
+#include "model/scip/ScipModel.h"
+#include "algorithms/ModelFactory.h"
+#include "Properties.h"
 
 
 namespace metaopt {

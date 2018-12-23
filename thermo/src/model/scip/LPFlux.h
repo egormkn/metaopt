@@ -26,20 +26,20 @@
 #ifndef LPFLUX_H_
 #define LPFLUX_H_
 
-#include "scip/lpi.h"
-#include "scip/type_lpi.h"
+#include "lpi/lpi.h"
+#include "lpi/type_lpi.h"
 //#ifndef NDEBUG
 //#include "soplex.h"
 //#endif
 
-#include "metaopt/model/Model.h"
-#include "metaopt/model/scip/ScipModel.h"
+#include "model/Model.h"
+#include "model/scip/ScipModel.h"
 #include <boost/unordered_map.hpp>
-#include "metaopt/Uncopyable.h"
-#include "metaopt/model/scip/ISSupply.h"
-#include "metaopt/model/scip/PotSpaceConstraint.h"
-#include "metaopt/model/Precision.h"
-#include "metaopt/Properties.h"
+#include "Uncopyable.h"
+#include "model/scip/ISSupply.h"
+#include "model/scip/PotSpaceConstraint.h"
+#include "model/Precision.h"
+#include "Properties.h"
 
 namespace metaopt {
 

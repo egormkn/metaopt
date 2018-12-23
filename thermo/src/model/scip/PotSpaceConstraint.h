@@ -28,8 +28,8 @@
 
 #include <boost/unordered_map.hpp>
 #include "scip/scip.h"
-#include "metaopt/model/Coupling.h"
-#include "metaopt/Properties.h"
+#include "model/Coupling.h"
+#include "Properties.h"
 
 namespace metaopt {
 

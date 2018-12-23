@@ -22,20 +22,20 @@
  *  Created on: Apr 27, 2012
  *      Author: arne
  */
-#include "metaopt/Properties.h"
+#include "Properties.h"
 
 #include <iostream>
 #include <vector>
 #include "scip/scipdefplugins.h"
 #include "scip/scip.h"
 
-#include "metaopt/scip/ScipError.h"
+#include "scip/ScipError.h"
 #include "ThermoConstraintHandler.h"
-#include "metaopt/model/scip/ReducedScipFluxModel.h"
-#include "metaopt/model/impl/FullModel.h"
+#include "model/scip/ReducedScipFluxModel.h"
+#include "model/impl/FullModel.h"
 #include "boost/shared_ptr.hpp"
-#include "metaopt/model/Metabolite.h"
-#include "metaopt/model/scip/PotSpaceConstraint.h"
+#include "model/Metabolite.h"
+#include "model/scip/PotSpaceConstraint.h"
 
 #define CONSTRAINT_NAME THERMO_CONSTRAINT_NAME
 #define CONSTRAINT_DESCRIPTION "This Constraint enforces thermodynamic feasible from the perspective of the flux variables. It is most efficient, if we do not optimize on the potentials"
@@ -150,7 +150,7 @@ SCIP_RESULT ThermoConstraintHandler::enforceObjectiveCycles(SolutionPtr& sol) {
 	_cycle_find->setDirectionObj(sol, model);
 #endif
 	// only include preference on variables that are not yet fixed to one sign
-	shared_ptr<unordered_set<ReactionPtr> > fixedDirs = model->getFixedDirections();
+	boost::shared_ptr<unordered_set<ReactionPtr> > fixedDirs = model->getFixedDirections();
 	foreach(ReactionPtr rxn, *fixedDirs) {
 		if(!rxn->isExchange())
 #if THERMOCONS_USE_AGGR_RXN
@@ -218,7 +218,7 @@ SCIP_RESULT ThermoConstraintHandler::branchCycle(SolutionPtr& sol) {
 	const PrecisionPtr& modelPrec = model->getPrecision();
 
 	//TODO: its a waste computing this twice
-	shared_ptr<unordered_set<ReactionPtr> > fixedDirs = model->getFixedDirections();
+	boost::shared_ptr<unordered_set<ReactionPtr> > fixedDirs = model->getFixedDirections();
 
 	unordered_set<DirectedReaction> branchingCandidates;
 
@@ -416,7 +416,7 @@ SCIP_RESULT ThermoConstraintHandler::branchIS(SolutionPtr& sol) {
 
 	const PrecisionPtr& modelPrec = model->getPrecision();
 
-	shared_ptr<unordered_set<ReactionPtr> > fixedDirs = model->getFixedDirections();
+	boost::shared_ptr<unordered_set<ReactionPtr> > fixedDirs = model->getFixedDirections();
 	// _flux_simpl is in the reduced space, but _is_find is not.
 	// _is_find is not in the reduced space, because else we might loose metabolites and thus may loose infeasible sets.
 #if THERMOCONS_USE_AGGR_RXN
@@ -434,7 +434,7 @@ SCIP_RESULT ThermoConstraintHandler::branchIS(SolutionPtr& sol) {
 	}
 	else {
 		// we found an infeasible set we have to get rid by branching
-		shared_ptr<unordered_set<ReactionPtr> > is = _is_find->getIS();
+		boost::shared_ptr<unordered_set<ReactionPtr> > is = _is_find->getIS();
 
 #ifndef NDEBUG
 		foreach(ReactionPtr rxn, *is) {
@@ -604,7 +604,7 @@ SCIP_RESULT ThermoConstraintHandler::branch(unordered_set<DirectedReaction>& bra
 	const PrecisionPtr& modelPrec = model->getPrecision();
 
 	// compute a cover
-	shared_ptr<vector<CoverReaction> > cover = _coupling->computeCover(branchingCandidates);
+	boost::shared_ptr<vector<CoverReaction> > cover = _coupling->computeCover(branchingCandidates);
 
 #ifdef LOGBRANCHING
 	cout << "Input Branching Set: ";
@@ -852,7 +852,7 @@ SCIP_RESULT ThermoConstraintHandler::propagate() {
 #if 0
 	ScipModelPtr scip = getScip();
 	_pbp.update(scip);
-	shared_ptr<std::vector<std::pair<ReactionPtr,bool> > > blocked = _pbp.getBlockedReactions();
+	boost::shared_ptr<std::vector<std::pair<ReactionPtr,bool> > > blocked = _pbp.getBlockedReactions();
 
 	bool propagated = false;
 	for(unsigned int i = 0; i < blocked->size(); i++) {
@@ -932,6 +932,8 @@ SCIP_RETCODE ThermoConstraintHandler::scip_prop(
 		SCIP_CONS **  		conss,
 		int  				nconss,
 		int  				nusefulconss,
+		int nmarkedconss,
+		SCIP_PROPTIMING proptiming,
 		SCIP_RESULT *  		result
 ) {
 	assert(scip == getScip()->getScip());
@@ -955,7 +957,8 @@ SCIP_RETCODE ThermoConstraintHandler::scip_check(
 		SCIP_Bool          checkintegrality,   /**< has integrality to be checked? */
 		SCIP_Bool          checklprows,        /**< have current LP rows to be checked? */
 		SCIP_Bool          printreason,        /**< should the reason for the violation be printed? */
-		SCIP_RESULT*       result              /**< pointer to store the result of the feasibility checking call */
+        SCIP_Bool          completely,
+        SCIP_RESULT*       result              /**< pointer to store the result of the feasibility checking call */
 ) {
 	assert(scip == getScip()->getScip());
 	return check(conss, nconss, sol, result);
@@ -967,13 +970,14 @@ SCIP_RETCODE ThermoConstraintHandler::scip_lock(
       SCIP_CONSHDLR*     conshdlr,           /**< the constraint handler itself */
       SCIP_CONS*         cons,               /**< the constraint that should lock rounding of its variables, or NULL if the
                                               *   constraint handler does not need constraints */
+	  SCIP_LOCKTYPE locktype,
       int                nlockspos,          /**< no. of times, the roundings should be locked for the constraint */
       int                nlocksneg           /**< no. of times, the roundings should be locked for the constraint's negation */
       )
 {
 	/*
 	 * The problem of this method is that it is also called during the destruction process of scip.
-	 * In this case the _smodel weak_ptr is already invalidated!
+	 * In this case the _smodel boost::weak_ptr is already invalidated!
 	 */
 
 	if(!_smodel.expired()) {

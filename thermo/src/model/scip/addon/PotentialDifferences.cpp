@@ -26,7 +26,7 @@
 #include "scip/scip.h"
 #include "scip/scipdefplugins.h"
 #include "PotentialDifferences.h"
-#include "metaopt/scip/ScipError.h"
+#include "scip/ScipError.h"
 
 using namespace boost;
 

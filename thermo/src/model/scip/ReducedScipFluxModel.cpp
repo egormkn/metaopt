@@ -24,7 +24,7 @@
  */
 
 #include "ReducedScipFluxModel.h"
-#include "metaopt/Properties.h"
+#include "Properties.h"
 
 namespace metaopt {
 

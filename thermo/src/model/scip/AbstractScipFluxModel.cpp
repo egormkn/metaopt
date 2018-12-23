@@ -23,7 +23,7 @@
  *      Author: arnem
  */
 
-#include "metaopt/model/scip/AbstractScipFluxModel.h"
+#include "model/scip/AbstractScipFluxModel.h"
 
 namespace metaopt {
 

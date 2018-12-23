@@ -28,9 +28,9 @@
 
 #include "boost/unordered_map.hpp"
 
-#include "metaopt/model/scip/AbstractScipFluxModel.h"
-#include "metaopt/model/scip/ScipModel.h"
-#include "metaopt/Properties.h"
+#include "model/scip/AbstractScipFluxModel.h"
+#include "model/scip/ScipModel.h"
+#include "Properties.h"
 
 namespace metaopt {
 

@@ -24,7 +24,7 @@
  */
 
 #include "DualPotentials.h"
-#include "metaopt/model/Precision.h"
+#include "model/Precision.h"
 
 using namespace std;
 using namespace boost;
@@ -229,7 +229,7 @@ const PrecisionPtr& DualPotentials::getPrecision() {
 
 
 
-void DualPotentials::setDirections(LPFluxPtr flux, shared_ptr<unordered_set<ReactionPtr> > fixed_rxns) {
+void DualPotentials::setDirections(LPFluxPtr flux, boost::shared_ptr<unordered_set<ReactionPtr> > fixed_rxns) {
 	/* we have to adjust
 	 * * the bounds of the \alpha variables
 	 * * the \alpha coefficients of the Z constraint
@@ -283,7 +283,7 @@ void DualPotentials::setDirections(LPFluxPtr flux, shared_ptr<unordered_set<Reac
 	}
 }
 
-void DualPotentials::setDirections(LPFluxPtr flux, boost::unordered_map<ReactionPtr, ReactionPtr>& toFluxRxn, shared_ptr<unordered_set<ReactionPtr> > fixed_rxns) {
+void DualPotentials::setDirections(LPFluxPtr flux, boost::unordered_map<ReactionPtr, ReactionPtr>& toFluxRxn, boost::shared_ptr<unordered_set<ReactionPtr> > fixed_rxns) {
 	/* we have to adjust
 	 * * the bounds of the \alpha variables
 	 * * the \alpha coefficients of the Z constraint
@@ -364,10 +364,10 @@ bool DualPotentials::isFeasible() {
 	return SCIPlpiIsPrimalFeasible(_lpi);
 }
 
-shared_ptr<unordered_set<ReactionPtr> > DualPotentials::getIS() {
+boost::shared_ptr<unordered_set<ReactionPtr> > DualPotentials::getIS() {
 	// TODO: does not necessarily compute a minimal infeasible set, but for now it should be ok.
 
-	shared_ptr<unordered_set<ReactionPtr> > result(new unordered_set<ReactionPtr>());
+	boost::shared_ptr<unordered_set<ReactionPtr> > result(new unordered_set<ReactionPtr>());
 
 	typedef pair<ReactionPtr, int> RxnIndex;
 	foreach(RxnIndex ri, _reactions) {

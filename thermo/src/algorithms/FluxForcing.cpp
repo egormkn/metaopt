@@ -25,9 +25,9 @@
 
 #include <iostream>
 #include "FluxForcing.h"
-#include "metaopt/model/DirectedReaction.h"
-#include "metaopt/model/Model.h"
-#include "metaopt/model/scip/ScipModel.h"
+#include "model/DirectedReaction.h"
+#include "model/Model.h"
+#include "model/scip/ScipModel.h"
 
 using namespace std;
 using namespace boost;
