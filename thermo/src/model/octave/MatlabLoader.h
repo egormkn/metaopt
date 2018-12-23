@@ -35,8 +35,7 @@
 #include <boost/unordered_map.hpp>
 #include "model/impl/FullModel.h"
 #include "Uncopyable.h"
-#include "matrix.h"
-#include "mat.h"
+#include "mex.h"
 
 
 namespace metaopt {
