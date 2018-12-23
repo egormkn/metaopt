@@ -1,0 +1,58 @@
+=========================================
+Instructions for third-party dependencies
+=========================================
+
+Due to licensing reasons not all third-party dependencies can be contained directly in this package.
+
+Essential Dependency
+====================
+* SCIP Optimization Suite 3.0.0
+    SCIP is the CIP-solver used by fast-tfva.
+    - For non-commercial purposes you can download the source code from http://scip.zib.de/download.shtml
+    - Option 1: Download the source-code to third_party/res
+    - Option 2: manual installation (see below)
+    
+Optional Dependencies
+=====================
+* libSBML
+    libSBML allows you to load models from SBML files.
+    - libSBML is packaged with this distribution.
+    - Option 1: use the libSBML packaged with this distribution, you don't have to do anything
+    - Option 2: if you do not want to use libSBML, compile with SBML=off
+    - Option 3: manual installation (see below)
+    
+* Matlab
+    To load models from .mat files, you need some Matlab dependencies
+    - Option 1: if you do not want to use Matlab, compile with MATLAB=off
+    - Option 2: manual installation (see below)
+    
+    
+====================
+Manual Installations
+====================
+    
+Manual Installation of SCIP Optimization Suite
+==============================================
+This applies, if you already have SCIP installed, or want to install it in a different place.
+If you do, make sure of the following:
+* SCIP Optimization Suite should be compiled with SHARED=true (this is needed to build the shared object files we want to link to)
+* third_party/scip should point to the base directory of your SCIP installation (not the base directory of the SCIP Optimization Suite)
+* Create the following symbolic links (abbreviating the long library names) in third_party/scip/lib:
+    - libsoplex.so -> libsoplex*.so
+    - libzimpl.so -> libzimpl*.so
+
+
+Manual Installation of libSBML
+==============================
+Usually it is easier to use the libSBML version packed with fast-tfva, because it will only be used for fast-tfva and will not conflict with other libSBML version on you system. But if you want to use a different version of libSBML make sure of the following:
+* libSBML has to be compiled with the configure option --enable-cpp-namespace=libsbml
+* third_party/libsbml/build/lib has to point to the directory containing libsbml.so
+* third_party/libsbml/build/include has to point to the directory containing the header files (should contain a directory called "sbml")
+
+
+Manual Installation of Matlab
+=============================
+Since the Matlab license does not allow to package the necessary libraries together with tFVA and those are also not directly downloaded from the internet, there is only a manual install possible.
+If you do not have a version of Matlab installed, you can try downloading a trial version and obtaining the necessary libraries and header files from there.
+* third_party/matlab/bin should point to the directory containing the matlab libraries (in particular libmat.so and libmx.so)
+* third_party/matlab/include should point to the directory containing the header files (in particular mat.h and matrix.h)
