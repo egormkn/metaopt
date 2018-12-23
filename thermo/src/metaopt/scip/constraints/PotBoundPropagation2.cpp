@@ -45,14 +45,14 @@ PotBoundPropagation2::PotBoundPropagation2(ModelPtr model) :
 	_model(model)
 {
 	init_Queue();
-	int j = 0;
-#if 1
+	//int i = 0;
+#if 0
 	while(!_queue.empty()) {
 		ArcEvent a = _queue.top();
 		_queue.pop();
 		update(a.arc);
-		j++;
-		//if(j > 100) return;
+		//i++;
+		//if(i > 100) return;
 	}
 #else
 	foreach(MetabolitePtr m, _model->getMetabolites()) {
@@ -209,7 +209,7 @@ std::size_t PotBoundPropagation2::hash_value(MetBoundPtr const & mb ) {
 
 
 PotBoundPropagation2::Arc::Arc()
-	: _num_used(0), _active(true) {
+	: _active(true) {
 	// nothing else
 }
 
@@ -226,7 +226,7 @@ int PotBoundPropagation2::Arc::unknown_inputs() const {
 double PotBoundPropagation2::Arc::update_value() const {
 	double res = 0;
 	for(unsigned int i = 0; i < _input.size(); i++) {
-		double val;
+		int val;
 		if(isinf(_input[i].first->_bound)) {
 			val = _input[i].first->getMax();
 		}
@@ -267,54 +267,18 @@ PotBoundPropagation2::ArcPtr PotBoundPropagation2::getReversed(const ArcPtr a) c
 void PotBoundPropagation2::update(ArcPtr a) {
 	if(a->_target->_bound + EPSILON < a->update_value()) {
 		// only in this case we have to do updates
-		double updateval;
-		if(isinf(a->_target->_bound)) {
-			updateval = a->update_value();
-		}
-		else {
-			// if this arc is used often for updates, increase update steps
-			updateval = a->_target->_bound + ldexp(a->update_value() - a->_target->_bound, max(a->_num_used-10,0));
-			updateval = min(a->_target->getMax(), updateval);
-		}
-		cout << a->_num_used << " " << a->_creator->getName() << " updating " << a->_target->_met->getName() << (a->_target->_isMinBound? " (min)" : " (max)") << " from " << a->_target->_bound << " to " << updateval << " ("<< a->update_value() << ") of at most " << a->_target->getMax() << " using " << a->unknown_inputs() << " unknown metabolite bounds" << endl;
-		a->_target->_bound = updateval;
+		cout << a->_creator->getName() << " updating " << a->_target->_met->getName() << (a->_target->_isMinBound? " (min)" : " (max)") << " from " << a->_target->_bound << " to " << a->update_value() << " of at most " << a->_target->getMax() << " using " << a->unknown_inputs() << " unknown metabolite bounds" << endl;
+		a->_target->_bound = a->update_value();
 		a->_target->_last_update = a;
-		a->_num_used++;
 		// propagate
 		foreach(ArcPtr b, _incidence[a->_target]) {
 			ArcEvent be(b);
-			//if(be.gain_val < b->_target->getMax() - b->_target->_bound) {
-			if(b->update_value() > b->_target->_bound) {
+			if(be.gain_val < b->_target->getMax() - b->_target->_bound) {
 				// only add to queue if the update may have an effect
 				_queue.push(be);
 			}
 		}
 	}
-}
-
-void PotBoundPropagation2::check() {
-#ifndef NDEBUG
-	foreach(ArcPtr a, _arcs) {
-		bool reachable = false;
-		for(int i = 0; i < a->_input.size(); i++) {
-			double bound = a->_input[i].first->_bound;
-			if(~isinf(bound) || bound > 0) {
-				reachable = true;
-			}
-		}
-		double b = a->_target->_bound;
-		double up_val = a->update_value();
-		if(reachable && b <= up_val-EPSILON*abs(up_val)) {
-			cout << "bound = " << b << " < " << "update = " << up_val << endl;
-			cout << "target: " << a->_target->_met->getName() << (a->_target->_isMinBound?"(min)":"(max)") << endl;
-			for(int i = 0; i < a->_input.size(); i++) {
-				cout << a->_input[i].second << "*" << a->_input[i].first->_bound<< " of " << a->_input[i].first->_met->getName() << (a->_input[i].first->_isMinBound?" min":" max") << " ";
-			}
-			cout << endl;
-			assert(false);
-		}
-	}
-#endif
 }
 
 void PotBoundPropagation2::print() {
@@ -361,49 +325,27 @@ void PotBoundPropagation2::print() {
 }
 
 shared_ptr<vector<pair<ReactionPtr,bool> > > PotBoundPropagation2::getBlockedReactions() {
-#define COMPARE_BLOCKED 1
 	shared_ptr<vector<pair<ReactionPtr,bool> > > result(new vector<pair<ReactionPtr, bool> >());
 	foreach(ReactionPtr r, _model->getReactions()) {
 		if(!r->isExchange()) {
 			double val_fwd = 0;
 			double val_bwd = 0;
-
-#if COMPARE_BLOCKED
-			double val_fwd_trivial = 0;
-			double val_bwd_trivial = 0;
-#endif
 			foreach(Stoichiometry s, r->getProducts()) {
 				val_fwd += s.second * _minBounds.at(s.first)->orig_value();
 				val_bwd -= s.second * _maxBounds.at(s.first)->orig_value();
-#if COMPARE_BLOCKED
-				val_fwd_trivial += s.second * s.first->getPotLb();
-				val_bwd_trivial -= s.second * s.first->getPotUb();
-#endif
 			}
 			foreach(Stoichiometry s, r->getReactants()) {
 				val_fwd -= s.second * _maxBounds.at(s.first)->orig_value(); // coefficients are all positive
 				val_bwd += s.second * _minBounds.at(s.first)->orig_value(); // coefficients are all positive
-#if COMPARE_BLOCKED
-				val_fwd_trivial -= s.second * s.first->getPotUb();
-				val_bwd_trivial += s.second * s.first->getPotLb();
-#endif
 			}
 			//cout << r->getName() << ": " << val_fwd << " / " << val_bwd << endl;
 			if(val_fwd > -EPSILON) {
-#if COMPARE_BLOCKED
-				cout << "blocked reaction fwd: " << r->getName() << " by " << val_fwd << " trivial: "<< val_fwd_trivial << endl;
-#else
 				cout << "blocked reaction fwd: " << r->getName() << " by " << val_fwd << endl;
-#endif
 				pair<ReactionPtr, bool> p(r,true);
 				result->push_back(p);
 			}
 			if(val_bwd > -EPSILON) {
-#if COMPARE_BLOCKED
-				cout << "blocked reaction bwd: " << r->getName() << " by " << val_bwd << " trivial: " << val_bwd_trivial << endl;
-#else
 				cout << "blocked reaction bwd: " << r->getName() << " by " << val_bwd << endl;
-#endif
 				pair<ReactionPtr, bool> p(r,false);
 				result->push_back(p);
 			}
@@ -657,7 +599,6 @@ void PotBoundPropagation2::updateStepHard(ScipModelPtr scip) {
 }
 
 bool PotBoundPropagation2::updateStepFlow() {
-#if USE_WRONG_UPDATE
 	// compute X set
 	unordered_set<MetBoundPtr> X;
 #if 1
@@ -742,7 +683,6 @@ bool PotBoundPropagation2::updateStepFlow() {
 					lhs += a->_input[j].second * met->_bound;
 				}
 			}
-			assert(!isinf(lhs));
 			BOOST_SCIP_CALL( SCIPlpiAddRows(lpi, 1, &lhs, &rhs, NULL, ind.size(), &beg, ind.data(), coef.data()) );
 		}
 	}
@@ -811,62 +751,6 @@ bool PotBoundPropagation2::updateStepFlow() {
 		}
 		return updated;
 	}
-#else
-	unordered_map<MetBoundPtr, double> updated;
-
-	bool update_performed = false;
-
-	foreach(ArcPtr a, _arcs) {
-		bool reachable = false;
-		for(int i = 0; i < a->_input.size(); i++) {
-			double bound = a->_input[i].first->_bound;
-			if(~isinf(bound) || bound > 0) {
-				reachable = true;
-			}
-		}
-		if(reachable) {
-			double old = -INFINITY;
-			if(updated.find(a->_target) != updated.end()) {
-				old = updated[a->_target];
-			}
-			/*
-			cout << "target: " << a->_target->_met->getName() << (a->_target->_isMinBound?"(min)":"(max)") << " was=" << a->_target->_bound << " old="<<old << " new=";
-			for(int i = 0; i < a->_input.size(); i++) {
-				cout << a->_input[i].second << "*" << a->_input[i].first->_bound<< " of " << a->_input[i].first->_met->getName() << (a->_input[i].first->_isMinBound?" min":" max") << " ";
-			}
-			cout << endl;
-			*/
-			updated[a->_target] = max(old, a->update_value());
-		}
-	}
-#ifndef NDEBUG
-	foreach(ArcPtr a, _arcs) {
-		bool reachable = false;
-		for(int i = 0; i < a->_input.size(); i++) {
-			double bound = a->_input[i].first->_bound;
-			if(~isinf(bound) || bound > 0) {
-				reachable = true;
-			}
-		}
-		if(reachable) {
-			assert(updated.find(a->_target) != updated.end());
-			assert(updated[a->_target] > a->update_value()-EPSILON || (isinf(updated[a->_target]) && updated[a->_target] > 0));
-		}
-	}
-#endif
-
-	typedef pair<MetBoundPtr, double> UpdateEntry;
-
-	foreach(UpdateEntry e, updated) {
-		if(e.first->_bound > e.second) {
-			cout << "updating " << e.first->_met->getName() << (e.first->_isMinBound?" (min)":" (max)") << " to " << e.second << " was " << e.first->_bound << endl;
-			assert(e.second <= e.first->getMax());
-			e.first->_bound = e.second;
-			update_performed = true;
-		}
-	}
-	return update_performed;
-#endif
 }
 
 void PotBoundPropagation2::update(ScipModelPtr scip) {
@@ -891,7 +775,6 @@ void PotBoundPropagation2::update() {
 	bool updated = true;
 	while(updated) {
 		updated = updateStepFlow(); // updateStepFlow may not give best update and may require repetitive calls
-		check();
 	}
 }
 
