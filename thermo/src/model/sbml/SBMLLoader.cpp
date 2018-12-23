@@ -27,7 +27,7 @@
 #include "model/Model.h"
 #include <string>
 #include <boost/unordered_map.hpp>
-#include <metaopt/model/impl/FullModel.h>
+#include <model/impl/FullModel.h>
 
 using namespace std;
 using namespace boost;
