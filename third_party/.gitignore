@@ -1,2 +1,7 @@
-libsbml*/
-scipoptsuite*/
+# Ignore third-party libraries
+/libsbml*/*
+/scipoptsuite*/*
+
+# Keep folders for third-party libraries
+!/libsbml/.gitkeep
+!/scipoptsuite/.gitkeep
