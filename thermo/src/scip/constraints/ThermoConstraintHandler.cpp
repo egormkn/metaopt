@@ -98,7 +98,7 @@ ThermoConstraintHandler::ThermoConstraintHandler(ScipModelPtr model) :
 			PROP_FREQ,
 			EAGER_FREQ,
 			MAX_PRESOLVER_ROUNDS,
-			DELAY_SEPA, DELAY_PROP, DELAY_PRESOL, TRUE, PROPAGATION_TIMING), // set it needs cons (although it actually doesn't), since we want to add constraints on the virtual potential space to this handler
+			DELAY_SEPA, DELAY_PROP, DELAY_PRESOL, PROPAGATION_TIMING, SCIP_PRESOLTIMING_MAX /* PRESOLDELAY=true in original code */), // set it needs cons (although it actually doesn't), since we want to add constraints on the virtual potential space to this handler
 	_smodel(model),
 	_model(model->getModel()) //,
 #if 0
