@@ -2,8 +2,9 @@ cmake_minimum_required(VERSION 3.12)
 
 project(thermo)
 
-option(MATLAB "Enable support for loading .mat files" OFF)
-option(SBML "Enable support for loading SBML models" ON)
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 set(SRC_METAOPT_MODEL_SCIP
         src/model/scip/AbstractScipFluxModel.cpp
@@ -56,6 +57,11 @@ if(SBML)
             src/model/sbml/SBMLLoader.cpp)
 endif()
 
+if(OCTAVE)
+    set(SRC_METAOPT_MODEL_OCTAVE
+            src/model/octave/OctaveLoader.cpp)
+endif()
+
 if(MATLAB)
     set(SRC_METAOPT_MODEL_MATLAB
             src/model/matlab/MatlabLoader.cpp)
@@ -72,13 +78,23 @@ set(SOURCES
         ${SRC_METAOPT_MODEL}
         ${SRC_METAOPT_MODEL_IMPL}
         ${SRC_METAOPT_MODEL_SBML}
+        ${SRC_METAOPT_MODEL_OCTAVE}
         ${SRC_METAOPT_MODEL_MATLAB})
 
 add_library(thermo STATIC ${SOURCES})
 
 target_include_directories(thermo PUBLIC src)
 
-add_definitions(-DLIBSBML_USE_CPP_NAMESPACE=1)
-target_include_directories(thermo PUBLIC ${LIBSBML_ROOT_SOURCE_DIR}/src)
+if (SBML)
+    add_definitions(-DLIBSBML_USE_CPP_NAMESPACE=1)
+    target_include_directories(thermo PUBLIC ${LIBSBML_ROOT_SOURCE_DIR}/src)
+    target_link_libraries(thermo sbml)
+endif()
 
-target_link_libraries(thermo sbml libscip)
+if (OCTAVE)
+    find_package(Octave REQUIRED COMPONENTS Development)
+    target_include_directories(thermo PUBLIC ${Octave_INCLUDE_DIRS})
+    target_link_libraries(thermo ${Octave_LIBRARIES})
+endif ()
+
+target_link_libraries(thermo libscip libobjscip)
