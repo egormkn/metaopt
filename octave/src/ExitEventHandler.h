@@ -28,8 +28,8 @@
 
 #include "objscip/objscip.h"
 
-#include "metaopt/model/scip/ScipModel.h"
-#include "metaopt/scip/ScipError.h"
+#include "model/scip/ScipModel.h"
+#include "scip/ScipError.h"
 
 using namespace scip;
 

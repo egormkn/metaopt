@@ -17,13 +17,13 @@
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
- * MatlabLoader.cpp
+ * OctaveLoader.cpp
  *
  *  Created on: 02.07.2012
  *      Author: arnem
  */
 
-#include "MatlabLoader.h"
+#include "OctaveLoader.h"
 #include <boost/throw_exception.hpp>
 #include <boost/exception/error_info.hpp>
 #include <boost/exception/all.hpp>
@@ -53,22 +53,22 @@ using namespace std;
 #define F_PRECISION "precision"
 #define F_DUAL_PRECISION "dual_precision"
 
-#define ERROR_MSG(field,msg) BOOST_THROW_EXCEPTION( MatlabLoaderError() << field_name(field) << matlab_error_message(msg))
+#define ERROR_MSG(field,msg) BOOST_THROW_EXCEPTION( OctaveLoaderError() << field_name(field) << octave_error_message(msg))
 
 #define STRICT
 
 namespace metaopt {
 
-MatlabLoader::MatlabLoader() {
+OctaveLoader::OctaveLoader() {
 	// TODO Auto-generated constructor stub
 
 }
 
-MatlabLoader::~MatlabLoader() {
+OctaveLoader::~OctaveLoader() {
 	// TODO Auto-generated destructor stub
 }
 
-void MatlabLoader::load(const mxArray* m) {
+void OctaveLoader::load(const mxArray* m) {
 	_model = boost::shared_ptr<FullModel>(new FullModel());
 	// model given by stoichiometric matrix etc.
 	_S = mxGetField(m, 0, F_S);
@@ -215,7 +215,7 @@ void MatlabLoader::load(const mxArray* m) {
 	}
 }
 
-void MatlabLoader::testFields() {
+void OctaveLoader::testFields() {
 	// check, that all the necessary fields are specified
 	if(_S == NULL) ERROR_MSG(F_S, "The model must contain a stoichiometric matrix S");
 	if(_ub == NULL) ERROR_MSG(F_UB, "The model must contain flux upper bounds ub");
@@ -225,7 +225,7 @@ void MatlabLoader::testFields() {
 	if(_mets == NULL) ERROR_MSG(F_METS, "The model must contain the names of metabolites (mets)");
 }
 
-void MatlabLoader::testTypes() {
+void OctaveLoader::testTypes() {
 	// check, if all fields have correct type
 	if(mxIsChar(_S) || mxIsComplex(_S) || !mxIsNumeric(_S) || !mxIsSparse(_S)) ERROR_MSG(F_S, "The stoichiometric matrix must be sparse and contain reals");
 	if(mxIsChar(_ub) || mxIsComplex(_ub) || !mxIsNumeric(_ub) || mxIsSparse(_ub)) ERROR_MSG(F_UB, "The upper bounds must be full and contain reals");
@@ -303,7 +303,7 @@ void MatlabLoader::testTypes() {
 	}
 }
 
-void MatlabLoader::testDimensions() {
+void OctaveLoader::testDimensions() {
 	unsigned int num_species = mxGetM(_S); // rows = # species
 	unsigned int num_reactions = mxGetN(_S); // cols = # reactions
 
@@ -320,23 +320,23 @@ void MatlabLoader::testDimensions() {
 	if(_pot_c != NULL && mxGetNumberOfElements(_pot_c) != num_int_species) ERROR_MSG(F_POT_C, "You must give exactly as many objective coefficients on potentials as there are (internal) metabolites");
 }
 
-ModelPtr MatlabLoader::getModel() const {
+ModelPtr OctaveLoader::getModel() const {
   return _model;
 }
 
-MetabolitePtr MatlabLoader::getMetabolite(int index) {
+MetabolitePtr OctaveLoader::getMetabolite(int index) {
 	try {
 		return _metabolites.at(index);
 	}
 	catch(std::exception& ex) {
 		stringstream msg;
 		msg << string("Unable to get metabolite for index ") << index << " range: 0.." << (_metabolites.size()-1);
-		BOOST_THROW_EXCEPTION(MatlabLoaderError() << matlab_error_message(msg.str()));
+		BOOST_THROW_EXCEPTION(OctaveLoaderError() << octave_error_message(msg.str()));
 	}
 	return MetabolitePtr();
 }
 
-ReactionPtr MatlabLoader::getReaction(int index) {
+ReactionPtr OctaveLoader::getReaction(int index) {
 	try {
 		return _reactions.at(index);
 	}
@@ -344,13 +344,13 @@ ReactionPtr MatlabLoader::getReaction(int index) {
 		stringstream msg;
 		msg << string("Unable to get reaction for index ") << index << " range: 0.." << (_reactions.size()-1);
 		cout << msg.str() << endl;
-		BOOST_THROW_EXCEPTION(MatlabLoaderError() << matlab_error_message(msg.str()));
+		BOOST_THROW_EXCEPTION(OctaveLoaderError() << octave_error_message(msg.str()));
 	}
 	return ReactionPtr();
 }
 
 #if 0
-CouplingPtr MatlabLoader::loadCoupling(mxArray* fctable, mxArray* blocked) {
+CouplingPtr OctaveLoader::loadCoupling(mxArray* fctable, mxArray* blocked) {
 	if(mxIsChar(fctable) || mxIsComplex(fctable) || !mxIsNumeric(fctable) || mxIsSparse(fctable)) ERROR_MSG("fctable", "The flux coupling table must be a full matrix and contain reals");
 	if(mxIsChar(blocked) || mxIsComplex(blocked) || !mxIsNumeric(blocked) || mxIsSparse(blocked)) ERROR_MSG("blocked", "The list of blocked reactions must be a full vector and contain reals");
 	if(mxGetNumberOfElements(blocked) != _reactions.size()) ERROR_MSG("blocked", "We need to know for each reaction if it is blocked or not.");
@@ -383,15 +383,15 @@ CouplingPtr MatlabLoader::loadCoupling(mxArray* fctable, mxArray* blocked) {
 }
 #endif
 
-void MatlabLoader::clear() {
+void OctaveLoader::clear() {
 	// clear loaded model
 	_model.reset();
 	_metabolites.clear();
 	_reactions.clear();
 }
 
-ModelPtr loadMatlabModel(const mxArray* m) {
-	MatlabLoader loader;
+ModelPtr loadOctaveModel(const mxArray* m) {
+	OctaveLoader loader;
 	loader.load(m);
 	ModelPtr model = loader.getModel();
 	return model;

@@ -17,14 +17,14 @@
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
- * MatlabLoader.h
+ * OctaveLoader.h
  *
  *  Created on: 02.07.2012
  *      Author: arnem
  */
 
-#ifndef MATLABLOADER_H_
-#define MATLABLOADER_H_
+#ifndef OCTAVELOADER_H_
+#define OCTAVELOADER_H_
 
 #include <string>
 #include <boost/exception/all.hpp>
@@ -40,17 +40,17 @@
 
 namespace metaopt {
 
-struct MatlabLoaderError  : virtual boost::exception, virtual std::exception {
+struct OctaveLoaderError  : virtual boost::exception, virtual std::exception {
 public:
-	MatlabLoaderError() {
+	OctaveLoaderError() {
 		//assert(false);
 	}
 };
 
-class MatlabLoader : Uncopyable {
+class OctaveLoader : Uncopyable {
 public:
-	MatlabLoader();
-	virtual ~MatlabLoader();
+	OctaveLoader();
+	virtual ~OctaveLoader();
 
 	/** load the model */
 	void load(const mxArray* m);
@@ -103,19 +103,19 @@ private:
 
 	/**
 	 * test if all necessary fields are supplied.
-	 * If not, a MatlabLoaderError is thrown.
+	 * If not, a OctaveLoaderError is thrown.
 	 */
 	void testFields();
 
 	/**
 	 * test if all fields have their proper type.
-	 * If not, a MatlabLoaderError is thrown.
+	 * If not, a OctaveLoaderError is thrown.
 	 */
 	void testTypes();
 
 	/**
 	 * test if the dimensions of all specified fields match.
-	 * If not, a MatlabLoaderError is thrown.
+	 * If not, a OctaveLoaderError is thrown.
 	 */
 	void testDimensions();
 
@@ -124,12 +124,12 @@ private:
 
 /** If something went wrong with a certain field by loading the model, this gives the name of the field */
 typedef boost::error_info<struct tag_field_name,std::string> field_name;
-typedef boost::error_info<struct tag_message,std::string> matlab_error_message;
+typedef boost::error_info<struct tag_message,std::string> octave_error_message;
 
 
 
-ModelPtr loadMatlabModel(const mxArray* m);
+ModelPtr loadOctaveModel(const mxArray* m);
 
 
 } /* namespace metaopt */
-#endif /* MATLABLOADER_H_ */
+#endif /* OCTAVELOADER_H_ */

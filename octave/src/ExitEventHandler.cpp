@@ -34,9 +34,6 @@ using namespace scip;
 #define EXIT_EVENT_HANDLER_NAME "ExitHandler"
 #define EXIT_EVENT_HANDLER_DESC "on user request, aborts computation"
 
-extern "C" bool utIsInterruptPending();
-//extern "C" void utSetInterruptPending();
-
 namespace metaopt {
 
 ExitEventHandler::ExitEventHandler( SCIP*  scip )
@@ -49,10 +46,7 @@ ExitEventHandler::~ExitEventHandler() {
 
 SCIP_RETCODE ExitEventHandler::scip_exec(SCIP* scip, SCIP_EVENTHDLR *eventhdlr, SCIP_EVENT* event, SCIP_EVENTDATA *eventdata) {
 	//cout << "executing event handler" << endl;
-	if(utIsInterruptPending()) {
-		mexPrintf("\n Ctrl-C detected. Aborting SCIP computation\n");
-		SCIP_CALL( SCIPinterruptSolve(scip) );
-	}
+
 	return SCIP_OKAY;
 }
 

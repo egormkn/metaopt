@@ -32,16 +32,16 @@
 #include "scip/scip.h"
 #include "scip/scipdefplugins.h"
 
-#include "metaopt/Properties.h"
-#include "metaopt/model/matlab/MatlabLoader.h"
-#include "metaopt/algorithms/FVA.h"
-#include "metaopt/algorithms/BlockingSet.h"
-#include "metaopt/model/scip/ScipModel.h"
-#include "metaopt/model/scip/LPFlux.h"
-#include "metaopt/scip/constraints/SteadyStateConstraint.h"
-#include "metaopt/scip/constraints/ThermoConstraintHandler.h"
-#include "metaopt/scip/heur/CycleDeletionHeur.h"
-#include "metaopt/model/Precision.h"
+#include "Properties.h"
+#include "model/octave/OctaveLoader.h"
+#include "algorithms/FVA.h"
+#include "algorithms/BlockingSet.h"
+#include "model/scip/ScipModel.h"
+#include "model/scip/LPFlux.h"
+#include "scip/constraints/SteadyStateConstraint.h"
+#include "scip/constraints/ThermoConstraintHandler.h"
+#include "scip/heur/CycleDeletionHeur.h"
+#include "model/Precision.h"
 
 //#include "ExitEventHandler.h"
 
@@ -54,7 +54,7 @@ using namespace metaopt;
 /**
  * Creates the extra linear constraints A v <= a
  */
-void createExtraConstraint(ScipModelPtr scip, MatlabLoader& loader, mxArray* A, mxArray* a) {
+void createExtraConstraint(ScipModelPtr scip, OctaveLoader& loader, mxArray* A, mxArray* a) {
 	assert(A != NULL); // A does not exist
 	assert(a != NULL); // a does not exist
 	assert(!mxIsChar(A) && !mxIsComplex(A) && mxIsNumeric(A) && mxIsSparse(A)); // A must be sparse and contain reals
@@ -101,9 +101,9 @@ void createExtraConstraint(ScipModelPtr scip, MatlabLoader& loader, mxArray* A, 
 }
 
 /**
- * Matlab wrapper to plain old FBA
+ * Octave wrapper to plain old FBA
  *
- * Second parameter must encode a metabolic model loadable by metaopt::Matlabloader
+ * Second parameter must encode a metabolic model loadable by metaopt::Octaveloader
  */
 int fba(mxArray *argout, mxArray *argin) {
 	int nargin = mxGetNumberOfElements(argin);
@@ -113,7 +113,7 @@ int fba(mxArray *argout, mxArray *argin) {
 		return 16;
 	}
 
-	MatlabLoader loader;
+	OctaveLoader loader;
 	loader.load(mxGetCell(argin, 0));
 	ModelPtr model = loader.getModel();
 
@@ -143,7 +143,7 @@ int fba(mxArray *argout, mxArray *argin) {
 }
 
 /**
- * Matlab wrapper to thermodynamically constrained FBA
+ * Octave wrapper to thermodynamically constrained FBA
  */
 int tfba(mxArray *argout, mxArray *argin) {
 	int nargin = mxGetNumberOfElements(argin);
@@ -153,7 +153,7 @@ int tfba(mxArray *argout, mxArray *argin) {
 		return 17;
 	}
 
-	MatlabLoader loader;
+	OctaveLoader loader;
 	mxArray* sys = mxGetCell(argin, 0);
 	loader.load(sys);
 	ModelPtr model = loader.getModel();
@@ -214,7 +214,7 @@ int tfba(mxArray *argout, mxArray *argin) {
 		LPFluxPtr flux(new LPFlux(model, true));
 		//LPFluxPtr m(new LPFlux(model, true));
 		flux->set(scip); // copy optimal solution
-		shared_ptr<std::vector<DirectedReaction> > block = findBlockingSet(flux);
+		boost::shared_ptr<std::vector<DirectedReaction> > block = findBlockingSet(flux);
 		int num_fwd = 0;
 		int num_bwd = 0;
 		foreach(DirectedReaction& d, *block) {
@@ -243,13 +243,13 @@ int tfba(mxArray *argout, mxArray *argin) {
 		foreach(DirectedReaction& d, *block) {
 			if(d._fwd) {
 				assert(rxnIndex.find(d._rxn) != rxnIndex.end());
-				fwd[i_fwd] = rxnIndex[d._rxn] + 1; // matlab indexing starts at 1
+				fwd[i_fwd] = rxnIndex[d._rxn] + 1; // octave indexing starts at 1
 				cout << "blocked fwd reaction: " << d._rxn->getName() << " (" << rxnIndex[d._rxn] << ")" << endl;
 				i_fwd++;
 			}
 			else {
 				assert(rxnIndex.find(d._rxn) != rxnIndex.end());
-				bwd[i_bwd] = rxnIndex[d._rxn] + 1; // matlab indexing starts at 1
+				bwd[i_bwd] = rxnIndex[d._rxn] + 1; // octave indexing starts at 1
 				cout << "blocked bwd reaction: " << d._rxn->getName() << " (" << rxnIndex[d._rxn] << ")" << endl;
 				i_bwd++;
 			}
@@ -272,8 +272,8 @@ int tfba(mxArray *argout, mxArray *argin) {
 }
 
 /**
- * Stores fva results in the matlab structure (as a matrix with two columns)
- * The order of the elements is the same as they were loaded by the matlab loader
+ * Stores fva results in the octave structure (as a matrix with two columns)
+ * The order of the elements is the same as they were loaded by the octave loader
  *
  * @param m the result matrix that is created
  * @param model the model on which FVA had been run
@@ -281,7 +281,7 @@ int tfba(mxArray *argout, mxArray *argin) {
  * @param min the minimal flux values
  * @param max the maximal flux values
  */
-void convert_fva_result(mxArray** m, metaopt::ModelPtr& model, metaopt::MatlabLoader& loader, boost::unordered_map<metaopt::ReactionPtr, double>& min, boost::unordered_map<metaopt::ReactionPtr, double>& max) {
+void convert_fva_result(mxArray** m, metaopt::ModelPtr& model, metaopt::OctaveLoader& loader, boost::unordered_map<metaopt::ReactionPtr, double>& min, boost::unordered_map<metaopt::ReactionPtr, double>& max) {
 	*m = mxCreateDoubleMatrix(model->getReactions().size(), 2, mxREAL);
 	double* outData = mxGetPr(*m);
 	mwIndex subs[2];
@@ -320,17 +320,17 @@ void convert_fva_result(mxArray** m, metaopt::ModelPtr& model, metaopt::MatlabLo
 }
 
 /**
- * Stores fva results in the matlab structure (as a matrix with two columns)
+ * Stores fva results in the octave structure (as a matrix with two columns)
  * The order of the elements is the same as given in the reaction list
  *
  * @param m the result matrix that is created
  * @param model the model on which FVA had been run
  * @param loader the loader with which the model had been loaded
- * @param rxnList a matlab array containing the matlab-indices (starting from 1!) of the reactions for which FVA was performed
+ * @param rxnList a octave array containing the octave-indices (starting from 1!) of the reactions for which FVA was performed
  * @param min the minimal flux values
  * @param max the maximal flux values
  */
-void convert_fva_result(mxArray** m, metaopt::ModelPtr& model, metaopt::MatlabLoader& loader, mxArray* rxnList, boost::unordered_map<metaopt::ReactionPtr, double>& min, boost::unordered_map<metaopt::ReactionPtr, double>& max) {
+void convert_fva_result(mxArray** m, metaopt::ModelPtr& model, metaopt::OctaveLoader& loader, mxArray* rxnList, boost::unordered_map<metaopt::ReactionPtr, double>& min, boost::unordered_map<metaopt::ReactionPtr, double>& max) {
 	int num = mxGetNumberOfElements(rxnList);
 	assert( mxIsDouble(rxnList) );
 	double* rxnListData = mxGetPr(rxnList);
@@ -375,7 +375,7 @@ void convert_fva_result(mxArray** m, metaopt::ModelPtr& model, metaopt::MatlabLo
 }
 
 /**
- * Matlab wrapper to plain old FVA
+ * Octave wrapper to plain old FVA
  */
 int fva(mxArray *argout, mxArray *argin) {
 	int nargin = mxGetNumberOfElements(argin);
@@ -385,7 +385,7 @@ int fva(mxArray *argout, mxArray *argin) {
 		return 18;
 	}
 
-	MatlabLoader loader;
+	OctaveLoader loader;
 	loader.load(mxGetCell(argin, 0));
 	ModelPtr model = loader.getModel();
 
@@ -415,7 +415,7 @@ public:
 };*/
 
 /**
- * Matlab wrapper to thermodynamically constrained FVA
+ * Octave wrapper to thermodynamically constrained FVA
  */
 int tfva(mxArray *argout, mxArray *argin) {
 	int nargin = mxGetNumberOfElements(argin);
@@ -424,7 +424,7 @@ int tfva(mxArray *argout, mxArray *argin) {
 		cout << "tfva: To run FVA you must specify a model as the second parameter!" << endl;
 		return 19;
 	}
-	MatlabLoader loader;
+	OctaveLoader loader;
 	loader.load(mxGetCell(argin, 0));
 	ModelPtr model = loader.getModel();
 
@@ -601,39 +601,24 @@ int help(mxArray *argout, mxArray *argin) {
 
 using namespace metaopt_mex;
 
-int main(int nargs, char** args) {
-	if(nargs <= 4) {
-		cout << "Usage: " << endl;
-		cout << "metaopt infilename outfilename funcname nargout" << endl;
-		cout << "infilename: name of the file containing input arguments" << endl;
-		cout << "outfilename: name of the file containing where the output should be written to" <<endl;
-		cout << "funcname: name of the function to be called" << endl;
-		cout << "nargout: number of output arguments to be produced" << endl;
-		cout << endl;
-		help(NULL, NULL);
-		return 1;
+void mexFunction (int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
+	if(nrhs < 2) {
+		mexPrintf ("Usage: \n");
+		mexPrintf ("metaopt(funcname, inarg)\n");
+		mexPrintf ("infilename: name of the file containing input arguments\n");
+		mexPrintf ("outfilename: name of the file containing where the output should be written to\n");
+		mexPrintf ("funcname: name of the function to be called\n");
+		mexPrintf ("nargout: number of output arguments to be produced\n");
+		mexPrintf ("\n");
+		// help(NULL, NULL);
+		return;
 	}
 
-	char* infile = args[1];
-	char* outfile = args[2];
-	char* fname = args[3];
-	int nargout = atoi(args[4]);
+	char* fname = mxArrayToString(prhs[0]);
+	mxArray* argin = mxDuplicateArray(prhs[1]);
 
-	MATFile* pmatin = matOpen(infile, "r");
-	if(pmatin == NULL) {
-		cout << "failed to open input file" << endl;
-		return 2;
-	}
 
-	mxArray* argin = matGetVariable(pmatin, "varargin");
-	matClose(pmatin);
-
-	if(argin == NULL) {
-		cout << "failed to get input arguments from input file" << endl;
-		return 3;
-	}
-
-	mxArray* argout = mxCreateCellMatrix(1, nargout);
+	mxArray* argout = mxCreateCellMatrix(1, nlhs);
 
 	int code = 0;
 
@@ -657,34 +642,17 @@ int main(int nargs, char** args) {
 
 	}
 	catch(std::exception& ex) {
-		cout << "crashed because of exception\n" << endl;
-		string msg = diagnostic_information(ex)+"\n";
-		cout << msg.c_str() << endl;
-		return 4;
+		mexPrintf ("crashed because of exception\n");
+		mexPrintf (diagnostic_information(ex).c_str());
+		mexPrintf ("\n");
+		return;
 	}
 
 	if(code != 0) {
-		return code;
+		return;
 	}
 
-	mxDestroyArray(argin);
+	plhs[0] = argout;
 
-	MATFile* pmatout = matOpen(outfile, "w");
-	if(pmatout == NULL) {
-		cout << "failed to open output file" << endl;
-		return 5;
-	}
-
-	code = matPutVariable(pmatout, "varargout", argout);
-	if(code != 0) {
-		cout << "failed to put result into matfile" << endl;
-		return code;
-	}
-
-	matClose(pmatout);
-
-	mxDestroyArray(argout);
-
-	return 0;
+	return;
 }
-
