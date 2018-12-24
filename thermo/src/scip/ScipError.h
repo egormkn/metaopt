@@ -47,7 +47,7 @@ typedef boost::error_info<struct tag_error_code,int> error_code;
 	int boost_scip_call_error_code = x; \
 	assert( boost_scip_call_error_code == SCIP_OKAY ); \
 	if( boost_scip_call_error_code != SCIP_OKAY) { \
-		BOOST_THROW_EXCEPTION( ScipError() << error_code(boost_scip_call_error_code)); \
+		BOOST_THROW_EXCEPTION( ScipError() << metaopt::error_code(boost_scip_call_error_code)); \
 	} \
 }
 
