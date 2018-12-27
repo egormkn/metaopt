@@ -50,6 +50,8 @@ public:
 	/** fetch the loaded model */
 	ModelPtr getModel() const;
 
+	ReactionPtr getReaction(int i) const;
+
 	/** clear loader for loading another model */
 	void clear();
 
@@ -58,7 +60,7 @@ private:
 	boost::unordered_map<std::string, MetabolitePtr> _metabolites;
 	boost::shared_ptr<FullModel> _model;
 
-	void buildReaction(const libsbml::Reaction* r);
+	std::vector<ReactionPtr> _reactions;
 };
 
 ModelPtr loadSBMLModel(const libsbml::Model* m);
