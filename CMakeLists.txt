@@ -18,6 +18,12 @@ target_compile_definitions(scip PRIVATE NDEBUG=1) # Disable some runtime checks
 
 add_subdirectory(thermo)
 
+if (SBML)
+    add_subdirectory(sbml)
+endif ()
+
+add_subdirectory(text)
+
 if (MATLAB)
     add_subdirectory(matlab)
 endif ()

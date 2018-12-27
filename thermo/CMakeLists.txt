@@ -67,6 +67,8 @@ if(MATLAB)
             src/model/matlab/MatlabLoader.cpp)
 endif()
 
+set(SRC_METAOPT_MODEL_TEXT
+        src/model/text/TextLoader.cpp)
 
 set(SOURCES
         ${SRC_METAOPT_MODEL_SCIP}
@@ -79,7 +81,8 @@ set(SOURCES
         ${SRC_METAOPT_MODEL_IMPL}
         ${SRC_METAOPT_MODEL_SBML}
         ${SRC_METAOPT_MODEL_OCTAVE}
-        ${SRC_METAOPT_MODEL_MATLAB})
+        ${SRC_METAOPT_MODEL_MATLAB}
+        ${SRC_METAOPT_MODEL_TEXT})
 
 add_library(thermo STATIC ${SOURCES})
 
